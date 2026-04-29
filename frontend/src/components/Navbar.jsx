@@ -10,6 +10,21 @@ import { requestKeyword } from "../lib/catalogService";
 
 import "./Navbar.css";
 
+async function getFunctionErrorMessage(error, data, fallback) {
+  if (data?.error) return data.error;
+
+  try {
+    if (error?.context?.headers?.get("content-type")?.includes("application/json")) {
+      const body = await error.context.json();
+      if (body?.error) return body.error;
+    }
+  } catch {
+    // Fall through to the generic error message.
+  }
+
+  return error?.message || fallback;
+}
+
 function Navbar({ onProfileSave }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
   const { session } = useAuth();
@@ -514,7 +529,7 @@ function Navbar({ onProfileSave }) {
 
     if (error || data?.error) {
       setCheckoutLoading(false);
-      alert(error?.message || data?.error);
+      alert(await getFunctionErrorMessage(error, data, "Failed to create checkout session."));
       return;
     }
 
@@ -538,7 +553,7 @@ function Navbar({ onProfileSave }) {
         body: {},
       });
       if (error || data?.error) {
-        alert(error?.message || data?.error || "Failed to cancel subscription.");
+        alert(await getFunctionErrorMessage(error, data, "Failed to cancel subscription."));
         setCancelLoading(false);
         return;
       }

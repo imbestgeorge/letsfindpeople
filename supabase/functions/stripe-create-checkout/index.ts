@@ -27,14 +27,28 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function isAllowedRedirect(url: string, req: Request) {
-  const allowedOrigin = Deno.env.get("SITE_URL") || req.headers.get("Origin");
-  if (!allowedOrigin) return false;
+function toOrigin(url: string | null) {
+  if (!url) return null;
   try {
-    return new URL(url).origin === new URL(allowedOrigin).origin;
+    return new URL(url).origin;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isAllowedRedirect(url: string, req: Request) {
+  const configuredOrigins = [
+    Deno.env.get("SITE_URL"),
+    Deno.env.get("SITE_URLS"),
+    req.headers.get("Origin"),
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map((value) => toOrigin(value.trim()))
+    .filter(Boolean);
+
+  const redirectOrigin = toOrigin(url);
+  return !!redirectOrigin && configuredOrigins.includes(redirectOrigin);
 }
 
 Deno.serve(async (req: Request) => {
