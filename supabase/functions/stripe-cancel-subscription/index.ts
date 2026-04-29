@@ -1,7 +1,7 @@
 // supabase/functions/stripe-cancel-subscription/index.ts
 // @ts-nocheck
-// Cancels the authenticated user's Stripe subscription at period end
-// (no portal required).
+// Immediately cancels the authenticated user's Stripe subscription
+// so they can start a fresh subscription later.
 //
 // Required Supabase secret env vars:
 //   STRIPE_SECRET_KEY
@@ -69,29 +69,31 @@ Deno.serve(async (req: Request) => {
     return json({ error: "No active subscription found" }, 400);
   }
 
-  if (dbUser.subscription_status !== "active" && dbUser.subscription_status !== "trialing") {
+  if (
+    dbUser.subscription_status !== "active" &&
+    dbUser.subscription_status !== "trialing" &&
+    dbUser.subscription_status !== "canceling"
+  ) {
     return json({ error: "Subscription is not active" }, 400);
   }
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-04-10" });
 
   try {
-    // Cancel at period end so the user keeps access until the billing cycle ends.
-    const subscription = await stripe.subscriptions.update(
-      dbUser.stripe_subscription_id,
-      { cancel_at_period_end: true }
-    );
+    const subscription = await stripe.subscriptions.cancel(dbUser.stripe_subscription_id);
 
-    // Update subscription_status in DB to reflect pending cancellation.
     await supabase
       .from("users")
-      .update({ subscription_status: "canceling" })
+      .update({
+        subscription_status: "canceled",
+        stripe_subscription_id: null,
+      })
       .eq("supabase_uid", user.id);
 
     return json({
       ok: true,
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      currentPeriodEnd: subscription.current_period_end,
+      status: subscription.status,
+      canceledAt: subscription.canceled_at,
     });
   } catch (err) {
     console.error("[stripe-cancel-subscription]", (err as Error).message);

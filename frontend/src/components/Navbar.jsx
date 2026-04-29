@@ -570,7 +570,7 @@ function Navbar({ onProfileSave }) {
   const handleCancelSubscription = async (e) => {
     e?.preventDefault();
     if (!session?.user) return;
-    if (!window.confirm("Are you sure you want to cancel your subscription? You won't be charged again, and you'll keep unlimited searches until the current billing period ends.")) return;
+    if (!window.confirm("Are you sure you want to cancel your subscription now? Your subscription will end immediately, and you can subscribe again with a new renewal date.")) return;
 
     setCancelLoading(true);
     try {
@@ -582,15 +582,8 @@ function Navbar({ onProfileSave }) {
         setCancelLoading(false);
         return;
       }
-      // Reflect the canceling state immediately in the UI.
-      setSavedProfile(prev => ({ ...prev, subscriptionStatus: "canceling" }));
-      if (data?.currentPeriodEnd) {
-        setSubscriptionDetails(prev => ({
-          ...prev,
-          currentPeriodEnd: data.currentPeriodEnd,
-          error: "",
-        }));
-      }
+      setSavedProfile(prev => ({ ...prev, subscriptionStatus: "canceled" }));
+      setSubscriptionDetails({ loading: false, error: "", currentPeriodEnd: null });
     } catch (err) {
       alert("Failed to cancel subscription: " + err.message);
     } finally {
@@ -1140,7 +1133,7 @@ function Navbar({ onProfileSave }) {
                       : subscriptionDetails.error || "Payment date unavailable"}
                   </div>
                 </div>
-                {savedProfile.subscriptionStatus === "active" && (
+                {(savedProfile.subscriptionStatus === "active" || savedProfile.subscriptionStatus === "canceling") && (
                   <a
                     href="#"
                     className="text-purple"
@@ -1149,11 +1142,10 @@ function Navbar({ onProfileSave }) {
                   >
                     {cancelLoading
                       ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      : savedProfile.subscriptionStatus === "canceling"
+                      ? "Cancel Now"
                       : "Cancel Plan"}
                   </a>
-                )}
-                {savedProfile.subscriptionStatus === "canceling" && (
-                  <small style={{ color: "#6c757d" }}>Active until period ends</small>
                 )}
               </div>
               )}
