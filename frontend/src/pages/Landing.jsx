@@ -10,7 +10,7 @@ function Landing() {
 
   const handleSearchNow = () => {
     if (session) {
-      window.location.href = "/console";
+      navigate("/console");
       return;
     }
     window.scrollTo({ top: 0, behavior: "smooth" });

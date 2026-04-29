@@ -8,6 +8,59 @@
   flex: 1;
 }
 
+.policy-page {
+  max-width: 900px;
+}
+
+.policy-title {
+  font-size: 2.5rem;
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.policy-content {
+  color: #212529;
+  line-height: 1.7;
+}
+
+.policy-content h4 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.error-page {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.error-page__code {
+  color: #6D28D9;
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.error-page__title {
+  margin: 1rem 0 0.75rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.error-page__message {
+  max-width: 520px;
+  margin-bottom: 1.5rem;
+  color: #495057;
+  font-size: 1.1rem;
+}
+
+.error-page__button {
+  min-width: 140px;
+}
+
 .btn-link {
   text-decoration: none;
 }

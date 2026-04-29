@@ -860,16 +860,16 @@ function Navbar({ onProfileSave }) {
 
             {/* Admin Button - show when logged in and user is admin */}
             {session && savedProfile.idType === 2 && routerLocation.pathname !== "/admin" && (
-            <a className="nav-link" href="/admin">
+            <Link className="nav-link" to="/admin">
               Admin
-            </a>
+            </Link>
             )}
 
             {/* Console Button - show when logged in */}
             {session && routerLocation.pathname !== "/console" && (
-            <a className="nav-link" href="/console">
+            <Link className="nav-link" to="/console">
               Console
-            </a>
+            </Link>
             )}
 
             {/* Pricing Dropdown - only show when logged in and subscription is not active */}

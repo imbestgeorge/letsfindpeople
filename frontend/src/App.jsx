@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Landing from "./pages/Landing";
 import Console from "./pages/Console";
 import Admin from "./pages/Admin";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Cookies from "./pages/Cookies";
+import Refunds from "./pages/Refunds";
+import Contact from "./pages/Contact";
+import ErrorPage from "./pages/ErrorPage";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -14,96 +20,14 @@ import { AuthProvider } from "./context/AuthContext";
 
 import './App.css';
 
-const policyRoutes = {
-  "/privacy": {
-    fileName: "privacy",
-    title: "Privacy Policy",
-  },
-  "/terms": {
-    fileName: "terms",
-    title: "Terms & Conditions",
-  },
-  "/cookies": {
-    fileName: "cookies",
-    title: "Cookies Policy",
-  },
-  "/refunds": {
-    fileName: "refunds",
-    title: "Refunds Policy",
-  },
-  "/contact": {
-    fileName: "contacts",
-    title: "Contact Information",
-  },
-};
-
-function PolicyModalRoute({ policy }) {
-  const navigate = useNavigate();
-  const closeButtonRef = useRef(null);
-  const [paragraphHtml, setParagraphHtml] = useState("");
-
-  const closeModal = () => {
-    navigate("/", { replace: true });
-  };
+function ScrollToTop() {
+  const { pathname } = useLocation();
 
   useEffect(() => {
-    fetch(`/policies/${policy.fileName}.html`)
-      .then(response => response.text())
-      .then(html => setParagraphHtml(html))
-      .catch(error => console.error("Error loading policy:", error));
-  }, [policy.fileName]);
+    window.scrollTo({ top: 0, left: 0 });
+  }, [pathname]);
 
-  useEffect(() => {
-    closeButtonRef.current?.focus();
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") closeModal();
-    };
-
-    document.body.classList.add("modal-open");
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.classList.remove("modal-open");
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  return (
-    <>
-      <Landing />
-      <div
-        className="modal show"
-        tabIndex="-1"
-        aria-labelledby="routePolicyModalLabel"
-        aria-modal="true"
-        role="dialog"
-        style={{ display: "block" }}
-      >
-        <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h1 className="modal-title fs-5" id="routePolicyModalLabel">
-                {policy.title}
-              </h1>
-              <button
-                type="button"
-                className="btn-close"
-                aria-label="Close"
-                onClick={closeModal}
-                ref={closeButtonRef}
-              ></button>
-            </div>
-            <div
-              className="modal-body"
-              dangerouslySetInnerHTML={{ __html: paragraphHtml }}
-            ></div>
-          </div>
-        </div>
-      </div>
-      <div className="modal-backdrop fade show" onClick={closeModal}></div>
-    </>
-  );
+  return null;
 }
 
 function App() {
@@ -112,7 +36,8 @@ function App() {
   return (
     <AuthProvider>
       <DbDataProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <ScrollToTop />
           <div className="app-wrapper">
             <Navbar onProfileSave={setSavedProfile} />
             <main className="app-content">
@@ -120,11 +45,12 @@ function App() {
                 <Route path="/" element={<Landing />} />
                 <Route path="/console" element={<ProtectedRoute><Console currentUser={savedProfile} /></ProtectedRoute>} />
                 <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-                <Route path="/privacy" element={<PolicyModalRoute policy={policyRoutes["/privacy"]} />} />
-                <Route path="/terms" element={<PolicyModalRoute policy={policyRoutes["/terms"]} />} />
-                <Route path="/cookies" element={<PolicyModalRoute policy={policyRoutes["/cookies"]} />} />
-                <Route path="/refunds" element={<PolicyModalRoute policy={policyRoutes["/refunds"]} />} />
-                <Route path="/contact" element={<PolicyModalRoute policy={policyRoutes["/contact"]} />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/cookies" element={<Cookies />} />
+                <Route path="/refunds" element={<Refunds />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="*" element={<ErrorPage type="notFound" />} />
               </Routes>
             </main>
             <Footer />

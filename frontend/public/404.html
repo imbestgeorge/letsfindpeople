@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LetsFindPeople</title>
+    <script>
+      (function () {
+        var appRoutes = ["admin", "console", "privacy", "terms", "cookies", "refunds", "contact"];
+        var segments = window.location.pathname.split("/").filter(Boolean);
+        var basePath = "/";
+
+        if (segments.length > 1 && appRoutes.indexOf(segments[1]) !== -1) {
+          basePath = "/" + segments[0] + "/";
+        }
+
+        var path = window.location.pathname + window.location.search + window.location.hash;
+        window.location.replace(
+          window.location.origin + basePath + "?redirect=" + encodeURIComponent(path)
+        );
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

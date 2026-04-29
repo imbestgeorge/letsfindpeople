@@ -1,5 +1,5 @@
-import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ErrorPage from "../pages/ErrorPage";
 
 export default function AdminRoute({ children }) {
   const { session, isLoading, isAdmin } = useAuth();
@@ -14,7 +14,8 @@ export default function AdminRoute({ children }) {
     );
   }
 
-  if (!session || !isAdmin) return <Navigate to="/" replace />;
+  if (!session) return <ErrorPage type="unauthorized" />;
+  if (!isAdmin) return <ErrorPage type="forbidden" />;
 
   return children;
 }
