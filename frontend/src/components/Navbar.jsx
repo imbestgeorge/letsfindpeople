@@ -1057,6 +1057,10 @@ function Navbar({ onProfileSave }) {
                 Sign Up | Login
               </a>
               <div className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-login-dropdown">
+                <h5 className="navbar-login-heading">Join and find people with your interests:</h5>
+
+                <div className="mb-3"></div>
+                
                 <button
                   type="button"
                   className="btn btn-google w-100 d-flex align-items-center justify-content-center gap-2"

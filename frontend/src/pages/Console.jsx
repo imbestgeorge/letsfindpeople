@@ -29,6 +29,9 @@ export default function Console({ currentUser }) {
   const [searchError, setSearchError] = useState(null);
   const [searchedKeywords, setSearchedKeywords] = useState([]);
   const [keywordRequestStatus, setKeywordRequestStatus] = useState(null); // null | 'loading' | 'done' | 'error'
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 576px)").matches : false
+  );
   const [freeSearchesRemaining, setFreeSearchesRemaining] = useState(
     currentUser?.freeSearchesRemaining ?? 3
   );
@@ -43,6 +46,18 @@ export default function Console({ currentUser }) {
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
   }, [currentUser?.freeSearchesRemaining]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const mediaQuery = window.matchMedia("(max-width: 576px)");
+    const handleViewportChange = (event) => setIsMobileView(event.matches);
+
+    setIsMobileView(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleViewportChange);
+
+    return () => mediaQuery.removeEventListener("change", handleViewportChange);
+  }, []);
 
   // Build lookup map: id -> { name, subcategory }
   const keywordMap = useMemo(() => {
@@ -194,6 +209,7 @@ export default function Console({ currentUser }) {
   }, [debouncedSearchTerm, allKeywords]);
 
   const deferredFilteredKeywords = useDeferredValue(filteredKeywords);
+  const totalKeywordCount = allKeywords.length.toLocaleString();
 
   // Keyword Selection
   const toggleKeyword = (id) => {
@@ -220,7 +236,7 @@ export default function Console({ currentUser }) {
         <input
           type="text"
           className="form-control border-start-0 rounded-end-pill"
-          placeholder="Search keywords..."
+          placeholder={isMobileView ? `Search ${totalKeywordCount} keywords` : "Search keywords..."}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -232,9 +248,14 @@ export default function Console({ currentUser }) {
           ({selectedKeywords.length} selected)
         </small>
         <small className="console-results-count text-muted">
-          {deferredFilteredKeywords.length > 100
-            ? `Showing 100 out of ${deferredFilteredKeywords.length.toLocaleString()} keywords. Use the search bar to find more.`
-            : `Showing ${deferredFilteredKeywords.length.toLocaleString()} results`}
+          {deferredFilteredKeywords.length > 100 ? (
+            <>
+              Showing 100 out of {deferredFilteredKeywords.length.toLocaleString()} keywords.
+              <span className="console-results-hint"> Use the search bar to find more.</span>
+            </>
+          ) : (
+            `Showing ${deferredFilteredKeywords.length.toLocaleString()} results`
+          )}
         </small>
       </div>
 

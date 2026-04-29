@@ -235,6 +235,10 @@ h1 {
     max-width: 58%;
   }
 
+  .console-results-hint {
+    display: none;
+  }
+
   .console-search-info {
     align-items: center;
   }

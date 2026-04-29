@@ -39,11 +39,20 @@
 }
 
 .navbar-pricing-dropdown {
-  min-width: 400px;
+  width: 320px;
+  min-width: 320px;
 }
 
 .navbar-login-dropdown {
+  width: 280px;
   min-width: 280px;
+}
+
+.navbar-login-heading {
+  color: #000000;
+  background: none;
+  -webkit-text-fill-color: #000000;
+  text-align: center;
 }
 
 .navbar-brand {
@@ -144,20 +153,28 @@
     position: fixed;
     top: 64px;
     right: 0.5rem;
-    left: 0.5rem;
-    width: auto;
-    max-width: none;
+    left: auto;
+    width: min(320px, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
     min-width: 0;
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
     transform: none !important;
   }
+
+  .navbar-login-dropdown.show {
+    width: min(280px, calc(100vw - 1rem));
+  }
 }
 
 @media (max-width: 767.98px) {
   .navbar-dropdown-panel {
-    width: calc(100vw - 1rem);
+    width: min(320px, calc(100vw - 1rem));
     min-width: 0;
+  }
+
+  .navbar-login-dropdown {
+    width: min(280px, calc(100vw - 1rem));
   }
 }
 
