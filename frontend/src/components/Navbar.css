@@ -4,6 +4,31 @@
   min-height: 64px;
 }
 
+.navbar .container-fluid {
+  flex-wrap: nowrap;
+}
+
+.navbar .navbar-collapse {
+  display: flex;
+  flex-basis: auto;
+  flex-grow: 1;
+  align-items: center;
+}
+
+.navbar .navbar-nav {
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.navbar .dropdown-menu {
+  position: absolute;
+}
+
+.navbar .dropdown-menu-end {
+  right: 0;
+  left: auto;
+}
+
 .navbar-brand {
   color: white;
 }

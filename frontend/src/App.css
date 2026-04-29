@@ -199,6 +199,35 @@ h1 {
   text-align: center;
 }
 
+@media (max-width: 576px) {
+  .landing-title {
+    font-size: 2.5rem;
+  }
+
+  .landing-steps {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .landing-steps-row {
+    flex-wrap: nowrap;
+  }
+
+  .landing-steps-row > .col {
+    flex: 0 0 68%;
+    max-width: 68%;
+  }
+
+  .landing-steps h3 {
+    font-size: 1.15rem;
+  }
+
+  .landing-steps p {
+    margin-bottom: 0;
+  }
+}
+
 .people-scroll {
   overflow-x: auto;
   overflow-y: hidden;

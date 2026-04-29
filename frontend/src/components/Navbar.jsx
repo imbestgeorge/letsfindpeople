@@ -954,18 +954,7 @@ function Navbar({ onProfileSave }) {
           <img src={logo} alt="Logo" className="logo"/>LetsFindPeople
         </Link>
 
-        <button className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNavDropdown"
-          aria-controls="navbarNavDropdown"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-
-        <div className="collapse navbar-collapse" id="navbarNavDropdown">
+        <div className="navbar-collapse" id="navbarNavDropdown">
           <ul className="navbar-nav ms-auto align-items-center">
 
             {/* Admin Button - show when logged in and user is admin */}
@@ -1047,7 +1036,7 @@ function Navbar({ onProfileSave }) {
                   : session.user.email}
               </a>
 
-              <ul className="dropdown-menu">
+              <ul className="dropdown-menu dropdown-menu-end">
                 <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
                 <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setShowCancelSubModal(true); }}>Settings</a></li>
                 <li><a className="dropdown-item" href="#" onClick={handleLogout}>Logout</a></li>

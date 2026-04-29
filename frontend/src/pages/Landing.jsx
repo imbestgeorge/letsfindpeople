@@ -19,12 +19,10 @@ function Landing() {
 
   return (
     <div class="container mt-4">
-        <h1>The best website to find people with same interests!</h1>
-
-        <Carousel />
+        <h1 className="landing-title">The best website to find people with same interests!</h1>
         
-        <div class="mt-4">
-          <div className="row row-cols-1 row-cols-md-3 g-4">
+        <div className="mt-5 landing-steps">
+          <div className="row row-cols-1 row-cols-md-3 g-4 landing-steps-row">
             <div className="col">
               <div className="card h-100">
                 <img src={square} className="card-img-top"/>
