@@ -229,10 +229,16 @@ h1 {
 
   .console-keyword-meta {
     align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem !important;
   }
 
   .console-results-count {
-    max-width: 58%;
+    max-width: 100%;
+    width: 100%;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 0.78rem;
   }
 
   .console-results-hint {

@@ -951,7 +951,7 @@ function Navbar({ onProfileSave }) {
     <nav className="navbar navbar-expand-lg bg-body-tertiary">
       <div className="container-fluid">
         <Link className="navbar-brand" to="/">
-          <img src={logo} alt="Logo" className="logo"/>LetsFindPeople
+          <img src={logo} alt="Logo" className="logo"/><span className="navbar-brand-text">LetsFindPeople</span>
         </Link>
 
         <div className="navbar-collapse" id="navbarNavDropdown">
@@ -1099,14 +1099,14 @@ function Navbar({ onProfileSave }) {
               <button type="button" className="btn-close" onClick={() => setShowCancelSubModal(false)}></button>
             </div>
             <div className="modal-body">      
-              <div className="d-flex align-items-center justify-content-between mb-3">
-                <div>
+              <div className="settings-account-row d-flex align-items-center justify-content-between mb-3">
+                <div className="settings-email-block">
                   <div>Email</div>
-                  <div>{session?.user?.email}</div>
+                  <div className="settings-email-value">{session?.user?.email}</div>
                 </div>
                 <a
                   href="#"
-                  className="text-purple"
+                  className="text-purple settings-action-link"
                   style={{ color: "#6D28D9" }}
                   onClick={async (e) => {
                     e.preventDefault();
@@ -1296,7 +1296,7 @@ function Navbar({ onProfileSave }) {
 
                   {/* Location & Phone Number Row */}
                   <div className="row">
-                    <div className="col-6 mb-3">
+                    <div className="col-12 col-md-6 mb-3">
                       <label htmlFor="location" className="form-label">Location</label>
                       <div className="input-group has-validation">
                         <input
@@ -1324,7 +1324,7 @@ function Navbar({ onProfileSave }) {
                       </div>
                     </div>
 
-                    <div className="col-6 mb-3">
+                    <div className="col-12 col-md-6 mb-3">
                       <label htmlFor="phoneNumber" className="form-label">Phone Number <span className="text-muted fw-normal" style={{fontSize:"0.85em"}}>(Optional)</span></label>
                       <div className="input-group">
                         <input
@@ -1359,7 +1359,7 @@ function Navbar({ onProfileSave }) {
                   {/* Social Usernames - 2x2 grid */}
                   <div className="row">
                     {/* Instagram */}
-                    <div className="col-6 mb-3">
+                    <div className="col-12 col-md-6 mb-3">
                       <label htmlFor="instagramUsername" className="form-label">Instagram <span className="text-muted fw-normal" style={{fontSize:"0.85em"}}>(Optional)</span></label>
                       <div className="input-group">
                         <input
@@ -1377,7 +1377,7 @@ function Navbar({ onProfileSave }) {
                     </div>
 
                     {/* TikTok */}
-                    <div className="col-6 mb-3">
+                    <div className="col-12 col-md-6 mb-3">
                       <label htmlFor="tiktokUsername" className="form-label">TikTok <span className="text-muted fw-normal" style={{fontSize:"0.85em"}}>(Optional)</span></label>
                       <div className="input-group">
                         <input
@@ -1395,7 +1395,7 @@ function Navbar({ onProfileSave }) {
                     </div>
 
                     {/* Snapchat */}
-                    <div className="col-6 mb-3">
+                    <div className="col-12 col-md-6 mb-3">
                       <label htmlFor="snapchatUsername" className="form-label">Snapchat <span className="text-muted fw-normal" style={{fontSize:"0.85em"}}>(Optional)</span></label>
                       <div className="input-group">
                         <input
@@ -1413,7 +1413,7 @@ function Navbar({ onProfileSave }) {
                     </div>
 
                     {/* Discord */}
-                    <div className="col-6 mb-3">
+                    <div className="col-12 col-md-6 mb-3">
                       <label htmlFor="discordUsername" className="form-label">Discord <span className="text-muted fw-normal" style={{fontSize:"0.85em"}}>(Optional)</span></label>
                       <div className="input-group">
                         <input

@@ -209,7 +209,6 @@ export default function Console({ currentUser }) {
   }, [debouncedSearchTerm, allKeywords]);
 
   const deferredFilteredKeywords = useDeferredValue(filteredKeywords);
-  const totalKeywordCount = allKeywords.length.toLocaleString();
 
   // Keyword Selection
   const toggleKeyword = (id) => {
@@ -236,7 +235,7 @@ export default function Console({ currentUser }) {
         <input
           type="text"
           className="form-control border-start-0 rounded-end-pill"
-          placeholder={isMobileView ? `Search ${totalKeywordCount} keywords` : "Search keywords..."}
+          placeholder={isMobileView ? "Search keywords" : "Search keywords..."}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />

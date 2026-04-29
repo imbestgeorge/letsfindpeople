@@ -59,6 +59,10 @@
   color: white;
 }
 
+.navbar-brand-text {
+  display: inline;
+}
+
 .navbar-brand:hover {
   color: #ffffff;
 }
@@ -175,6 +179,34 @@
 
   .navbar-login-dropdown {
     width: min(280px, calc(100vw - 1rem));
+  }
+}
+
+@media (max-width: 575.98px) {
+  .navbar-brand-text {
+    display: none;
+  }
+
+  .logo {
+    margin-right: 0;
+  }
+
+  .settings-account-row {
+    gap: 1rem;
+  }
+
+  .settings-email-block {
+    min-width: 0;
+  }
+
+  .settings-email-value {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .settings-action-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 }
 
