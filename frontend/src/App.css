@@ -226,6 +226,22 @@ h1 {
   .landing-steps p {
     margin-bottom: 0;
   }
+
+  .console-keyword-meta {
+    align-items: flex-start;
+  }
+
+  .console-results-count {
+    max-width: 58%;
+  }
+
+  .console-search-info {
+    align-items: center;
+  }
+
+  .console-search-info p {
+    font-size: 0.875rem;
+  }
 }
 
 .people-scroll {
@@ -339,6 +355,24 @@ html, body {
   max-height: 330px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.console-selected-count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.console-results-count {
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+.console-search-info > * {
+  min-width: 0;
+}
+
+.console-search-info p {
+  white-space: nowrap;
 }
 
 .spinner-primary {

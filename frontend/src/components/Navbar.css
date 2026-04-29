@@ -18,6 +18,7 @@
 .navbar .navbar-nav {
   flex-direction: row;
   justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .navbar .dropdown-menu {
@@ -27,6 +28,22 @@
 .navbar .dropdown-menu-end {
   right: 0;
   left: auto;
+}
+
+.navbar .nav-link {
+  white-space: nowrap;
+}
+
+.navbar-dropdown-panel {
+  max-width: calc(100vw - 1rem);
+}
+
+.navbar-pricing-dropdown {
+  min-width: 400px;
+}
+
+.navbar-login-dropdown {
+  min-width: 280px;
 }
 
 .navbar-brand {
@@ -108,4 +125,53 @@
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
+}
+
+@media (max-width: 991.98px) {
+  .navbar .container-fluid {
+    gap: 0.75rem;
+  }
+
+  .navbar .navbar-nav {
+    gap: 0.5rem;
+  }
+
+  .profile-dropdown-name {
+    display: none;
+  }
+
+  .navbar-dropdown-panel.show {
+    position: fixed;
+    top: 64px;
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .navbar-dropdown-panel {
+    width: calc(100vw - 1rem);
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .navbar-brand {
+    font-size: 0.95rem;
+  }
+
+  .navbar .navbar-nav {
+    gap: 0.25rem;
+  }
+
+  .navbar .nav-link {
+    padding-right: 0.25rem;
+    padding-left: 0.25rem;
+  }
 }

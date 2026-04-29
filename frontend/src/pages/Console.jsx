@@ -227,11 +227,11 @@ export default function Console({ currentUser }) {
       </div>
 
       {/* Keywords Counter */}
-      <div className="d-flex justify-content-between mb-2">
-        <small className="text-muted">
+      <div className="console-keyword-meta d-flex justify-content-between align-items-start gap-3 mb-2">
+        <small className="console-selected-count text-muted">
           ({selectedKeywords.length} selected)
         </small>
-        <small className="text-muted">
+        <small className="console-results-count text-muted">
           {deferredFilteredKeywords.length > 100
             ? `Showing 100 out of ${deferredFilteredKeywords.length.toLocaleString()} keywords. Use the search bar to find more.`
             : `Showing ${deferredFilteredKeywords.length.toLocaleString()} results`}
@@ -326,7 +326,7 @@ export default function Console({ currentUser }) {
       </div>
 
       {/* Info Text */}
-      <div className="mt-3 d-flex justify-content-between">
+      <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
         {!hasUnlimitedSearches && (
           <p className="text-muted mb-0">
             *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining

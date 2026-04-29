@@ -977,10 +977,7 @@ function Navbar({ onProfileSave }) {
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing
               </a>
-              <div
-                className="dropdown-menu dropdown-menu-end p-4"
-                style={{ minWidth: "400px", maxWidth: "95vw" }}
-              >
+              <div className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-pricing-dropdown">
                 <div className="row align-items-center">
                   <h5 className="title mb-2">Free Trial</h5>
                   <p className="text mb-0">Access to limited searches and all keywords.</p>
@@ -1025,15 +1022,17 @@ function Navbar({ onProfileSave }) {
             {/* Meus Dados Dropdown */}
             {session && (
             <div className="dropdown">
-              <a className="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <a className="nav-link dropdown-toggle profile-dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <img
                   src={savedProfile.profileImagePreview || defaultProfile}
                   alt="Profile"
                   style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "2px solid #dee2e6" }}
                 />
-                {savedProfile.firstName || savedProfile.lastName
-                  ? `${savedProfile.firstName} ${savedProfile.lastName}`.trim()
-                  : session.user.email}
+                <span className="profile-dropdown-name">
+                  {savedProfile.firstName || savedProfile.lastName
+                    ? `${savedProfile.firstName} ${savedProfile.lastName}`.trim()
+                    : session.user.email}
+                </span>
               </a>
 
               <ul className="dropdown-menu dropdown-menu-end">
@@ -1057,7 +1056,7 @@ function Navbar({ onProfileSave }) {
               >
                 Sign Up | Login
               </a>
-              <div className="dropdown-menu dropdown-menu-end p-4" style={{ minWidth: "280px" }}>
+              <div className="dropdown-menu dropdown-menu-end p-4 navbar-dropdown-panel navbar-login-dropdown">
                 <button
                   type="button"
                   className="btn btn-google w-100 d-flex align-items-center justify-content-center gap-2"
