@@ -228,17 +228,17 @@ h1 {
   }
 
   .console-keyword-meta {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.25rem !important;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .console-results-count {
-    max-width: 100%;
-    width: 100%;
-    text-align: left;
+    max-width: none;
+    width: auto;
+    margin-left: auto;
+    text-align: right;
     white-space: nowrap;
-    font-size: 0.78rem;
   }
 
   .console-results-hint {
