@@ -25,6 +25,15 @@ async function getFunctionErrorMessage(error, data, fallback) {
   return error?.message || fallback;
 }
 
+function formatStripeDate(unixSeconds) {
+  if (!unixSeconds) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(unixSeconds * 1000));
+}
+
 function Navbar({ onProfileSave }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
   const { session } = useAuth();
@@ -165,9 +174,15 @@ function Navbar({ onProfileSave }) {
   });
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [subscriptionDetails, setSubscriptionDetails] = useState({
+    loading: false,
+    error: "",
+    currentPeriodEnd: null,
+  });
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const isModalOpen = showCancelSubModal || showEditModal;
 
   // Reset profile state when the user logs out
   useEffect(() => {
@@ -185,8 +200,18 @@ function Navbar({ onProfileSave }) {
         idType: 1,
       });
       setProfileLoaded(false);
+      setSubscriptionDetails({ loading: false, error: "", currentPeriodEnd: null });
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isModalOpen]);
 
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
@@ -559,6 +584,13 @@ function Navbar({ onProfileSave }) {
       }
       // Reflect the canceling state immediately in the UI.
       setSavedProfile(prev => ({ ...prev, subscriptionStatus: "canceling" }));
+      if (data?.currentPeriodEnd) {
+        setSubscriptionDetails(prev => ({
+          ...prev,
+          currentPeriodEnd: data.currentPeriodEnd,
+          error: "",
+        }));
+      }
     } catch (err) {
       alert("Failed to cancel subscription: " + err.message);
     } finally {
@@ -593,6 +625,57 @@ function Navbar({ onProfileSave }) {
     setShowEditModal(true);
     setEditStage(1);
   };
+
+  useEffect(() => {
+    if (routerLocation.pathname !== "/") return;
+    setShowCancelSubModal(false);
+    setShowEditModal(false);
+    setEditStage(1);
+    setValidated(false);
+    setSearches({});
+  }, [routerLocation.pathname]);
+
+  useEffect(() => {
+    const hasSubscription =
+      savedProfile.subscriptionStatus === "active" ||
+      savedProfile.subscriptionStatus === "canceling";
+
+    if (!showCancelSubModal || !session?.user?.id || !hasSubscription) return;
+
+    let isMounted = true;
+    setSubscriptionDetails(prev => ({ ...prev, loading: true, error: "" }));
+
+    supabase.functions
+      .invoke("stripe-get-subscription", { body: {} })
+      .then(async ({ data, error }) => {
+        if (!isMounted) return;
+        if (error || data?.error) {
+          setSubscriptionDetails({
+            loading: false,
+            error: await getFunctionErrorMessage(error, data, "Failed to load subscription date."),
+            currentPeriodEnd: null,
+          });
+          return;
+        }
+        setSubscriptionDetails({
+          loading: false,
+          error: "",
+          currentPeriodEnd: data?.currentPeriodEnd ?? null,
+        });
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setSubscriptionDetails({
+          loading: false,
+          error: err.message || "Failed to load subscription date.",
+          currentPeriodEnd: null,
+        });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showCancelSubModal, session?.user?.id, savedProfile.subscriptionStatus]);
 
   useEffect(() => {
     if (!mustCompleteProfile) return;
@@ -1050,9 +1133,11 @@ function Navbar({ onProfileSave }) {
                       : "Free Trial"}
                   </div>
                   <div style={{ fontSize: "0.85em", color: "#6c757d" }}>
-                    {savedProfile.subscriptionStatus === "active" || savedProfile.subscriptionStatus === "canceling"
-                      ? "Unlimited searches"
-                      : "Limited searches"}
+                    {subscriptionDetails.loading
+                      ? "Loading payment date..."
+                      : subscriptionDetails.currentPeriodEnd
+                      ? `${savedProfile.subscriptionStatus === "canceling" ? "Active until" : "Next payment"}: ${formatStripeDate(subscriptionDetails.currentPeriodEnd)}`
+                      : subscriptionDetails.error || "Payment date unavailable"}
                   </div>
                 </div>
                 {savedProfile.subscriptionStatus === "active" && (
