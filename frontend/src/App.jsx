@@ -20,12 +20,111 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 
 import './App.css';
 
+const SITE_NAME = "LetsFindPeople";
+const SITE_URL = "https://letsfindpeople.com";
+const DEFAULT_DESCRIPTION = "LetsFindPeople helps you discover and connect with people who share your interests.";
+const DEFAULT_IMAGE_URL = `${SITE_URL}/preview.png`;
+
+const PAGE_META = {
+  "/": {
+    title: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+  },
+  "/auth/callback": {
+    title: `${SITE_NAME} | Signing In`,
+    description: "Finishing your LetsFindPeople sign in.",
+  },
+  "/account-deleted": {
+    title: `${SITE_NAME} | Account Deleted`,
+    description: "Your LetsFindPeople account status page.",
+  },
+  "/console": {
+    title: `${SITE_NAME} | Console`,
+    description: "Search for people and manage your LetsFindPeople profile.",
+  },
+  "/admin": {
+    title: `${SITE_NAME} | Admin`,
+    description: "LetsFindPeople administration dashboard.",
+  },
+  "/privacy": {
+    title: `${SITE_NAME} | Privacy`,
+    description: "Read the LetsFindPeople privacy policy.",
+  },
+  "/terms": {
+    title: `${SITE_NAME} | Terms`,
+    description: "Read the LetsFindPeople terms and conditions.",
+  },
+  "/cookies": {
+    title: `${SITE_NAME} | Cookies`,
+    description: "Read the LetsFindPeople cookie policy.",
+  },
+  "/refunds": {
+    title: `${SITE_NAME} | Refunds`,
+    description: "Read the LetsFindPeople refunds policy.",
+  },
+  "/contact": {
+    title: `${SITE_NAME} | Contact`,
+    description: "Contact LetsFindPeople for questions and support.",
+  },
+};
+
+function setMetaTag(selector, attribute, value) {
+  let tag = document.head.querySelector(selector);
+
+  if (!tag) {
+    tag = document.createElement("meta");
+    const match = selector.match(/\[(name|property)="([^"]+)"\]/);
+
+    if (match) {
+      tag.setAttribute(match[1], match[2]);
+    }
+
+    document.head.appendChild(tag);
+  }
+
+  tag.setAttribute(attribute, value);
+}
+
+function setLinkTag(selector, rel, href) {
+  let tag = document.head.querySelector(selector);
+
+  if (!tag) {
+    tag = document.createElement("link");
+    tag.setAttribute("rel", rel);
+    document.head.appendChild(tag);
+  }
+
+  tag.setAttribute("href", href);
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
   }, [pathname]);
+
+  return null;
+}
+
+function HeadManager() {
+  const { pathname } = useLocation();
+  const meta = PAGE_META[pathname] || {
+    title: `${SITE_NAME} | Page Not Found`,
+    description: "The page you are looking for could not be found on LetsFindPeople.",
+  };
+  const pageUrl = new URL(pathname, SITE_URL).toString();
+
+  useEffect(() => {
+    document.title = meta.title;
+    setMetaTag('meta[name="description"]', "content", meta.description);
+    setMetaTag('meta[property="og:title"]', "content", meta.title);
+    setMetaTag('meta[property="og:description"]', "content", meta.description);
+    setMetaTag('meta[property="og:image"]', "content", DEFAULT_IMAGE_URL);
+    setMetaTag('meta[property="og:url"]', "content", pageUrl);
+    setMetaTag('meta[property="og:type"]', "content", "website");
+    setLinkTag('link[rel="canonical"]', "canonical", pageUrl);
+  }, [meta.description, meta.title, pageUrl]);
 
   return null;
 }
@@ -71,6 +170,7 @@ function App() {
     <AuthProvider>
       <DbDataProvider>
         <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <HeadManager />
           <ScrollToTop />
           <AuthRedirectHandler />
           <div className="app-wrapper">
