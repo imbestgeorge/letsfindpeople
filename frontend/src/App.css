@@ -205,6 +205,9 @@ h1 {
 
 .landing-launch-message {
   background: none;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  line-height: 1.2;
+  margin: 20px 0;
   -webkit-text-fill-color: var(--bs-secondary-color);
 }
 

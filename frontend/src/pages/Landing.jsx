@@ -59,8 +59,8 @@ function Landing() {
 
         <div className="mb-4">
           <div className="row">
-            <div className="col-12 col-md-4 mx-auto">
-              {launchLive ? (
+            {launchLive ? (
+              <div className="col-12 col-md-4 mx-auto">
                 <>
                   <button type="button" className="btn btn-sm main-btn w-100" onClick={handleSearchNow}>
                     Search Now!
@@ -70,12 +70,14 @@ function Landing() {
                     <strong>350k Users Available</strong>
                   </div>
                 </>
-              ) : (
+              </div>
+            ) : (
+              <div className="col-12 col-md-10 mx-auto">
                 <div className="text-center">
                   <h2 className="landing-launch-message text-muted">{LAUNCH_MESSAGE}</h2>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
       </div>
     </div>
