@@ -72,7 +72,7 @@ function Landing() {
                 </>
               ) : (
                 <div className="text-center">
-                  <strong>{LAUNCH_MESSAGE}</strong>
+                  <h2 className="landing-launch-message text-muted">{LAUNCH_MESSAGE}</h2>
                 </div>
               )}
             </div>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
 export const LAUNCH_DATE = new Date(2026, 4, 16);
-export const LAUNCH_MESSAGE = "Launching on 16 May 2026";
-export const SEARCH_LOCKED_MESSAGE = "This feature will only be available on 16 May 2026";
+export const LAUNCH_MESSAGE = "*Launching on 16 May 2026";
+export const SEARCH_LOCKED_MESSAGE = "*This feature will only be available on 16 May 2026";
 
 export const isLaunchLive = (now = new Date()) => now >= LAUNCH_DATE;
 

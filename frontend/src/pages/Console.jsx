@@ -264,9 +264,6 @@ export default function Console({ currentUser }) {
       <div className="console-keyword-meta d-flex justify-content-between align-items-start gap-3 mb-2">
         <small className="console-selected-count text-muted">
           ({selectedKeywords.length} selected)
-          {hasTooManyKeywords && (
-            <span className="text-danger ms-2">Select up to {MAX_SEARCH_KEYWORDS} keywords to search.</span>
-          )}
         </small>
         <small className="console-results-count text-muted">
           {deferredFilteredKeywords.length > 100 ? (
@@ -378,7 +375,7 @@ export default function Console({ currentUser }) {
           <p className="text-muted mb-0 ms-auto">351k users</p>
         </div>
       ) : (
-        <div className="console-search-info mt-3 text-center">
+        <div className="console-search-info mt-3 text-start">
           <p className="text-muted mb-0">{SEARCH_LOCKED_MESSAGE}</p>
         </div>
       )}
@@ -394,8 +391,19 @@ export default function Console({ currentUser }) {
         </div>
       )}
 
+      {/* Too many keywords selected */}
+      {!isSearching && hasTooManyKeywords && !searchError && (
+        <div className="container px-0">
+          <div className="card nothing-card text-center mt-4 mb-5">
+            <div className="card-body d-flex justify-content-center align-items-center">
+              <p className="card-text text-muted m-0">Select up to {MAX_SEARCH_KEYWORDS} keywords to search.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Not searched yet */}
-      {!isSearching && !needsKeyword && searchResults === null && (
+      {!isSearching && !hasTooManyKeywords && !needsKeyword && searchResults === null && (
         <div className="container px-0">
           <div className="card nothing-card text-center mt-4 mb-5">
             <div className="card-body d-flex justify-content-center align-items-center">

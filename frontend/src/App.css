@@ -203,6 +203,11 @@ h1 {
   border: 0;
 }
 
+.landing-launch-message {
+  background: none;
+  -webkit-text-fill-color: var(--bs-secondary-color);
+}
+
 @media (max-width: 576px) {
   .landing-title {
     font-size: 2.5rem;
