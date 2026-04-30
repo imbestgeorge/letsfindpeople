@@ -143,18 +143,78 @@ function Navbar({ onProfileSave }) {
   const [profileImagePreview, setProfileImagePreview] = useState(null);
   const [profileImageSizeError, setProfileImageSizeError] = useState(false);
 
-  const handleProfileImageChange = (e) => {
+  const resizeProfileImage = (file) => new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(imageUrl);
+
+      const canvas = document.createElement("canvas");
+      const size = 256;
+      canvas.width = size;
+      canvas.height = size;
+
+      const context = canvas.getContext("2d");
+      const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+      const sourceX = (image.naturalWidth - sourceSize) / 2;
+      const sourceY = (image.naturalHeight - sourceSize) / 2;
+
+      context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceSize,
+        sourceSize,
+        0,
+        0,
+        size,
+        size
+      );
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Failed to process profile image."));
+            return;
+          }
+
+          const baseName = file.name.replace(/\.[^.]+$/, "") || "profile-picture";
+          resolve(new File([blob], `${baseName}.jpg`, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        0.85
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      reject(new Error("Invalid image file."));
+    };
+
+    image.src = imageUrl;
+  });
+
+  const handleProfileImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
+
+    try {
+      const resizedFile = await resizeProfileImage(file);
+      if (resizedFile.size > 3 * 1024 * 1024) {
+        setProfileImageSizeError(true);
+        setProfileImage(null);
+        setProfileImagePreview(null);
+        return;
+      }
+      setProfileImageSizeError(false);
+      setProfileImage(resizedFile);
+      setProfileImagePreview(URL.createObjectURL(resizedFile));
+    } catch {
       setProfileImageSizeError(true);
       setProfileImage(null);
       setProfileImagePreview(null);
-      return;
     }
-    setProfileImageSizeError(false);
-    setProfileImage(file);
-    setProfileImagePreview(URL.createObjectURL(file));
   };
 
   const removeProfileImage = () => {
