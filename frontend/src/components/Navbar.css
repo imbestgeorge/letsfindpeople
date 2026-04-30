@@ -169,7 +169,8 @@
   .navbar-pricing-dropdown.show {
     position: absolute;
     top: 100%;
-    right: 0;
+    right: auto;
+    left: 0;
     max-height: none;
     overflow-y: visible;
   }
