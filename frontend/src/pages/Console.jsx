@@ -3,6 +3,9 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { searchUsers, consumeSearchAllowance, requestKeyword } from "../lib/catalogService";
+import { SEARCH_LOCKED_MESSAGE, useLaunchLive } from "../lib/launch";
+
+const MAX_SEARCH_KEYWORDS = 12;
 
 const getAge = (birthday) => {
   const birth = new Date(birthday);
@@ -40,8 +43,14 @@ export default function Console({ currentUser }) {
     currentUser?.subscriptionStatus === "active" ||
     currentUser?.subscriptionStatus === "canceling";
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
+  const launchLive = useLaunchLive();
+  const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
   const isSearchDisabled =
-    isSearching || catalogLoading || (!hasUnlimitedSearches && !hasFreeSearchesRemaining);
+    !launchLive ||
+    isSearching ||
+    catalogLoading ||
+    hasTooManyKeywords ||
+    (!hasUnlimitedSearches && !hasFreeSearchesRemaining);
 
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
@@ -121,8 +130,18 @@ export default function Console({ currentUser }) {
     setNeedsKeyword(false);
     setSearchError(null);
 
+    if (!launchLive) {
+      setSearchError(SEARCH_LOCKED_MESSAGE);
+      return;
+    }
+
     if (selectedKeywords.length === 0) {
       setNeedsKeyword(true);
+      return;
+    }
+
+    if (selectedKeywords.length > MAX_SEARCH_KEYWORDS) {
+      setSearchError(`Select up to ${MAX_SEARCH_KEYWORDS} keywords to search.`);
       return;
     }
 
@@ -245,6 +264,9 @@ export default function Console({ currentUser }) {
       <div className="console-keyword-meta d-flex justify-content-between align-items-start gap-3 mb-2">
         <small className="console-selected-count text-muted">
           ({selectedKeywords.length} selected)
+          {hasTooManyKeywords && (
+            <span className="text-danger ms-2">Select up to {MAX_SEARCH_KEYWORDS} keywords to search.</span>
+          )}
         </small>
         <small className="console-results-count text-muted">
           {deferredFilteredKeywords.length > 100 ? (
@@ -346,14 +368,20 @@ export default function Console({ currentUser }) {
       </div>
 
       {/* Info Text */}
-      <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
-        {!hasUnlimitedSearches && (
-          <p className="text-muted mb-0">
-            *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining
-          </p>
-        )}
-        <p className="text-muted mb-0 ms-auto">351k users</p>
-      </div>
+      {launchLive ? (
+        <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
+          {!hasUnlimitedSearches && (
+            <p className="text-muted mb-0">
+              *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining
+            </p>
+          )}
+          <p className="text-muted mb-0 ms-auto">351k users</p>
+        </div>
+      ) : (
+        <div className="console-search-info mt-3 text-center">
+          <p className="text-muted mb-0">{SEARCH_LOCKED_MESSAGE}</p>
+        </div>
+      )}
 
       {/* Search Error */}
       {!isSearching && searchError && (

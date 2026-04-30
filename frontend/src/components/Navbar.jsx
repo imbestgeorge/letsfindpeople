@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabaseClient";
 import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
 
+import { useLaunchLive } from "../lib/launch";
 import "./Navbar.css";
 
 async function getFunctionErrorMessage(error, data, fallback) {
@@ -986,6 +987,7 @@ function Navbar({ onProfileSave }) {
     (tiktokUsername.trim() && showTiktok) ||
     (snapchatUsername.trim() && showSnapchat) ||
     (discordUsername.trim() && showDiscord);
+  const launchLive = useLaunchLive();
 
   return (
     <>
@@ -999,7 +1001,7 @@ function Navbar({ onProfileSave }) {
           <ul className="navbar-nav ms-auto align-items-center">
 
             {/* Pricing Dropdown - only show when logged in and subscription is not active or canceling */}
-            {session && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
+            {launchLive && session && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
             <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing

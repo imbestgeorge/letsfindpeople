@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom';
 import logo from "../assets/logo.png";
+import { useLaunchLive } from "../lib/launch";
 
 import "./Footer.css";
 
 export default function Footer() {
+  const launchLive = useLaunchLive();
+
   return (
     <footer className="footer">
       {/* Logo */}
@@ -24,9 +27,11 @@ export default function Footer() {
         <Link to="/cookies" style={{ color: 'white', margin: '0 10px' }}>
           Cookies
         </Link>
-        <Link to="/refunds" style={{ color: 'white', margin: '0 10px' }}>
-          Refunds
-        </Link>
+        {launchLive && (
+          <Link to="/refunds" style={{ color: 'white', margin: '0 10px' }}>
+            Refunds
+          </Link>
+        )}
         <Link to="/contact" style={{ color: 'white', margin: '0 10px' }}>
           Contact
         </Link>

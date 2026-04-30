@@ -5,10 +5,12 @@ import search from "../assets/search.gif";
 import profiles from "../assets/profiles.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { LAUNCH_MESSAGE, useLaunchLive } from "../lib/launch";
 
 function Landing() {
   const navigate = useNavigate();
   const { session } = useAuth();
+  const launchLive = useLaunchLive();
 
   const handleSearchNow = () => {
     if (session) {
@@ -58,13 +60,21 @@ function Landing() {
         <div className="mb-4">
           <div className="row">
             <div className="col-12 col-md-4 mx-auto">
-              <button type="button" className="btn btn-sm main-btn w-100" onClick={handleSearchNow}>
-                Search Now!
-              </button>
-              <div className="d-flex align-items-center justify-content-center gap-2">
-                <img src={profiles} style={{ height: '32px' }} />
-                <strong>350k Users Available</strong>
-              </div>
+              {launchLive ? (
+                <>
+                  <button type="button" className="btn btn-sm main-btn w-100" onClick={handleSearchNow}>
+                    Search Now!
+                  </button>
+                  <div className="d-flex align-items-center justify-content-center gap-2">
+                    <img src={profiles} style={{ height: '32px' }} alt="" />
+                    <strong>350k Users Available</strong>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center">
+                  <strong>{LAUNCH_MESSAGE}</strong>
+                </div>
+              )}
             </div>
           </div>
       </div>
