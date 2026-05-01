@@ -12,6 +12,44 @@ import { useLaunchLive } from "../lib/launch";
 import "./Navbar.css";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+const GBP_COUNTRIES = new Set(["GB", "UK", "UNITED KINGDOM", "ENGLAND", "SCOTLAND", "WALES", "NORTHERN IRELAND"]);
+const EUROPE_COUNTRIES = new Set([
+  "AL", "AD", "AT", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+  "DE", "GR", "HU", "IS", "IE", "IT", "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC",
+  "ME", "NL", "MK", "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SK", "SI", "ES", "SE",
+  "CH", "UA", "VA",
+  "ALBANIA", "ANDORRA", "AUSTRIA", "BELARUS", "BELGIUM", "BOSNIA AND HERZEGOVINA",
+  "BULGARIA", "CROATIA", "CYPRUS", "CZECHIA", "CZECH REPUBLIC", "DENMARK", "ESTONIA",
+  "FINLAND", "FRANCE", "GERMANY", "GREECE", "HUNGARY", "ICELAND", "IRELAND", "ITALY",
+  "KOSOVO", "LATVIA", "LIECHTENSTEIN", "LITHUANIA", "LUXEMBOURG", "MALTA", "MOLDOVA",
+  "MONACO", "MONTENEGRO", "NETHERLANDS", "NORTH MACEDONIA", "NORWAY", "POLAND",
+  "PORTUGAL", "ROMANIA", "RUSSIA", "SAN MARINO", "SERBIA", "SLOVAKIA", "SLOVENIA",
+  "SPAIN", "SWEDEN", "SWITZERLAND", "UKRAINE", "VATICAN CITY",
+]);
+
+function normalizeCountry(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function getBrowserCountryCode() {
+  try {
+    return normalizeCountry(new Intl.Locale(navigator.language).region);
+  } catch {
+    return "";
+  }
+}
+
+function getBasicPlanPrice(location) {
+  const locationParts = String(location || "")
+    .split(",")
+    .map(normalizeCountry)
+    .filter(Boolean);
+  const countryCandidates = [...locationParts, getBrowserCountryCode()];
+
+  if (countryCandidates.some(country => GBP_COUNTRIES.has(country))) return "£1.99";
+  if (countryCandidates.some(country => EUROPE_COUNTRIES.has(country))) return "€1.99";
+  return "$2.99";
+}
 
 async function getFunctionErrorMessage(error, data, fallback) {
   if (data?.error) return data.error;
@@ -1063,17 +1101,30 @@ function Navbar({ onProfileSave }) {
     // Persist to DB if logged in
     if (session?.user) {
       try {
-        // Resolve keyword names -> IDs using the catalog
-        const nameToId = {};
-        (dbData?.categories ?? []).forEach(cat =>
-          cat.subcategories.forEach(sub =>
-            sub.items.forEach(item => { nameToId[item.name] = item.id; })
-          )
-        );
-        const keywordIds = Object.values(selected)
-          .flat()
-          .map(name => nameToId[name])
-          .filter(id => id != null);
+        // Resolve keyword names -> IDs inside each selector so duplicate labels
+        // like "Other" keep the correct subcategory identity.
+        const selectorItems = {
+          visualArt: visualArtItems, digitalArt: digitalArtItems,
+          musicGenres: musicGenreItems, musicArtists: musicArtistItems,
+          musicSoft: musicSoftItems, instruments: instrumentItems,
+          performing: performItems, writing: writingItems,
+          movies: movieItems, tvShows: tvShowItems, anime: animeItems,
+          games: gamingItems, memes: memeItems, apps: appItems,
+          devices: deviceItems, designSoft: designSoftItems,
+          progLang: progLangItems, ai: aiItems, subjects: subjectItems,
+          careers: careerItems, personality: personalityItems, hobbies: hobbyItems,
+          sexuality: sexualityItems, fitness: fitnessItems, sports: sportsItems,
+          outdoor: outdoorItems, food: foodItems, places: placeItems,
+          animals: animalItems, vehicles: vehicleItems, roleModels: roleModelItems,
+          other: otherItems,
+        };
+        const keywordIds = Object.entries(selected)
+          .flatMap(([key, names]) => {
+            const items = selectorItems[key] || [];
+            return (names || [])
+              .map(name => items.find(item => item.name === name)?.id)
+              .filter(id => id != null);
+          });
 
         await updateUserProfile(
           session.user.id,
@@ -1106,6 +1157,10 @@ function Navbar({ onProfileSave }) {
     (snapchatUsername.trim() && showSnapchat) ||
     (discordUsername.trim() && showDiscord);
   const launchLive = useLaunchLive();
+  const basicPlanPrice = useMemo(
+    () => getBasicPlanPrice(savedProfile.location),
+    [savedProfile.location]
+  );
 
   return (
     <>
@@ -1161,7 +1216,7 @@ function Navbar({ onProfileSave }) {
                   >
                     {checkoutLoading
                       ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      : "Subscribe for €2,99/month"}
+                      : `Subscribe for ${basicPlanPrice}/month`}
                   </button>
                 )}
 
