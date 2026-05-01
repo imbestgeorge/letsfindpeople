@@ -45,6 +45,7 @@ function Navbar({ onProfileSave }) {
   const loginDropdownToggleRef = useRef(null);
   const pricingDropdownRef = useRef(null);
   const pricingDropdownMenuRef = useRef(null);
+  const contactErrorRef = useRef(null);
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
@@ -1000,7 +1001,14 @@ function Navbar({ onProfileSave }) {
       const lastNameTypeError = lastName.trim() && /\d/.test(lastName);
       const countryCodeTypeError = countryCode && /[a-zA-Z]/.test(countryCode);
       const phoneTypeError = phoneNumber && /[a-zA-Z]/.test(phoneNumber);
-      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear || !location.trim() || !hasContact || countryCodeTypeError || phoneTypeError) return;
+      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear || !location.trim() || !hasContact || countryCodeTypeError || phoneTypeError) {
+        if (!hasContact) {
+          setTimeout(() => {
+            contactErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 0);
+        }
+        return;
+      }
       // Auto-select matching countries/cities in question 26 (places)
       const locationParts = location.split(",").map(p => p.trim().toLowerCase());
       const locationMatches = [...countryItems, ...cityItems]
@@ -1603,7 +1611,7 @@ function Navbar({ onProfileSave }) {
                     </div>
                   </div>
                   {validated && !hasContact && (
-                    <div className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Please add and show at least one contact (phone number or username).</div>
+                    <div ref={contactErrorRef} className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Please add and show at least one contact (phone number or username).</div>
                   )}
 
                 </form>
