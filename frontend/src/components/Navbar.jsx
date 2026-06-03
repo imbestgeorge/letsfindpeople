@@ -1811,13 +1811,12 @@ function Navbar({ onProfileSave }) {
                   <>
                   {/* Q1 */}
                   <div className="mb-4">
-                    <p className="fw-semibold mb-2">1- Do you make visual or digital art?</p>
+                    <p className="fw-semibold mb-2">1- Do you make physical or digital art?</p>
                     {renderYesNo("visualArt")}
                     {answers.visualArt === "yes" && (
                       <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any interests you have in visual art.</p>
+                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any interests you have in physical or digital art.</p>
                         {renderKeywords("visualArt", visualArtItems, false)}
-                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any interests you have in digital art.</p>
                         {renderKeywords("digitalArt", digitalArtItems, false)}
                         <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any design software you use.</p>
                         {renderKeywords("designSoft", designSoftItems, false)}
@@ -1845,9 +1844,8 @@ function Navbar({ onProfileSave }) {
                     {renderYesNo("produceMusic")}
                     {answers.produceMusic === "yes" && (
                       <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any music software you use.</p>
+                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any music software you use or instruments you play.</p>
                         {renderKeywords("musicSoft", musicSoftItems, false)}
-                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select the instruments you play.</p>
                         {renderKeywords("instruments", instrumentItems, false)}
                       </>
                     )}
@@ -1931,11 +1929,9 @@ function Navbar({ onProfileSave }) {
                     {renderYesNo("goGym")}
                     {answers.goGym === "yes" && (
                       <>
-                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any keywords related to your fitness.</p>
+                        <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any fitness, sports, or outdoor physical activities you like.</p>
                         {renderKeywords("fitness", fitnessItems, false)}
-                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select the sports you practice.</p>
                         {renderKeywords("sports", sportsItems, false)}
-                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any outdoor physical activities you like.</p>
                         {renderKeywords("outdoor", outdoorItems, false)}
                       </>
                     )}
