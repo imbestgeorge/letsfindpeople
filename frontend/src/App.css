@@ -199,46 +199,7 @@ h1 {
   text-align: center;
 }
 
-.landing-steps .card {
-  border: 0;
-}
-
-.landing-launch-message {
-  background: none;
-  font-size: clamp(1.25rem, 4vw, 1.75rem);
-  line-height: 1.2;
-  margin: 20px 0;
-  -webkit-text-fill-color: var(--bs-secondary-color);
-}
-
 @media (max-width: 576px) {
-  .landing-title {
-    font-size: 2.5rem;
-  }
-
-  .landing-steps {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .landing-steps-row {
-    flex-wrap: nowrap;
-  }
-
-  .landing-steps-row > .col {
-    flex: 0 0 68%;
-    max-width: 68%;
-  }
-
-  .landing-steps h3 {
-    font-size: 1.15rem;
-  }
-
-  .landing-steps p {
-    margin-bottom: 0;
-  }
-
   .console-keyword-meta {
     align-items: center;
     flex-direction: row;

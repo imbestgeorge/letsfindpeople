@@ -3,7 +3,6 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount } from "../lib/catalogService";
-import { SEARCH_LOCKED_MESSAGE, useLaunchLive } from "../lib/launch";
 
 const MAX_SEARCH_KEYWORDS = 12;
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
@@ -144,11 +143,9 @@ export default function Console({ currentUser }) {
       ? "*You have to set up your profile before searching"
       : "";
   const isSearchBlocked = !isLoggedIn || !isProfileComplete;
-  const launchLive = useLaunchLive();
   const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
   const isSearchDisabled =
     isSearchBlocked ||
-    !launchLive ||
     isSearching ||
     catalogLoading ||
     hasTooManyKeywords ||
@@ -247,11 +244,6 @@ export default function Console({ currentUser }) {
     setDebouncedSearchTerm("");
     setNeedsKeyword(false);
     setSearchError(null);
-
-    if (!launchLive) {
-      setSearchError(SEARCH_LOCKED_MESSAGE);
-      return;
-    }
 
     if (!isLoggedIn) {
       setSearchError("You have to login before searching");
@@ -493,7 +485,7 @@ export default function Console({ currentUser }) {
       </div>
 
       {/* Info Text */}
-      {launchLive && !isAdmin ? (
+      {!isAdmin && (
         <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
           {searchSetupMessage ? (
             <p className="text-muted mb-0">
@@ -509,10 +501,6 @@ export default function Console({ currentUser }) {
               {userCount.toLocaleString()} users
             </p>
           )}
-        </div>
-      ) : (
-        <div className="console-search-info mt-3 text-start">
-          <p className="text-muted mb-0">{SEARCH_LOCKED_MESSAGE}</p>
         </div>
       )}
 

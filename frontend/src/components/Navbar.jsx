@@ -8,7 +8,6 @@ import { supabase } from "../lib/supabaseClient";
 import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
 
-import { useLaunchLive } from "../lib/launch";
 import "./Navbar.css";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
@@ -1119,6 +1118,98 @@ function Navbar({ onProfileSave }) {
     );
   };
 
+  const renderCombinedKeywords = (searchKey, sources) => {
+    const term = (debouncedSearches[searchKey] || "").toLowerCase();
+    const isLoadingKw = !!loadingSearchKeys[searchKey];
+    const allItems = sources.flatMap(({ key, items }) =>
+      items.map(item => ({
+        ...item,
+        selectorKey: key,
+        uniqueKey: `${key}-${item.id}`,
+        isSelected: (selected[key] || []).includes(item.name),
+      }))
+    );
+    const allFiltered = allItems.filter(item => item.name.toLowerCase().includes(term));
+    const filteredSel = allFiltered.filter(item => item.isSelected);
+    const filteredUnsel = allFiltered.filter(item => !item.isSelected);
+    const unselToShow = term ? filteredUnsel : filteredUnsel.slice(0, 100);
+    const hasMore = !term && filteredUnsel.length > 100;
+    const requestTerm = (debouncedSearches[searchKey] || "").trim();
+    const requestState = keywordRequestStatuses[searchKey]?.term === requestTerm
+      ? keywordRequestStatuses[searchKey].status
+      : null;
+
+    return (
+      <div>
+        <div className="input-group mb-2">
+          <span className="input-group-text bg-white border-end-0" style={{ borderRadius: "8px 0 0 8px" }}>
+            <i className="bi bi-search"></i>
+          </span>
+          <input
+            type="text"
+            className="form-control border-start-0"
+            placeholder="Search..."
+            value={searches[searchKey] || ""}
+            onChange={e => setSearch(searchKey, e.target.value)}
+            style={{ borderRadius: "0 8px 8px 0" }}
+          />
+        </div>
+        <div className="border rounded-4 p-2 unselected-keywords-container">
+          <div className="modal-scroll-area d-flex flex-wrap gap-2">
+            {isLoadingKw ? (
+              <div className="d-flex justify-content-center align-items-center w-100" style={{ minHeight: "80px" }}>
+                <div className="spinner-border spinner-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                {filteredSel.map(item => (
+                  <button key={item.uniqueKey} type="button" className="btn btn-category modal-keyword-card" onClick={() => toggleKw(item.selectorKey, item.name)}>
+                    <small className="d-block text-start opacity-75">{itemSubcategoryMap[item.id] || "Interest"}</small>
+                    <div className="d-flex align-items-center gap-2"><span>{item.name}</span><i className="bi bi-dash-square"></i></div>
+                  </button>
+                ))}
+                {unselToShow.map(item => (
+                  <button key={item.uniqueKey} type="button" className="btn btn-category-outline modal-keyword-card" onClick={() => toggleKw(item.selectorKey, item.name)}>
+                    <small className="d-block text-start opacity-75">{itemSubcategoryMap[item.id] || "Interest"}</small>
+                    <div className="d-flex align-items-center gap-2"><span>{item.name}</span><i className="bi bi-plus-square"></i></div>
+                  </button>
+                ))}
+                {allFiltered.length === 0 && (
+                  <span className="text-muted w-100 text-center">
+                    No results found.{' '}
+                    {requestTerm && (
+                      requestState === 'done' ? (
+                        <span className="text-success">Keyword requested!</span>
+                      ) : requestState === 'error' ? (
+                        <span className="text-danger">Failed to request keyword.</span>
+                      ) : (
+                        <a
+                          href="#"
+                          style={{ textDecoration: 'underline', color: '#6D28D9' }}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            await requestMissingKeyword(searchKey, requestTerm);
+                          }}
+                        >
+                          {requestState === 'loading' ? 'Requesting...' : 'Click me to request keyword'}
+                        </a>
+                      )
+                    )}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        {!isLoadingKw && hasMore && (
+          <small className="text-muted d-block mt-1">Showing 100 of {filteredUnsel.length} results. Use the search bar to find more.</small>
+        )}
+      </div>
+    );
+  };
+
   // Renders yes / no toggle buttons
   const renderYesNo = (key) => (
     <div className="d-flex gap-2 mb-3">
@@ -1281,7 +1372,6 @@ function Navbar({ onProfileSave }) {
     (tiktokUsername.trim() && showTiktok) ||
     (snapchatUsername.trim() && showSnapchat) ||
     (discordUsername.trim() && showDiscord);
-  const launchLive = useLaunchLive();
   const basicPlanPrice = useMemo(
     () => getBasicPlanPrice(savedProfile.location),
     [savedProfile.location]
@@ -1299,7 +1389,7 @@ function Navbar({ onProfileSave }) {
           <ul className="navbar-nav ms-auto align-items-center">
 
             {/* Pricing Dropdown - only show when logged in and subscription is not active or canceling */}
-            {launchLive && session && savedProfile.idType !== 2 && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
+            {session && savedProfile.idType !== 2 && !["active", "canceling"].includes(savedProfile.subscriptionStatus) && (
             <div className="dropdown" style={{ position: "relative" }} ref={pricingDropdownRef}>
               <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Pricing
@@ -1816,10 +1906,11 @@ function Navbar({ onProfileSave }) {
                     {answers.visualArt === "yes" && (
                       <>
                         <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any interests you have in physical or digital art.</p>
-                        {renderKeywords("visualArt", visualArtItems, false)}
-                        {renderKeywords("digitalArt", digitalArtItems, false)}
-                        <p className="text-muted mt-3 mb-2" style={{ fontSize: 14 }}>Select any design software you use.</p>
-                        {renderKeywords("designSoft", designSoftItems, false)}
+                        {renderCombinedKeywords("art", [
+                          { key: "visualArt", items: visualArtItems },
+                          { key: "digitalArt", items: digitalArtItems },
+                          { key: "designSoft", items: designSoftItems },
+                        ])}
                       </>
                     )}
                   </div>
@@ -1845,8 +1936,10 @@ function Navbar({ onProfileSave }) {
                     {answers.produceMusic === "yes" && (
                       <>
                         <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any music software you use or instruments you play.</p>
-                        {renderKeywords("musicSoft", musicSoftItems, false)}
-                        {renderKeywords("instruments", instrumentItems, false)}
+                        {renderCombinedKeywords("musicMaking", [
+                          { key: "musicSoft", items: musicSoftItems },
+                          { key: "instruments", items: instrumentItems },
+                        ])}
                       </>
                     )}
                   </div>
@@ -1930,9 +2023,11 @@ function Navbar({ onProfileSave }) {
                     {answers.goGym === "yes" && (
                       <>
                         <p className="text-muted mb-2" style={{ fontSize: 14 }}>Select any fitness, sports, or outdoor physical activities you like.</p>
-                        {renderKeywords("fitness", fitnessItems, false)}
-                        {renderKeywords("sports", sportsItems, false)}
-                        {renderKeywords("outdoor", outdoorItems, false)}
+                        {renderCombinedKeywords("activeLifestyle", [
+                          { key: "fitness", items: fitnessItems },
+                          { key: "sports", items: sportsItems },
+                          { key: "outdoor", items: outdoorItems },
+                        ])}
                       </>
                     )}
                   </div>
