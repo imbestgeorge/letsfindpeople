@@ -142,7 +142,15 @@ function getOtherInterestNames(selected, selectedGender, countryNames) {
   const hiddenNames = new Set(countryNames);
   if (selectedGender) hiddenNames.add(selectedGender);
 
-  return (selected?.other || []).filter(name => !hiddenNames.has(name));
+  const names = new Set();
+  Object.values(selected || {}).forEach(values => {
+    if (!Array.isArray(values)) return;
+    values.forEach(name => {
+      if (!hiddenNames.has(name)) names.add(name);
+    });
+  });
+
+  return [...names];
 }
 
 function isDirectQuestionComplete(selected, skipped, key, selectedGender, countryNames) {
@@ -273,6 +281,44 @@ function Navbar({ onProfileSave }) {
     });
     return map;
   }, [dbData]);
+  const keywordPrimarySelectorMap = useMemo(() => {
+    const map = {};
+    const selectorSources = {
+      visualArt: visualArtItems,
+      digitalArt: digitalArtItems,
+      designSoft: designSoftItems,
+      musicGenres: musicGenreItems,
+      musicArtists: musicArtistItems,
+      musicSoft: musicSoftItems,
+      instruments: instrumentItems,
+      movies: movieItems,
+      tvShows: tvShowItems,
+      anime: animeItems,
+      games: gamingItems,
+      progLang: progLangItems,
+      subjects: subjectItems,
+      personality: personalityItems,
+      hobbies: hobbyItems,
+      fitness: fitnessItems,
+      sports: sportsItems,
+      outdoor: outdoorItems,
+      roleModels: roleModelItems,
+    };
+
+    Object.entries(selectorSources).forEach(([key, items]) => {
+      items.forEach(item => {
+        if (!map[item.id]) map[item.id] = key;
+      });
+    });
+
+    return map;
+  }, [
+    visualArtItems, digitalArtItems, designSoftItems,
+    musicGenreItems, musicArtistItems, musicSoftItems, instrumentItems,
+    movieItems, tvShowItems, animeItems, gamingItems,
+    progLangItems, subjectItems, personalityItems, hobbyItems,
+    fitnessItems, sportsItems, outdoorItems, roleModelItems,
+  ]);
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -678,23 +724,53 @@ function Navbar({ onProfileSave }) {
     !isProfileComplete;
 
   const setAnswer  = (key, val) => setAnswers(prev  => ({ ...prev, [key]: prev[key] === val ? null : val }));
-  const toggleKw   = (key, name) => setSelected(prev => {
+  const toggleKw   = (key, name, item = null) => setSelected(prev => {
+    const removeFromKey = (state, targetKey) => {
+      const nextValues = (state[targetKey] || []).filter(value => value !== name);
+      if (nextValues.length > 0) {
+        state[targetKey] = nextValues;
+      } else {
+        delete state[targetKey];
+      }
+    };
+
+    const addToKey = (state, targetKey) => {
+      const currentValues = state[targetKey] || [];
+      if (!currentValues.includes(name)) {
+        state[targetKey] = [...currentValues, name];
+      }
+    };
+
     if (key === "other" && hiddenOtherInterestNames.has(name)) return prev;
 
-    const current = prev[key] || [];
-    if (key === "other" && GENDER_KEYWORDS.includes(name)) {
-      const withoutGender = current.filter(k => !GENDER_KEYWORDS.includes(k));
-      return {
-        ...prev,
-        [key]: current.includes(name) ? withoutGender : [...withoutGender, name],
-      };
+    if (key === "other") {
+      const targetKey = item ? keywordPrimarySelectorMap[item.id] || "other" : "other";
+      const isSelected =
+        (prev[targetKey] || []).includes(name) ||
+        (prev.other || []).includes(name);
+      const next = { ...prev };
+
+      if (isSelected) {
+        removeFromKey(next, targetKey);
+        removeFromKey(next, "other");
+        return next;
+      }
+
+      addToKey(next, targetKey);
+      return next;
     }
-    return {
-      ...prev,
-      [key]: current.includes(name)
-        ? current.filter(k => k !== name)
-        : [...current, name],
-    };
+
+    const current = prev[key] || [];
+    const next = { ...prev };
+
+    if (current.includes(name)) {
+      removeFromKey(next, key);
+      removeFromKey(next, "other");
+      return next;
+    }
+
+    addToKey(next, key);
+    return next;
   });
   const toggleSkip = (key) => setSkipped(prev => ({ ...prev, [key]: !prev[key] }));
   const setSearch  = (key, val) => setSearches(prev => ({ ...prev, [key]: val }));
@@ -1025,8 +1101,13 @@ function Navbar({ onProfileSave }) {
       i.name.toLowerCase().includes(term) &&
       (key !== "other" || !hiddenOtherInterestNames.has(i.name))
     );
-    const filteredSel  = allFiltered.filter(i =>  sel.includes(i.name));
-    const filteredUnsel= allFiltered.filter(i => !sel.includes(i.name));
+    const isSelectedItem = (item) => {
+      if (key !== "other") return sel.includes(item.name);
+      const targetKey = keywordPrimarySelectorMap[item.id] || "other";
+      return (selected[targetKey] || []).includes(item.name) || (selected.other || []).includes(item.name);
+    };
+    const filteredSel  = allFiltered.filter(isSelectedItem);
+    const filteredUnsel= allFiltered.filter(i => !isSelectedItem(i));
     const unselToShow  = term ? filteredUnsel : filteredUnsel.slice(0, 100);
     const hasMore      = !term && filteredUnsel.length > 100;
     const requestTerm  = (debouncedSearches[key] || "").trim();
@@ -1071,13 +1152,13 @@ function Navbar({ onProfileSave }) {
                 ) : (
                   <>
                     {filteredSel.map(i => (
-                      <button key={i.id} type="button" className="btn btn-category modal-keyword-card" onClick={() => toggleKw(key, i.name)}>
+                      <button key={i.id} type="button" className="btn btn-category modal-keyword-card" onClick={() => toggleKw(key, i.name, i)}>
                         <small className="d-block text-start opacity-75">{itemSubcategoryMap[i.id] || "Interest"}</small>
                         <div className="d-flex align-items-center gap-2"><span>{i.name}</span><i className="bi bi-dash-square"></i></div>
                       </button>
                     ))}
                     {unselToShow.map(i => (
-                      <button key={i.id} type="button" className="btn btn-category-outline modal-keyword-card" onClick={() => toggleKw(key, i.name)}>
+                      <button key={i.id} type="button" className="btn btn-category-outline modal-keyword-card" onClick={() => toggleKw(key, i.name, i)}>
                         <small className="d-block text-start opacity-75">{itemSubcategoryMap[i.id] || "Interest"}</small>
                         <div className="d-flex align-items-center gap-2"><span>{i.name}</span><i className="bi bi-plus-square"></i></div>
                       </button>

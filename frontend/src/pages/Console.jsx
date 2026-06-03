@@ -55,7 +55,15 @@ function getOtherInterestNames(selected, selectedGender, countryNames) {
   const hiddenNames = new Set(countryNames);
   if (selectedGender) hiddenNames.add(selectedGender);
 
-  return (selected?.other || []).filter(name => !hiddenNames.has(name));
+  const names = new Set();
+  Object.values(selected || {}).forEach(values => {
+    if (!Array.isArray(values)) return;
+    values.forEach(name => {
+      if (!hiddenNames.has(name)) names.add(name);
+    });
+  });
+
+  return [...names];
 }
 
 function isDirectQuestionComplete(selected, skipped, key, selectedGender, countryNames) {
@@ -142,6 +150,9 @@ export default function Console({ currentUser }) {
     : !isProfileComplete
       ? "*You have to set up your profile before searching"
       : "";
+  const showSearchInfo =
+    !isAdmin &&
+    (!!searchSetupMessage || !hasUnlimitedSearches || userCount >= 10000);
   const isSearchBlocked = !isLoggedIn || !isProfileComplete;
   const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
   const isSearchDisabled =
@@ -478,14 +489,14 @@ export default function Console({ currentUser }) {
       </div>
 
       {/* Search Button */}
-      <div className="mt-4">
+      <div className={`mt-4${showSearchInfo ? "" : " mb-4"}`}>
         <button className="btn btn-primary w-100" onClick={runSearch} disabled={isSearchDisabled}>
           Search
         </button>
       </div>
 
       {/* Info Text */}
-      {!isAdmin && (
+      {showSearchInfo && (
         <div className="console-search-info mt-3 d-flex justify-content-between gap-3">
           {searchSetupMessage ? (
             <p className="text-muted mb-0">
