@@ -585,7 +585,7 @@ export default function Console({ currentUser }) {
       {!isSearching && !needsKeyword && searchResults !== null && searchResults.length > 0 && (
         <div className="container px-0 mt-4">
           <h2>Showing {searchResults.length} {searchResults.length === 1 ? "person" : "people"}:</h2>
-          <div style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }} className="mt-4 mb-5">
+          <div style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }} className="mt-4 mb-4">
             <div style={{ display: "flex", flexWrap: "nowrap", gap: "1rem", width: "max-content" }}>
               {searchResults.map((person, index) => (
                 <div key={person.id ?? index} style={{ flex: "0 0 auto", width: "320px" }}>
@@ -622,7 +622,7 @@ export default function Console({ currentUser }) {
                           <p className="mb-1"><i className="bi bi-discord me-2"></i>@{person.contacts.discord.value}</p>
                         )}
                       </div>
-                      <div className="d-flex flex-wrap gap-2 mt-2" style={{ maxHeight: "90px", overflowY: "auto" }}>
+                      <div className="d-flex flex-wrap gap-2 mt-2" style={{ maxHeight: "165px", overflowY: "auto" }}>
                         {[
                           ...(person.keywordIds || []).filter(id => searchedKeywords.includes(id)),
                           ...(person.keywordIds || []).filter(id => !searchedKeywords.includes(id)),
