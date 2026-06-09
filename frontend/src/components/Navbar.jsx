@@ -624,7 +624,7 @@ function Navbar({ onProfileSave }) {
       dropdown.removeEventListener("hidden.bs.dropdown", resetNotificationsDropdownOffset);
       window.removeEventListener("resize", updateNotificationsDropdownOffset);
     };
-  }, [showNotificationsNav]);
+  }, [session, isAdmin, savedProfile.idType]);
 
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
