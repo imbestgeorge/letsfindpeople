@@ -82,8 +82,8 @@
   width: 280px;
   min-width: 280px;
   max-height: calc(100vh - 5rem);
-  overflow-y: auto;
   margin-bottom: 0.75rem;
+  overflow: hidden;
 }
 
 .navbar-notification-badge {
@@ -93,14 +93,18 @@
   padding: 0.1rem 0.28rem;
 }
 
+.navbar-notification-item {
+  border-color: var(--bs-border-color);
+  transition: none;
+}
+
 .navbar-notification-item-unread {
-  background-color: #f3efff;
-  border-left: 3px solid #6D28D9;
+  background-color: #f3efff !important;
 }
 
 .navbar-notification-item-unread:hover,
-.navbar-notification-item-unread:focus {
-  background-color: #ede7ff;
+.navbar-notification-item-unread:focus-within {
+  background-color: #f3efff !important;
 }
 
 .navbar-notifications-dropdown .min-w-0 {
@@ -108,13 +112,50 @@
 }
 
 .navbar-notifications-list {
+  gap: 0.5rem;
   max-height: 13.5rem;
   overflow-y: auto;
   padding-bottom: 0.5rem;
 }
 
+.navbar-notification-open,
+.navbar-notification-open:hover,
+.navbar-notification-open:focus,
+.navbar-notification-open:active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+}
+
+.navbar-notification-delete,
+.navbar-notification-delete:hover,
+.navbar-notification-delete:focus,
+.navbar-notification-delete:active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .global-chat-message-own {
   background-color: #6D28D9;
+}
+
+.global-chat-avatar {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
+
+.global-chat-avatar-button,
+.global-chat-avatar-button:hover,
+.global-chat-avatar-button:focus,
+.global-chat-avatar-button:active,
+.global-chat-author-link,
+.global-chat-author-link:hover,
+.global-chat-author-link:focus,
+.global-chat-author-link:active {
+  box-shadow: none !important;
 }
 
 .navbar-login-heading {

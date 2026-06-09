@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useDeferredValue, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
-import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount } from "../lib/catalogService";
+import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount, getPublicUserById } from "../lib/catalogService";
 
 const MAX_SEARCH_KEYWORDS = 12;
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
@@ -76,7 +77,13 @@ function isDirectQuestionComplete(selected, skipped, key, selectedGender, countr
 
 export default function Console({ currentUser }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
-  const { session } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const focusedPersonId = useMemo(
+    () => new URLSearchParams(location.search).get("person"),
+    [location.search]
+  );
 
   // State Management
   const [selectedKeywords, setSelectedKeywords] = useState([]);
@@ -91,6 +98,7 @@ export default function Console({ currentUser }) {
   const [searchedKeywords, setSearchedKeywords] = useState([]);
   const [keywordRequestStatus, setKeywordRequestStatus] = useState(null); // null | 'loading' | 'done' | 'error'
   const [userCount, setUserCount] = useState(null);
+  const peopleContainerRef = useRef(null);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 576px)").matches : false
   );
@@ -161,6 +169,54 @@ export default function Console({ currentUser }) {
     catalogLoading ||
     hasTooManyKeywords ||
     (!hasUnlimitedSearches && !hasFreeSearchesRemaining);
+
+  useEffect(() => {
+    if (!focusedPersonId) return undefined;
+    if (authLoading) return undefined;
+
+    const userId = Number(focusedPersonId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      navigate("/", { replace: true });
+      return undefined;
+    }
+
+    if (!session?.user) {
+      setSearchError("You have to login before viewing this user.");
+      setSearchResults([]);
+      return undefined;
+    }
+
+    let isMounted = true;
+    setIsSearching(true);
+    setSearchResults(null);
+    setSearchError(null);
+    setNeedsKeyword(false);
+    setSearchedKeywords([]);
+
+    getPublicUserById(userId)
+      .then((person) => {
+        if (!isMounted) return;
+        setSearchResults(person ? [person] : []);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setSearchError(err.message || "Failed to load user.");
+        setSearchResults([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsSearching(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authLoading, focusedPersonId, navigate, session?.user]);
+
+  useEffect(() => {
+    if (!focusedPersonId || isSearching || !searchResults?.length) return;
+
+    peopleContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusedPersonId, isSearching, searchResults]);
 
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
@@ -251,6 +307,10 @@ export default function Console({ currentUser }) {
 
   // Run search: call backend with selected keyword IDs, then prepend current user if matching
   const runSearch = async () => {
+    if (focusedPersonId) {
+      navigate("/", { replace: true });
+    }
+
     const hadSearch = searchTerm.trim().length > 0;
     setSearchTerm("");
     setDebouncedSearchTerm("");
@@ -588,7 +648,7 @@ export default function Console({ currentUser }) {
 
       {/* People List */}
       {!isSearching && !needsKeyword && searchResults !== null && searchResults.length > 0 && (
-        <div className="container px-0 mt-4">
+        <div className="container px-0 mt-4" ref={peopleContainerRef}>
           <h2>Showing {searchResults.length} {searchResults.length === 1 ? "person" : "people"}:</h2>
           <div style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }} className="mt-4 mb-4">
             <div style={{ display: "flex", flexWrap: "nowrap", gap: "1rem", width: "max-content" }}>
@@ -600,7 +660,7 @@ export default function Console({ currentUser }) {
                         <img
                           src={person.profilePicture || defaultProfile}
                           alt={person.name}
-                          style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "2px solid #dee2e6", flexShrink: 0 }}
+                          style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", objectPosition: "center", border: "2px solid #dee2e6", flexShrink: 0 }}
                         />
                         <h4 className="card-title mb-0">
                           {person.name}{person.isCurrentUser ? " (Me)" : ""}

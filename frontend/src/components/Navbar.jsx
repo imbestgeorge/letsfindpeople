@@ -1041,6 +1041,13 @@ function Navbar({ onProfileSave }) {
     setChatDraft("");
   };
 
+  const openChatAuthorInConsole = (message) => {
+    if (!message?.userId) return;
+    setShowChatModal(false);
+    setChatDraft("");
+    navigate(`/?person=${encodeURIComponent(message.userId)}`);
+  };
+
   const handleChatSubmit = async (e) => {
     e.preventDefault();
     if (!session?.user) {
@@ -1845,7 +1852,7 @@ function Navbar({ onProfileSave }) {
                 )}
               </button>
               <div
-                className="dropdown-menu dropdown-menu-end p-0 navbar-dropdown-panel navbar-notifications-dropdown"
+                className="dropdown-menu dropdown-menu-end p-2 navbar-dropdown-panel navbar-notifications-dropdown"
                 ref={notificationsDropdownMenuRef}
               >
                 {!session ? (
@@ -1866,16 +1873,16 @@ function Navbar({ onProfileSave }) {
                     No notifications yet.
                   </div>
                 ) : (
-                  <div className="list-group list-group-flush navbar-notifications-list">
+                  <div className="list-group navbar-notifications-list">
                     {notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`list-group-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
+                        className={`list-group-item rounded-3 navbar-notification-item ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
                       >
                         <div className="d-flex align-items-center gap-2">
                           <button
                             type="button"
-                            className="btn btn-link text-body text-decoration-none text-start p-0 min-w-0 flex-grow-1"
+                            className="btn navbar-notification-open text-start p-0 min-w-0 flex-grow-1"
                             onClick={() => openNotification(notification)}
                           >
                             <div className="d-flex align-items-center justify-content-between gap-2">
@@ -1890,12 +1897,12 @@ function Navbar({ onProfileSave }) {
                           </button>
                           <button
                             type="button"
-                            className="btn btn-outline-danger btn-sm flex-shrink-0"
+                            className="btn btn-link text-danger p-1 flex-shrink-0 navbar-notification-delete"
                             onClick={(e) => dismissNotification(e, notification)}
                             aria-label={`Delete notification ${notification.title}`}
                             title="Delete"
                           >
-                            <i className="bi bi-trash"></i>
+                            <i className="bi bi-trash3"></i>
                           </button>
                         </div>
                       </div>
@@ -2025,6 +2032,13 @@ function Navbar({ onProfileSave }) {
                         >
                           {isOwnMessage ? (
                             <div className="w-75 d-flex flex-column align-items-end">
+                              <button
+                                type="button"
+                                className="btn btn-link p-0 mb-1 text-decoration-none text-body fw-semibold small text-end global-chat-author-link"
+                                onClick={() => openChatAuthorInConsole(message)}
+                              >
+                                {getChatAuthorName(message)}
+                              </button>
                               <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
                                 {message.body}
                               </div>
@@ -2036,14 +2050,28 @@ function Navbar({ onProfileSave }) {
                             </div>
                           ) : (
                             <>
-                              <img
-                                src={message.author?.profileUrl || defaultProfile}
-                                alt={getChatAuthorName(message)}
-                                width="32"
-                                height="32"
-                                className="rounded-circle border object-fit-cover flex-shrink-0"
-                              />
+                              <button
+                                type="button"
+                                className="btn p-0 border-0 bg-transparent flex-shrink-0 global-chat-avatar-button"
+                                onClick={() => openChatAuthorInConsole(message)}
+                                aria-label={`Show ${getChatAuthorName(message)} in search`}
+                              >
+                                <img
+                                  src={message.author?.profileUrl || defaultProfile}
+                                  alt={getChatAuthorName(message)}
+                                  width="32"
+                                  height="32"
+                                  className="rounded-circle border global-chat-avatar"
+                                />
+                              </button>
                               <div className="w-75 d-flex flex-column align-items-start">
+                                <button
+                                  type="button"
+                                  className="btn btn-link p-0 mb-1 text-decoration-none text-body fw-semibold small global-chat-author-link"
+                                  onClick={() => openChatAuthorInConsole(message)}
+                                >
+                                  {getChatAuthorName(message)}
+                                </button>
                                 <div className="rounded-3 p-2 text-break bg-white border">
                                   {message.body}
                                 </div>

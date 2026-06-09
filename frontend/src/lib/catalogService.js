@@ -44,6 +44,25 @@ function isCacheStale(entry) {
 
 // ── public API ────────────────────────────────────────────────────────────────
 
+function mapPublicUser(u) {
+  return {
+    id:             u.id_user,
+    supabaseUid:    u.supabase_uid,
+    name:           `${u.first_name || ""} ${u.last_name || ""}`.trim(),
+    birthday:       u.date_of_birth,
+    location:       u.location,
+    contacts: {
+      phone:     { value: u.phone_number  || "", show: u.show_phone_number },
+      instagram: { value: u.instagram     || "", show: u.show_instagram },
+      tiktok:    { value: u.tiktok        || "", show: u.show_tiktok },
+      snapchat:  { value: u.snapchat      || "", show: u.show_snapchat },
+      discord:   { value: u.discord       || "", show: u.show_discord },
+    },
+    profilePicture: u.profile_url || null,
+    keywordIds:     u.all_keyword_ids || [],
+  };
+}
+
 /**
  * Returns the catalog as { categories }.
  * Uses cache when possible; re-fetches when stale or version changed.
@@ -153,24 +172,22 @@ export async function searchUsers(keywordIds, reason = "") {
     p_reason: reason || null,
   })).catch(() => {});
 
-  const users = (data || []).map((u) => ({
-    id:             u.id_user,
-    supabaseUid:    u.supabase_uid,
-    name:           `${u.first_name || ""} ${u.last_name || ""}`.trim(),
-    birthday:       u.date_of_birth,
-    location:       u.location,
-    contacts: {
-      phone:     { value: u.phone_number  || "", show: u.show_phone_number },
-      instagram: { value: u.instagram     || "", show: u.show_instagram },
-      tiktok:    { value: u.tiktok        || "", show: u.show_tiktok },
-      snapchat:  { value: u.snapchat      || "", show: u.show_snapchat },
-      discord:   { value: u.discord       || "", show: u.show_discord },
-    },
-    profilePicture: u.profile_url || null,
-    keywordIds:     u.all_keyword_ids || [],
-  }));
+  const users = (data || []).map(mapPublicUser);
 
   return { users };
+}
+
+export async function getPublicUserById(userId) {
+  const id = Number(userId);
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid user.");
+
+  const { data, error } = await supabase.rpc("get_public_user_profile", {
+    p_user_id: id,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? mapPublicUser(row) : null;
 }
 
 export async function getUserCount() {

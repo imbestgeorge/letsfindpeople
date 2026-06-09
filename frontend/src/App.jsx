@@ -28,6 +28,10 @@ const PAGE_META = {
     title: SITE_NAME,
     description: "LetsFindPeople helps you discover and connect with people who share your interests.",
   },
+  "/console": {
+    title: SITE_NAME,
+    description: "LetsFindPeople helps you discover and connect with people who share your interests.",
+  },
   "/auth/callback": {
     title: `${SITE_NAME} | Signing In`,
     description: "Finishing your LetsFindPeople sign in.",
@@ -154,6 +158,13 @@ function AuthRedirectHandler() {
     navigate(isAdmin ? "/admin" : "/", { replace: true });
   }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session]);
 
+  useEffect(() => {
+    if (isLoading || !session || !isAdmin) return;
+    if (location.pathname !== "/" && location.pathname !== "/console") return;
+
+    navigate("/admin", { replace: true });
+  }, [isAdmin, isLoading, location.pathname, navigate, session]);
+
   return null;
 }
 
@@ -179,7 +190,7 @@ function AppFrame({ savedProfile, setSavedProfile }) {
           <Route path="/" element={<Console currentUser={savedProfile} />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/account-deleted" element={<ErrorPage type="accountDeleted" />} />
-          <Route path="/console" element={<ErrorPage type="notFound" />} />
+          <Route path="/console" element={<Console currentUser={savedProfile} />} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
