@@ -24,8 +24,8 @@ function Admin() {
     pagamentos: null
   });
 
-  const usersPerPage = 10;
-  const logsPerPage = 10;
+  const usersPerPage = 20;
+  const logsPerPage = 20;
 
   // Real users state
   const [users, setUsers] = useState([]);
@@ -55,7 +55,7 @@ function Admin() {
   const [requestedKeywordsLoading, setRequestedKeywordsLoading] = useState(false);
   const [requestedKeywordsError, setRequestedKeywordsError] = useState(null);
   const [currentRequestPage, setCurrentRequestPage] = useState(1);
-  const requestsPerPage = 10;
+  const requestsPerPage = 20;
 
   // Subcategories for edit modal
   const [subcategories, setSubcategories] = useState([]);
@@ -74,7 +74,7 @@ function Admin() {
   const [currentKeywordPage, setCurrentKeywordPage] = useState(1);
   const [keywordSearchInput, setKeywordSearchInput] = useState('');
   const [keywordSearch, setKeywordSearch] = useState('');
-  const keywordsPerPage = 10;
+  const keywordsPerPage = 20;
 
   // Edit keyword modal state
   const [showEditKeywordModal, setShowEditKeywordModal] = useState(false);
@@ -354,7 +354,7 @@ function Admin() {
         .from('requested_keywords')
         .select('id, name, request_amount, id_subcategory, subcategories(name)')
         .eq('is_disabled', false)
-        .order('request_amount', { ascending: false })
+        .order('id', { ascending: false })
         .range(offset, offset + requestsPerPage - 1);
       if (error) throw new Error(error.message);
       setRequestedKeywords((data || []).map((r) => ({
@@ -406,7 +406,7 @@ function Admin() {
       const { count, error: countErr } = await countQuery;
       if (countErr) throw new Error(countErr.message);
       const { data, error } = await rowsQuery
-        .order('name', { ascending: true })
+        .order('id_keyword', { ascending: false })
         .range(offset, offset + keywordsPerPage - 1);
       if (error) throw new Error(error.message);
       setKeywords((data || []).map((k) => ({
