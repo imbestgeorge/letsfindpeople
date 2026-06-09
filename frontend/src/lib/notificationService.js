@@ -34,8 +34,8 @@ function resizeCoverImage(file) {
     image.onload = () => {
       URL.revokeObjectURL(imageUrl);
 
-      const width = 160;
-      const height = 90;
+      const width = 320;
+      const height = 180;
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -74,7 +74,7 @@ function resizeCoverImage(file) {
             reject(new Error("Failed to process cover image."));
             return;
           }
-          resolve(new File([blob], "cover-160x90.jpg", { type: "image/jpeg" }));
+          resolve(new File([blob], "cover-320x180.jpg", { type: "image/jpeg" }));
         },
         "image/jpeg",
         0.85

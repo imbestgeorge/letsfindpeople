@@ -1775,7 +1775,7 @@ function Navbar({ onProfileSave }) {
               >
                 <i className="bi bi-bell"></i>
                 {unreadNotifications > 0 && (
-                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  <span className="navbar-notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {notificationBadgeLabel}
                     <span className="visually-hidden">unread notifications</span>
                   </span>
@@ -1805,15 +1805,10 @@ function Navbar({ onProfileSave }) {
                       <button
                         key={notification.id}
                         type="button"
-                        className="list-group-item list-group-item-action"
+                        className={`list-group-item list-group-item-action ${!notification.isRead ? "navbar-notification-item-unread" : ""}`}
                         onClick={() => openNotification(notification)}
                       >
                         <div className="d-flex align-items-center gap-2">
-                          {!notification.isRead && (
-                            <span className="badge bg-danger rounded-pill p-1 flex-shrink-0">
-                              <span className="visually-hidden">Unread</span>
-                            </span>
-                          )}
                           <div className="min-w-0 flex-grow-1">
                             <div className="d-flex align-items-center justify-content-between gap-2">
                               <span className="fw-semibold text-truncate">{notification.title}</span>
@@ -1936,7 +1931,7 @@ function Navbar({ onProfileSave }) {
                     </div>
                   </div>
                 ) : chatMessages.length === 0 ? (
-                  <div className="text-center text-muted py-5">
+                  <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
                     <i className="bi bi-chat-square-dots d-block fs-1 mb-2"></i>
                     No messages yet.
                   </div>
@@ -2029,14 +2024,13 @@ function Navbar({ onProfileSave }) {
     {/* Notification Detail Modal */}
     {selectedNotification && (
       <>
-        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-label="Notification details">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title" id="notificationTitle">{selectedNotification.title}</h5>
+              <div className="modal-header border-0 justify-content-end">
                 <button type="button" className="btn-close" onClick={() => setSelectedNotification(null)} aria-label="Close"></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body pt-0">
                 {selectedNotification.coverUrl && (
                   <div className="ratio ratio-16x9 mb-3 bg-light rounded overflow-hidden">
                     <img
@@ -2052,11 +2046,6 @@ function Navbar({ onProfileSave }) {
                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
                   {selectedNotification.body}
                 </p>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-primary" onClick={() => setSelectedNotification(null)}>
-                  Close
-                </button>
               </div>
             </div>
           </div>

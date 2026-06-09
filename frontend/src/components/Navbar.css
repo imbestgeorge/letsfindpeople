@@ -78,10 +78,27 @@
 }
 
 .navbar-notifications-dropdown {
-  width: 340px;
-  min-width: 340px;
+  width: 280px;
+  min-width: 280px;
   max-height: calc(100vh - 5rem);
   overflow-y: auto;
+}
+
+.navbar-notification-badge {
+  font-size: 0.45rem;
+  line-height: 0.65rem;
+  min-width: 0.75rem;
+  padding: 0.05rem 0.2rem;
+}
+
+.navbar-notification-item-unread {
+  background-color: #f3efff;
+  border-left: 3px solid #6D28D9;
+}
+
+.navbar-notification-item-unread:hover,
+.navbar-notification-item-unread:focus {
+  background-color: #ede7ff;
 }
 
 .navbar-notifications-dropdown .min-w-0 {
@@ -186,7 +203,7 @@
   }
 
   .navbar .navbar-nav {
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
   .profile-dropdown-name {
@@ -223,8 +240,15 @@
   }
 
   .navbar-notifications-dropdown.show {
-    width: min(340px, calc(100vw - 1rem));
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: auto;
+    width: min(280px, calc(100vw - 1rem));
     min-width: 0;
+    max-height: none;
+    overflow-y: visible;
+    transform: none !important;
   }
 }
 
@@ -239,7 +263,7 @@
   }
 
   .navbar-notifications-dropdown {
-    width: min(340px, calc(100vw - 1rem));
+    width: min(280px, calc(100vw - 1rem));
     min-width: 0;
   }
 }
@@ -278,7 +302,7 @@
   }
 
   .navbar .navbar-nav {
-    gap: 0.25rem;
+    gap: 0.6rem;
   }
 
   .navbar .nav-link {
