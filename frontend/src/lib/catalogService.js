@@ -135,9 +135,10 @@ export async function getCatalog() {
  * Delegates to the search_users_by_keywords Postgres RPC which runs as
  * SECURITY DEFINER and handles the set-intersection logic server-side.
  * @param {number[]} keywordIds
+ * @param {string} [reason]
  * @returns {Promise<{ users: object[] }>}
  */
-export async function searchUsers(keywordIds) {
+export async function searchUsers(keywordIds, reason = "") {
   const ids = [...new Set(keywordIds.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
   if (ids.length === 0) throw new Error("keywordIds must contain valid integers.");
 
@@ -145,6 +146,12 @@ export async function searchUsers(keywordIds) {
     keyword_ids: ids,
   });
   if (error) throw new Error(error.message);
+
+  Promise.resolve(supabase.rpc("write_log", {
+    p_action: "SEARCH",
+    p_status: "Success",
+    p_reason: reason || null,
+  })).catch(() => {});
 
   const users = (data || []).map((u) => ({
     id:             u.id_user,
