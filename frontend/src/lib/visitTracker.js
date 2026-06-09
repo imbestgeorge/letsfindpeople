@@ -39,5 +39,5 @@ export function trackSiteVisit(path) {
       p_visitor_key: getVisitorKey(),
       p_path: cleanPath.slice(0, 255),
     })
-    .catch(() => {});
+    .then(() => {}, () => {});
 }
