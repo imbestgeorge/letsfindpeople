@@ -1070,7 +1070,7 @@ function Admin() {
         <aside className="admin-sidebar-column col-12 col-lg-auto">
           <div className="admin-sidebar d-flex flex-column text-white">
             <div className="admin-sidebar-menu flex-grow-1 py-4">
-              <p className="admin-sidebar-section text-uppercase small fw-semibold mb-2 px-3">
+              <p className="admin-sidebar-section text-uppercase small mb-2 px-3">
                 Menus
               </p>
               <nav className="nav flex-column gap-1 px-2" aria-label="Admin sections">
