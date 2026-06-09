@@ -801,19 +801,43 @@ function Admin() {
     }
   };
 
+  const adminNavItems = [
+    { id: 0, label: 'Dashboard' },
+    { id: 1, label: 'Users' },
+    { id: 2, label: 'Keywords' },
+    { id: 3, label: 'Logs' },
+  ];
+  const currentPageTitle = adminNavItems.find((item) => item.id === page)?.label || 'Dashboard';
+
   return (
-    <div className="container mt-5">
-      <select 
-        className="form-select mb-5" 
-        aria-label="Page selector"
-        value={page}
-        onChange={(e) => setPage(parseInt(e.target.value))}
-      >
-        <option value={0}>Dashboard</option>
-        <option value={1}>Users</option>
-        <option value={2}>Keywords</option>
-        <option value={3}>Logs</option>
-      </select>
+    <div className="container-fluid px-3 px-md-4 py-4 py-lg-5">
+      <div className="row g-4">
+        <aside className="col-12 col-lg-3 col-xl-2">
+          <div className="border rounded bg-body p-3 sticky-lg-top">
+            <p className="text-uppercase text-muted small fw-semibold mb-3">Admin</p>
+            <nav className="nav nav-pills flex-column gap-2" aria-label="Admin sections">
+              {adminNavItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`nav-link text-start ${page === item.id ? 'active' : ''}`}
+                  aria-current={page === item.id ? 'page' : undefined}
+                  onClick={() => setPage(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        <main className="col-12 col-lg-9 col-xl-10">
+          <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+            <div>
+              <p className="text-uppercase text-muted small fw-semibold mb-1">Admin panel</p>
+              <h2 className="mb-0 text-start">{currentPageTitle}</h2>
+            </div>
+          </div>
 
       {/* Dashboard Tab */}
       {page === 0 && (
@@ -911,59 +935,61 @@ function Admin() {
             <div className="alert alert-danger">Failed to load users: {usersError}</div>
           ) : (
           <>
-          <table className="table table-striped align-middle text-center">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Email</th>
-                <th scope="col">Status</th>
-                <th scope="col"></th>
-                <th scope="col"></th>
-                <th scope="col"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr><td colSpan={6} className="text-muted">No users found.</td></tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.supabaseUid}>
-                    <td>{user.name || '-'}</td>
-                    <td>{user.email}</td>
-                    <td style={{ color: user.isBanned || user.isSuspended ? 'red' : 'green' }}>
-                      {user.isBanned
-                        ? 'Banned'
-                        : user.isSuspended
-                          ? `Suspended until ${user.suspendedUntil.toLocaleString('en-GB')}`
-                          : 'Active'}
-                      {user.violationCount > 0 && (
-                        <small className="d-block text-muted">Violations: {user.violationCount}</small>
-                      )}
-                    </td>
-                    <td>
-                      {user.plan && (
-                        <button className="btn btn-danger btn-sm">CANCEL BASIC PLAN</button>
-                      )}
-                    </td>
-                    <td>
-                      {!user.isAdmin && (
-                        user.isBanned || user.isSuspended ? (
-                          <button className="btn btn-danger btn-sm" onClick={() => handleUnban(user.id)}>UNSUSPEND</button>
-                        ) : (
-                          <button className="btn btn-danger btn-sm" onClick={() => handleBan(user.id)}>BAN</button>
-                        )
-                      )}
-                    </td>
-                    <td>
-                      {!user.isAdmin && (
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(user.id)}>DELETE ACCOUNT</button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table table-striped align-middle text-center">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"></th>
+                  <th scope="col"></th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr><td colSpan={6} className="text-muted">No users found.</td></tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.supabaseUid}>
+                      <td>{user.name || '-'}</td>
+                      <td>{user.email}</td>
+                      <td style={{ color: user.isBanned || user.isSuspended ? 'red' : 'green' }}>
+                        {user.isBanned
+                          ? 'Banned'
+                          : user.isSuspended
+                            ? `Suspended until ${user.suspendedUntil.toLocaleString('en-GB')}`
+                            : 'Active'}
+                        {user.violationCount > 0 && (
+                          <small className="d-block text-muted">Violations: {user.violationCount}</small>
+                        )}
+                      </td>
+                      <td>
+                        {user.plan && (
+                          <button className="btn btn-danger btn-sm">CANCEL BASIC PLAN</button>
+                        )}
+                      </td>
+                      <td>
+                        {!user.isAdmin && (
+                          user.isBanned || user.isSuspended ? (
+                            <button className="btn btn-danger btn-sm" onClick={() => handleUnban(user.id)}>UNSUSPEND</button>
+                          ) : (
+                            <button className="btn btn-danger btn-sm" onClick={() => handleBan(user.id)}>BAN</button>
+                          )
+                        )}
+                      </td>
+                      <td>
+                        {!user.isAdmin && (
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(user.id)}>DELETE ACCOUNT</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <nav aria-label="User pagination">
             <ul className="pagination justify-content-center mt-5 mb-5">
@@ -1042,34 +1068,36 @@ function Admin() {
             <div className="alert alert-danger">Failed to load logs: {logsError}</div>
           ) : (
           <>
-          <table className="table table-striped align-middle text-center">
-            <thead>
-              <tr>
-                <th scope="col">User</th>
-                <th scope="col">IP</th>
-                <th scope="col">Action</th>
-                <th scope="col">Status</th>
-                <th scope="col">Details</th>
-                <th scope="col">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr><td colSpan={6} className="text-muted">No logs found.</td></tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id}>
-                    <td>{log.user}</td>
-                    <td>{log.ip}</td>
-                    <td>{log.action}</td>
-                    <td style={{ color: log.statusColor }}>{log.status}</td>
-                    <td>{log.reason || '-'}</td>
-                    <td>{log.date}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table table-striped align-middle text-center">
+              <thead>
+                <tr>
+                  <th scope="col">User</th>
+                  <th scope="col">IP</th>
+                  <th scope="col">Action</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Details</th>
+                  <th scope="col">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.length === 0 ? (
+                  <tr><td colSpan={6} className="text-muted">No logs found.</td></tr>
+                ) : (
+                  logs.map((log) => (
+                    <tr key={log.id}>
+                      <td>{log.user}</td>
+                      <td>{log.ip}</td>
+                      <td>{log.action}</td>
+                      <td style={{ color: log.statusColor }}>{log.status}</td>
+                      <td>{log.reason || '-'}</td>
+                      <td>{log.date}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <nav aria-label="Log pagination">
             <ul className="pagination justify-content-center mt-5 mb-5">
@@ -1125,40 +1153,42 @@ function Admin() {
             <div className="alert alert-danger">Failed to load keyword requests: {requestedKeywordsError}</div>
           ) : (
           <>
-          <table className="table table-striped align-middle text-center">
-            <thead>
-              <tr>
-                <th scope="col">Keyword</th>
-                <th scope="col">Subcategory</th>
-                <th scope="col">Request Amounts</th>
-                <th scope="col"></th>
-                <th scope="col"></th>
-                <th scope="col"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {requestedKeywords.length === 0 ? (
-                <tr><td colSpan={6} className="text-muted">No keyword requests found.</td></tr>
-              ) : (
-                requestedKeywords.map((kw) => (
-                  <tr key={kw.id}>
-                    <td>{kw.name}</td>
-                    <td>{kw.subcategoryName || '-'}</td>
-                    <td>{kw.requestAmount}</td>
-                    <td>
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleEditOpen(kw)}>Edit</button>
-                    </td>
-                    <td>
-                      <button className="btn btn-success btn-sm" onClick={() => handleAccept(kw.id)}>Accept</button>
-                    </td>
-                    <td>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleUnaccept(kw.id)}>Dismiss</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table table-striped align-middle text-center">
+              <thead>
+                <tr>
+                  <th scope="col">Keyword</th>
+                  <th scope="col">Subcategory</th>
+                  <th scope="col">Request Amounts</th>
+                  <th scope="col"></th>
+                  <th scope="col"></th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {requestedKeywords.length === 0 ? (
+                  <tr><td colSpan={6} className="text-muted">No keyword requests found.</td></tr>
+                ) : (
+                  requestedKeywords.map((kw) => (
+                    <tr key={kw.id}>
+                      <td>{kw.name}</td>
+                      <td>{kw.subcategoryName || '-'}</td>
+                      <td>{kw.requestAmount}</td>
+                      <td>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleEditOpen(kw)}>Edit</button>
+                      </td>
+                      <td>
+                        <button className="btn btn-success btn-sm" onClick={() => handleAccept(kw.id)}>Accept</button>
+                      </td>
+                      <td>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleUnaccept(kw.id)}>Dismiss</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <nav aria-label="Keyword request pagination">
             <ul className="pagination justify-content-center mt-5 mb-5">
@@ -1232,34 +1262,36 @@ function Admin() {
             <div className="alert alert-danger">Failed to load keywords: {keywordsError}</div>
           ) : (
           <>
-          <table className="table table-striped align-middle text-center">
-            <thead>
-              <tr>
-                <th scope="col">Keyword</th>
-                <th scope="col">Subcategory</th>
-                <th scope="col"></th>
-                <th scope="col"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {keywords.length === 0 ? (
-                <tr><td colSpan={4} className="text-muted">No keywords found.</td></tr>
-              ) : (
-                keywords.map((kw) => (
-                  <tr key={kw.id}>
-                    <td>{kw.name}</td>
-                    <td>{kw.subcategoryName ? `${kw.categoryName} › ${kw.subcategoryName}` : '-'}</td>
-                    <td>
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleEditKwOpen(kw)}>Edit</button>
-                    </td>
-                    <td>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteKeyword(kw.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table table-striped align-middle text-center">
+              <thead>
+                <tr>
+                  <th scope="col">Keyword</th>
+                  <th scope="col">Subcategory</th>
+                  <th scope="col"></th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {keywords.length === 0 ? (
+                  <tr><td colSpan={4} className="text-muted">No keywords found.</td></tr>
+                ) : (
+                  keywords.map((kw) => (
+                    <tr key={kw.id}>
+                      <td>{kw.name}</td>
+                      <td>{kw.subcategoryName ? `${kw.categoryName} › ${kw.subcategoryName}` : '-'}</td>
+                      <td>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleEditKwOpen(kw)}>Edit</button>
+                      </td>
+                      <td>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteKeyword(kw.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <nav aria-label="Keywords pagination">
             <ul className="pagination justify-content-center mt-5 mb-5">
@@ -1413,6 +1445,8 @@ function Admin() {
           </div>
         </div>
       )}
+        </main>
+      </div>
     </div>
   );
 }
