@@ -15,6 +15,7 @@ import Footer from "./components/Footer";
 import AdminRoute from "./components/AdminRoute";
 import { DbDataProvider } from "./context/DbDataContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { trackSiteVisit } from "./lib/visitTracker";
 
 import './App.css';
 
@@ -122,6 +123,16 @@ function HeadManager() {
   return null;
 }
 
+function SiteVisitTracker() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    trackSiteVisit(pathname);
+  }, [pathname]);
+
+  return null;
+}
+
 function AuthRedirectHandler() {
   const { session, isLoading, isAdmin, authBlockReason } = useAuth();
   const location = useLocation();
@@ -192,6 +203,7 @@ function App() {
         <BrowserRouter basename={import.meta.env.BASE_URL}>
           <HeadManager />
           <ScrollToTop />
+          <SiteVisitTracker />
           <AuthRedirectHandler />
           <AppFrame savedProfile={savedProfile} setSavedProfile={setSavedProfile} />
         </BrowserRouter>

@@ -3,6 +3,7 @@ import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DELETE_ACCOUNT_ACTIONS = ['DELETE_ACCOUNT', 'ADMIN_DELETE_ACCOUNT'];
 const sanitizePostgrestOrTerm = (value) => value.replace(/[%,()]/g, ' ').trim();
 const CATALOG_CACHE_KEY = 'lfp_catalog';
 
@@ -13,11 +14,13 @@ function Admin() {
   const [currentLogPage, setCurrentLogPage] = useState(1);
 
   const utilizadoresChartRef = useRef(null);
+  const visitsChartRef = useRef(null);
   const rendimentoChartRef = useRef(null);
   const pagamentosChartRef = useRef(null);
 
   const chartInstancesRef = useRef({
     utilizadores: null,
+    visits: null,
     rendimento: null,
     pagamentos: null
   });
@@ -85,85 +88,240 @@ function Admin() {
   const [newKeywordName, setNewKeywordName] = useState('');
   const [newKeywordSubcategoryId, setNewKeywordSubcategoryId] = useState('');
 
-  // Create charts function
   const createCharts = useCallback(() => {
-    // Destroy existing charts before creating new ones
-    if (chartInstancesRef.current.utilizadores) {
-      chartInstancesRef.current.utilizadores.destroy();
-    }
-    if (chartInstancesRef.current.rendimento) {
-      chartInstancesRef.current.rendimento.destroy();
-    }
-    if (chartInstancesRef.current.pagamentos) {
-      chartInstancesRef.current.pagamentos.destroy();
-    }
+    Object.values(chartInstancesRef.current).forEach((chart) => {
+      if (chart) chart.destroy();
+    });
 
     if (!statsChartData) return;
 
-    // Utilizadores Chart
+    const gridColor = 'rgba(15, 23, 42, 0.08)';
+    const labelColor = '#475569';
+    const baseOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            color: labelColor,
+            usePointStyle: true
+          }
+        },
+        tooltip: {
+          backgroundColor: '#111827',
+          borderColor: 'rgba(255,255,255,0.16)',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: (context) => {
+              const rawValue = Number(context.raw || 0);
+              const value = context.dataset.label === 'Users left' ? Math.abs(rawValue) : rawValue;
+              return `${context.dataset.label}: ${value.toLocaleString('pt-PT')}`;
+            }
+          }
+        }
+      }
+    };
+
     if (utilizadoresChartRef.current) {
       const ctx = utilizadoresChartRef.current.getContext('2d');
       chartInstancesRef.current.utilizadores = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: MONTH_LABELS,
-          datasets: [{
-            label: 'Users',
-            data: statsChartData.users.cumulative,
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13, 110, 253, 0.1)',
-            tension: 0.4,
-            fill: true
-          }]
+          datasets: [
+            {
+              type: 'line',
+              label: 'Active users',
+              data: statsChartData.users.active,
+              borderColor: '#6D28D9',
+              backgroundColor: 'rgba(109, 40, 217, 0.12)',
+              borderWidth: 3,
+              pointBackgroundColor: '#6D28D9',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              tension: 0.35,
+              fill: true,
+              yAxisID: 'active',
+              order: 1
+            },
+            {
+              label: 'New users',
+              data: statsChartData.users.new,
+              backgroundColor: 'rgba(34, 197, 94, 0.78)',
+              borderColor: '#16a34a',
+              borderWidth: 1,
+              borderRadius: 6,
+              yAxisID: 'movement',
+              stack: 'movement',
+              order: 2
+            },
+            {
+              label: 'Users left',
+              data: statsChartData.users.left.map((value) => -value),
+              backgroundColor: 'rgba(239, 68, 68, 0.78)',
+              borderColor: '#dc2626',
+              borderWidth: 1,
+              borderRadius: 6,
+              yAxisID: 'movement',
+              stack: 'movement',
+              order: 2
+            }
+          ]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false
-            }
-          },
+          ...baseOptions,
           scales: {
-            y: {
-              beginAtZero: true
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { color: labelColor }
+            },
+            movement: {
+              position: 'left',
+              stacked: true,
+              grid: { color: gridColor },
+              ticks: {
+                color: labelColor,
+                precision: 0,
+                callback: (value) => Math.abs(Number(value)).toLocaleString('pt-PT')
+              }
+            },
+            active: {
+              position: 'right',
+              beginAtZero: true,
+              grid: { drawOnChartArea: false },
+              ticks: {
+                color: labelColor,
+                precision: 0
+              }
             }
           }
         }
       });
     }
 
-    // Rendimento Chart
+    if (visitsChartRef.current) {
+      const ctx = visitsChartRef.current.getContext('2d');
+      chartInstancesRef.current.visits = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: MONTH_LABELS,
+          datasets: [
+            {
+              label: 'Views',
+              data: statsChartData.visits.total,
+              backgroundColor: 'rgba(14, 165, 233, 0.72)',
+              borderColor: '#0284c7',
+              borderWidth: 1,
+              borderRadius: 6,
+              yAxisID: 'views',
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'Unique views',
+              data: statsChartData.visits.unique,
+              borderColor: '#6D28D9',
+              backgroundColor: 'rgba(109, 40, 217, 0.1)',
+              borderWidth: 3,
+              pointBackgroundColor: '#6D28D9',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              tension: 0.35,
+              yAxisID: 'views',
+              order: 1
+            }
+          ]
+        },
+        options: {
+          ...baseOptions,
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: labelColor }
+            },
+            views: {
+              beginAtZero: true,
+              grid: { color: gridColor },
+              ticks: {
+                color: labelColor,
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    }
+
     if (rendimentoChartRef.current) {
       const ctx = rendimentoChartRef.current.getContext('2d');
       chartInstancesRef.current.rendimento = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: MONTH_LABELS,
-          datasets: [{
-            label: 'Basic Plan',
-            data: statsChartData.revenue,
-            borderColor: '#198754',
-            backgroundColor: 'rgba(25, 135, 84, 0.1)',
-            tension: 0.4,
-            fill: true
-          }]
+          datasets: [
+            {
+              label: 'Monthly revenue',
+              data: statsChartData.revenue,
+              backgroundColor: 'rgba(20, 184, 166, 0.72)',
+              borderColor: '#0f766e',
+              borderWidth: 1,
+              borderRadius: 6,
+              yAxisID: 'money',
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'Cumulative revenue',
+              data: statsChartData.revenueCumulative,
+              borderColor: '#6D28D9',
+              backgroundColor: 'rgba(109, 40, 217, 0.1)',
+              borderWidth: 3,
+              pointBackgroundColor: '#6D28D9',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              tension: 0.35,
+              yAxisID: 'money',
+              order: 1
+            }
+          ]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          ...baseOptions,
           plugins: {
-            legend: {
-              display: true,
-              position: 'bottom'
-            }
+            ...baseOptions.plugins,
+            tooltip: {
+              ...baseOptions.plugins.tooltip,
+              callbacks: {
+                label: (context) => `${context.dataset.label}: €${Number(context.raw || 0).toLocaleString('pt-PT')}`
+              }
+            },
           },
           scales: {
-            y: {
+            x: {
+              grid: { display: false },
+              ticks: { color: labelColor }
+            },
+            money: {
               beginAtZero: true,
+              grid: { color: gridColor },
               ticks: {
+                color: labelColor,
                 callback: function(value) {
-                  return '€' + value;
+                  return '€' + Number(value).toLocaleString('pt-PT');
                 }
               }
             }
@@ -172,35 +330,53 @@ function Admin() {
       });
     }
 
-    // Pagamentos Chart
     if (pagamentosChartRef.current) {
       const ctx = pagamentosChartRef.current.getContext('2d');
       chartInstancesRef.current.pagamentos = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: MONTH_LABELS,
-          datasets: [{
-            label: 'Basic Plan',
-            data: statsChartData.payments,
-            borderColor: '#198754',
-            backgroundColor: 'rgba(25, 135, 84, 0.1)',
-            tension: 0.4,
-            fill: true
-          }]
+          datasets: [
+            {
+              label: 'Monthly payments',
+              data: statsChartData.payments,
+              backgroundColor: 'rgba(245, 158, 11, 0.78)',
+              borderColor: '#d97706',
+              borderWidth: 1,
+              borderRadius: 6,
+              yAxisID: 'payments',
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'Cumulative payments',
+              data: statsChartData.paymentsCumulative,
+              borderColor: '#6D28D9',
+              backgroundColor: 'rgba(109, 40, 217, 0.1)',
+              borderWidth: 3,
+              pointBackgroundColor: '#6D28D9',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              tension: 0.35,
+              yAxisID: 'payments',
+              order: 1
+            }
+          ]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: true,
-              position: 'bottom'
-            }
-          },
+          ...baseOptions,
           scales: {
-            y: {
+            x: {
+              grid: { display: false },
+              ticks: { color: labelColor }
+            },
+            payments: {
               beginAtZero: true,
+              grid: { color: gridColor },
               ticks: {
+                color: labelColor,
+                precision: 0,
                 stepSize: 1
               }
             }
@@ -314,25 +490,110 @@ function Admin() {
     try {
       const yearStart = new Date(`${year}-01-01T00:00:00.000Z`).toISOString();
       const yearEnd   = new Date(`${year + 1}-01-01T00:00:00.000Z`).toISOString();
-      const [statsResult, usersResult, priorResult] = await Promise.all([
+      const [statsResult, usersResult, priorCreatedResult, visitStatsResult] = await Promise.all([
         supabase.from('monthly_stats').select('month, revenue, payments').eq('year', year),
-        supabase.from('users').select('created_at').gte('created_at', yearStart).lt('created_at', yearEnd).eq('is_deleted', false),
-        supabase.from('users').select('*', { count: 'exact', head: true }).lt('created_at', yearStart).eq('is_deleted', false),
+        supabase.from('users').select('created_at').gte('created_at', yearStart).lt('created_at', yearEnd),
+        supabase.from('users').select('*', { count: 'exact', head: true }).lt('created_at', yearStart),
+        supabase.rpc('get_site_visit_stats', { p_year: year }),
       ]);
       if (statsResult.error) throw new Error(statsResult.error.message);
       if (usersResult.error) throw new Error(usersResult.error.message);
-      if (priorResult.error) throw new Error(priorResult.error.message);
+      if (priorCreatedResult.error) throw new Error(priorCreatedResult.error.message);
+
       const newPerMonth = Array(12).fill(0);
       for (const u of usersResult.data || []) {
         const m = new Date(u.created_at).getUTCMonth();
         newPerMonth[m]++;
       }
-      let running = priorResult.count || 0;
-      const cumulativeUsers = newPerMonth.map((n) => (running += n));
+
+      const leftPerMonth = Array(12).fill(0);
+      let priorDepartures = 0;
+      const [deletedRowsResult, priorDeletedResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('deleted_at')
+          .not('deleted_at', 'is', null)
+          .gte('deleted_at', yearStart)
+          .lt('deleted_at', yearEnd),
+        supabase
+          .from('users')
+          .select('deleted_at', { count: 'exact', head: true })
+          .not('deleted_at', 'is', null)
+          .lt('deleted_at', yearStart),
+      ]);
+
+      if (!deletedRowsResult.error && !priorDeletedResult.error) {
+        for (const user of deletedRowsResult.data || []) {
+          const m = new Date(user.deleted_at).getUTCMonth();
+          leftPerMonth[m]++;
+        }
+        priorDepartures = priorDeletedResult.count || 0;
+      } else {
+        const [departureLogsResult, priorDeparturesResult] = await Promise.all([
+          supabase
+            .from('logs')
+            .select('created_at, actions!inner(name)')
+            .eq('status', 'Success')
+            .gte('created_at', yearStart)
+            .lt('created_at', yearEnd)
+            .in('actions.name', DELETE_ACCOUNT_ACTIONS),
+          supabase
+            .from('logs')
+            .select('actions!inner(name)', { count: 'exact', head: true })
+            .eq('status', 'Success')
+            .lt('created_at', yearStart)
+            .in('actions.name', DELETE_ACCOUNT_ACTIONS),
+        ]);
+        if (departureLogsResult.error) throw new Error(departureLogsResult.error.message);
+        if (priorDeparturesResult.error) throw new Error(priorDeparturesResult.error.message);
+        for (const log of departureLogsResult.data || []) {
+          const m = new Date(log.created_at).getUTCMonth();
+          leftPerMonth[m]++;
+        }
+        priorDepartures = priorDeparturesResult.count || 0;
+      }
+
+      const netPerMonth = newPerMonth.map((newUsers, i) => newUsers - leftPerMonth[i]);
+      let runningUsers = Math.max(0, (priorCreatedResult.count || 0) - priorDepartures);
+      const activeUsers = netPerMonth.map((net) => {
+        runningUsers = Math.max(0, runningUsers + net);
+        return runningUsers;
+      });
+
+      const visits = {
+        total: Array(12).fill(0),
+        unique: Array(12).fill(0),
+      };
+      if (!visitStatsResult.error) {
+        for (const row of visitStatsResult.data || []) {
+          const index = Number(row.month) - 1;
+          if (index >= 0 && index < 12) {
+            visits.total[index] = Number(row.total_views || 0);
+            visits.unique[index] = Number(row.unique_views || 0);
+          }
+        }
+      }
+
       const statsMap = Object.fromEntries((statsResult.data || []).map((s) => [s.month, s]));
       const revenue  = Array.from({ length: 12 }, (_, i) => Number(statsMap[i + 1]?.revenue  ?? 0));
       const payments = Array.from({ length: 12 }, (_, i) => Number(statsMap[i + 1]?.payments ?? 0));
-      setStatsChartData({ year, users: { new: newPerMonth, cumulative: cumulativeUsers }, revenue, payments });
+      const revenueCumulative = revenue.map((sum => (value) => (sum += value))(0));
+      const paymentsCumulative = payments.map((sum => (value) => (sum += value))(0));
+
+      setStatsChartData({
+        year,
+        users: {
+          new: newPerMonth,
+          left: leftPerMonth,
+          net: netPerMonth,
+          active: activeUsers,
+        },
+        visits,
+        revenue,
+        revenueCumulative,
+        payments,
+        paymentsCumulative,
+      });
     } catch (err) {
       setStatsError(err.message);
     }
@@ -465,19 +726,21 @@ function Admin() {
 
     // Store chart instances for cleanup - copy refs to local variables to avoid the React warning
     const utilizadoresChart = chartInstancesRef.current.utilizadores;
+    const visitsChart = chartInstancesRef.current.visits;
     const rendimentoChart = chartInstancesRef.current.rendimento;
     const pagamentosChart = chartInstancesRef.current.pagamentos;
 
     // Cleanup function to destroy charts on unmount or before recreation
     return () => {
       if (utilizadoresChart) utilizadoresChart.destroy();
+      if (visitsChart) visitsChart.destroy();
       if (rendimentoChart) rendimentoChart.destroy();
       if (pagamentosChart) pagamentosChart.destroy();
     };
   }, [createCharts, page]);
 
   const getTotalUtilizadores = () => {
-    const data = statsChartData?.users?.cumulative;
+    const data = statsChartData?.users?.active;
     if (!data || data.length === 0) return 0;
     return data[data.length - 1];
   };
@@ -490,6 +753,12 @@ function Admin() {
 
   const getTotalPagamentos = () => {
     const data = statsChartData?.payments;
+    if (!data || data.length === 0) return 0;
+    return data.reduce((a, b) => a + b, 0);
+  };
+
+  const getTotalVisits = () => {
+    const data = statsChartData?.visits?.total;
     if (!data || data.length === 0) return 0;
     return data.reduce((a, b) => a + b, 0);
   };
@@ -893,13 +1162,25 @@ function Admin() {
           </div>
 
           <div className="row mb-5">
-            <div className="col-md-12 mb-4 mb-md-0">
+            <div className="col-md-6 mb-4 mb-md-0">
               <div className="card h-100">
                 <div className="card-body">
                   <h2 className="card-title">Users</h2>
                   <h4 className="card-text mb-3">Total ({selectedYear}): {getTotalUtilizadores().toLocaleString('pt-PT')}</h4>
                   <div style={{ height: '250px' }}>
                     <canvas ref={utilizadoresChartRef}></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-6">
+              <div className="card h-100">
+                <div className="card-body">
+                  <h2 className="card-title">Visits</h2>
+                  <h4 className="card-text mb-3">Total ({selectedYear}): {getTotalVisits().toLocaleString('pt-PT')}</h4>
+                  <div style={{ height: '250px' }}>
+                    <canvas ref={visitsChartRef}></canvas>
                   </div>
                 </div>
               </div>
