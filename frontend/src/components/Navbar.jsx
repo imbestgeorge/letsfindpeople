@@ -2249,7 +2249,7 @@ function Navbar({ onProfileSave }) {
                 </p>
                 {selectedNotification.isDrawEvent && (
                   <div className="mt-3">
-                    <label htmlFor="drawEventInviteLink" className="form-label">Draw Event Invite</label>
+                    <label htmlFor="drawEventInviteLink" className="visually-hidden">Draw Event Invite</label>
                     <div className="input-group">
                       <input
                         id="drawEventInviteLink"

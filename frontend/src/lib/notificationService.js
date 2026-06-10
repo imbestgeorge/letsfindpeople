@@ -192,7 +192,7 @@ export async function getOrCreateDrawEventInvite(drawEventId) {
 
   return {
     inviteCode: String(row.id_draw_event_invite),
-    drawEventId: Number(row.id_draw_event),
+    drawEventId: Number(row.draw_event_id ?? row.id_draw_event),
   };
 }
 
