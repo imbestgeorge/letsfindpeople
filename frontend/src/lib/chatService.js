@@ -24,6 +24,17 @@ export async function listGlobalChatMessages() {
   return (data || []).map(mapChatMessage);
 }
 
+export async function getUnreadGlobalChatMessageCount() {
+  const { data, error } = await supabase.rpc("get_unread_global_chat_message_count");
+  if (error) throw new Error(error.message);
+  return Number(data || 0);
+}
+
+export async function markGlobalChatMessagesRead() {
+  const { error } = await supabase.rpc("mark_global_chat_messages_read");
+  if (error) throw new Error(error.message);
+}
+
 export async function sendGlobalChatMessage(message) {
   const body = String(message || "").trim();
   if (!body) throw new Error("Message cannot be empty.");

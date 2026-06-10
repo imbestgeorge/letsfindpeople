@@ -9,7 +9,9 @@ import { updateUserProfile, deleteUser, getUserProfile, uploadProfilePicture } f
 import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
+  getUnreadGlobalChatMessageCount,
   listGlobalChatMessages,
+  markGlobalChatMessagesRead,
   removeGlobalChatSubscription,
   sendGlobalChatMessage,
   subscribeToGlobalChatMessages,
@@ -506,6 +508,7 @@ function Navbar({ onProfileSave }) {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [unreadChatMessages, setUnreadChatMessages] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -1082,9 +1085,24 @@ function Navbar({ onProfileSave }) {
     }
   }, [session?.user?.id]);
 
+  const loadUnreadChatMessageCount = useCallback(async () => {
+    if (!session?.user?.id) {
+      setUnreadChatMessages(0);
+      return;
+    }
+
+    try {
+      const count = await getUnreadGlobalChatMessageCount();
+      setUnreadChatMessages(count);
+    } catch {
+      // The badge is best-effort; chat itself remains usable if this fails.
+    }
+  }, [session?.user?.id]);
+
   const openGlobalChat = () => {
     setShowChatModal(true);
     setChatError("");
+    setUnreadChatMessages(0);
   };
 
   const closeGlobalChat = () => {
@@ -1329,18 +1347,45 @@ function Navbar({ onProfileSave }) {
   }, [routerLocation.pathname]);
 
   useEffect(() => {
-    if (!showChatModal || !session?.user?.id) return;
+    if (!session?.user?.id) {
+      setUnreadChatMessages(0);
+      return undefined;
+    }
 
     let isMounted = true;
-    loadGlobalChatMessages();
+    loadUnreadChatMessageCount();
 
     const channel = subscribeToGlobalChatMessages(() => {
-      if (isMounted) loadGlobalChatMessages({ silent: true });
+      if (!isMounted) return;
+      if (showChatModal) {
+        loadGlobalChatMessages({ silent: true });
+        Promise.resolve(markGlobalChatMessagesRead())
+          .then(() => setUnreadChatMessages(0))
+          .catch(() => {});
+      } else {
+        loadUnreadChatMessageCount();
+      }
     });
 
     return () => {
       isMounted = false;
       removeGlobalChatSubscription(channel);
+    };
+  }, [loadGlobalChatMessages, loadUnreadChatMessageCount, session?.user?.id, showChatModal]);
+
+  useEffect(() => {
+    if (!showChatModal || !session?.user?.id) return undefined;
+
+    let isMounted = true;
+    loadGlobalChatMessages()
+      .then(() => markGlobalChatMessagesRead())
+      .then(() => {
+        if (isMounted) setUnreadChatMessages(0);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
     };
   }, [loadGlobalChatMessages, session?.user?.id, showChatModal]);
 
@@ -1854,6 +1899,7 @@ function Navbar({ onProfileSave }) {
   const showAdminNav = session && isAdminUser && routerLocation.pathname !== "/admin";
   const showChatNav = session && !isAdminUser;
   const showNotificationsNav = session && !isAdminUser;
+  const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
 
   return (
@@ -1877,12 +1923,18 @@ function Navbar({ onProfileSave }) {
             <div className="nav-item">
               <button
                 type="button"
-                className="navbar-chat-button"
+                className="navbar-chat-button position-relative"
                 onClick={openGlobalChat}
                 title="International chat"
                 aria-label="Open international chat"
               >
                 <i className="bi bi-envelope"></i>
+                {unreadChatMessages > 0 && (
+                  <span className="navbar-notification-badge position-absolute badge rounded-pill bg-danger">
+                    {chatBadgeLabel}
+                    <span className="visually-hidden">unread messages</span>
+                  </span>
+                )}
               </button>
             </div>
             )}
@@ -2251,28 +2303,38 @@ function Navbar({ onProfileSave }) {
                 <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
                   {selectedNotification.body}
                 </p>
-                {selectedNotification.isDrawEvent && !drawInviteCompleted && (
+                {selectedNotification.isDrawEvent && (
                   <div className="mt-3">
                     <label htmlFor="drawEventInviteLink" className="visually-hidden">Draw Event Invite</label>
-                    <div className="input-group">
+                    {drawInviteCompleted ? (
                       <input
                         id="drawEventInviteLink"
-                        ref={drawInviteInputRef}
                         type="text"
                         className="form-control"
-                        value={drawInviteLink}
+                        value="Congratulations, someone used your link!"
                         readOnly
-                        disabled={drawInviteLoading || !!drawInviteError}
                       />
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={copyDrawInviteLink}
-                        disabled={!drawInviteLink || drawInviteLoading}
-                      >
-                        {drawInviteCopied ? "Copied!" : "Copy"}
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="input-group">
+                        <input
+                          id="drawEventInviteLink"
+                          ref={drawInviteInputRef}
+                          type="text"
+                          className="form-control"
+                          value={drawInviteLink}
+                          readOnly
+                          disabled={drawInviteLoading || !!drawInviteError}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={copyDrawInviteLink}
+                          disabled={!drawInviteLink || drawInviteLoading}
+                        >
+                          {drawInviteCopied ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    )}
                     {drawInviteLoading && (
                       <small className="text-muted d-block mt-1">Getting invite link...</small>
                     )}
