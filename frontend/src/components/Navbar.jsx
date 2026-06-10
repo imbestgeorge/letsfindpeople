@@ -261,7 +261,6 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownMenuRef = useRef(null);
   const contactErrorRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
-  const chatMessagesEndRef = useRef(null);
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
@@ -1295,9 +1294,7 @@ function Navbar({ onProfileSave }) {
       const body = chatMessagesBodyRef.current;
       if (body) {
         body.scrollTop = body.scrollHeight;
-        return;
       }
-      chatMessagesEndRef.current?.scrollIntoView({ block: "end" });
     };
 
     scrollToLatestMessage();
@@ -2099,7 +2096,6 @@ function Navbar({ onProfileSave }) {
                         </div>
                       );
                     })}
-                    <div ref={chatMessagesEndRef}></div>
                   </div>
                 )}
               </div>
