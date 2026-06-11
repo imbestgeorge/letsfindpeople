@@ -1,5 +1,4 @@
 import { supabase } from "./supabaseClient";
-import welcomeCoverUrl from "../assets/welcome.png";
 
 export const NOTIFICATION_TITLE_MAX_LENGTH = 120;
 export const NOTIFICATION_BODY_MAX_LENGTH = 2000;
@@ -14,37 +13,17 @@ const NOTIFICATION_COVER_BUCKET = "notification-covers";
 const ALLOWED_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 let notificationSubscriptionId = 0;
 
-function isWelcomeNotification(title, body, type) {
-  const normalizedTitle = String(title || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[.!?]+$/g, "")
-    .trim();
-  const normalizedBody = String(body || "").trim().toLowerCase();
-  const normalizedType = String(type || "").trim().toLowerCase();
-
-  return (
-    normalizedType === "welcome" ||
-    normalizedType === "welcome_notification" ||
-    (
-      normalizedTitle === "welcome" &&
-      normalizedBody === "your profile is ready. start searching and find people who share your interests!"
-    )
-  );
-}
-
 function mapNotification(row) {
   const type = row.notification_type || "general";
   const title = row.title || "";
   const body = row.body || "";
   const drawEventId = row.draw_event_id == null ? null : Number(row.draw_event_id);
-  const coverUrl = row.cover_url || (isWelcomeNotification(title, body, type) ? welcomeCoverUrl : "");
 
   return {
     id: row.id_notification,
     title,
     body,
-    coverUrl,
+    coverUrl: row.cover_url || "",
     createdAt: row.created_at,
     isRead: !!row.is_read,
     isDisabled: !!row.is_disabled,
