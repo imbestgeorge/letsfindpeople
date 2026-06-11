@@ -191,6 +191,9 @@ export async function getPublicUserById(userId) {
 }
 
 export async function getUserCount() {
+  const { data: rpcCount, error: rpcError } = await supabase.rpc("get_public_user_count");
+  if (!rpcError) return Number(rpcCount || 0);
+
   const { count, error } = await supabase
     .from("users")
     .select("*", { count: "exact", head: true })

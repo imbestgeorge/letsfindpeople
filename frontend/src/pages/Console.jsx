@@ -83,7 +83,7 @@ function isDirectQuestionComplete(selected, skipped, key, selectedGender, countr
 
 export default function Console({ currentUser }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
-  const { session, isLoading: authLoading } = useAuth();
+  const { session, isLoading: authLoading, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const focusedUserId = useMemo(
@@ -113,7 +113,6 @@ export default function Console({ currentUser }) {
   );
   const [latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
 
-  const isAdmin = currentUser?.idType === 2;
   const hasUnlimitedSearches =
     isAdmin ||
     currentUser?.subscriptionStatus === "active" ||

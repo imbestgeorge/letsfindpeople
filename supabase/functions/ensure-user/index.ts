@@ -11,16 +11,42 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+function toOrigin(url: string | null) {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
 
-function json(body: unknown, status = 200) {
+function getAllowedOrigins() {
+  return [Deno.env.get("SITE_URL"), Deno.env.get("SITE_URLS")]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map((value) => toOrigin(value.trim()))
+    .filter(Boolean);
+}
+
+function corsHeaders(req: Request) {
+  const requestOrigin = req.headers.get("Origin");
+  const allowedOrigins = getAllowedOrigins();
+  const allowedOrigin =
+    requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : allowedOrigins[0] ?? "";
+
+  return {
+    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin, Vary: "Origin" } : {}),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
+
+function json(req: Request, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
   });
 }
 
@@ -81,12 +107,13 @@ async function recordPendingInvite(
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders(req) });
   }
+  if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return json({ error: "Missing authorization header" }, 401);
+    return json(req, { error: "Missing authorization header" }, 401);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -103,7 +130,7 @@ Deno.serve(async (req: Request) => {
     error: authError,
   } = await userClient.auth.getUser();
   if (authError || !user) {
-    return json({ error: "Unauthorized" }, 401);
+    return json(req, { error: "Unauthorized" }, 401);
   }
 
   const supabaseUid = user.id;
@@ -134,18 +161,18 @@ Deno.serve(async (req: Request) => {
   if (byUid) {
     if (byUid.is_deleted) {
       await writeLog(supabase, byUid.id_user, "LOG_IN", "Error", "Account has been deleted");
-      return json({ error: "ACCOUNT_DELETED" });
+      return json(req, { error: "ACCOUNT_DELETED" });
     }
     if (byUid.is_banned) {
       await writeLog(supabase, byUid.id_user, "LOG_IN", "Error", "Account is banned");
-      return json({ error: "ACCOUNT_BANNED" });
+      return json(req, { error: "ACCOUNT_BANNED" });
     }
     if (byUid.suspended_until && new Date(byUid.suspended_until).getTime() > Date.now()) {
       await writeLog(supabase, byUid.id_user, "LOG_IN", "Blocked", "Account is temporarily suspended");
-      return json({ error: "ACCOUNT_SUSPENDED", suspendedUntil: byUid.suspended_until }, 403);
+      return json(req, { error: "ACCOUNT_SUSPENDED", suspendedUntil: byUid.suspended_until }, 403);
     }
     await writeLog(supabase, byUid.id_user, "LOG_IN", "Success");
-    return json({ user: byUid, created: false });
+    return json(req, { user: byUid, created: false });
   }
 
   // 2. Lookup by email — links an orphan row (e.g. seeded data) to the new UID.
@@ -158,22 +185,22 @@ Deno.serve(async (req: Request) => {
   if (byEmail) {
     if (byEmail.is_deleted) {
       await writeLog(supabase, byEmail.id_user, "LOG_IN", "Error", "Account has been deleted");
-      return json({ error: "ACCOUNT_DELETED" });
+      return json(req, { error: "ACCOUNT_DELETED" });
     }
     if (byEmail.is_banned) {
       await writeLog(supabase, byEmail.id_user, "LOG_IN", "Error", "Account is banned");
-      return json({ error: "ACCOUNT_BANNED" });
+      return json(req, { error: "ACCOUNT_BANNED" });
     }
     if (byEmail.suspended_until && new Date(byEmail.suspended_until).getTime() > Date.now()) {
       await writeLog(supabase, byEmail.id_user, "LOG_IN", "Blocked", "Account is temporarily suspended");
-      return json({ error: "ACCOUNT_SUSPENDED", suspendedUntil: byEmail.suspended_until }, 403);
+      return json(req, { error: "ACCOUNT_SUSPENDED", suspendedUntil: byEmail.suspended_until }, 403);
     }
     await supabase
       .from("users")
       .update({ supabase_uid: supabaseUid })
       .eq("id_user", byEmail.id_user);
     await writeLog(supabase, byEmail.id_user, "LOG_IN", "Success");
-    return json({ user: byEmail, created: false });
+    return json(req, { user: byEmail, created: false });
   }
 
   // 3. Brand-new user — create the row.
@@ -194,14 +221,14 @@ Deno.serve(async (req: Request) => {
       if (existing) {
         await recordPendingInvite(supabase, inviteCode, existing.id_user, invitedDisplayName);
         await writeLog(supabase, existing.id_user, "CREATE_ACCOUNT", "Success");
-        return json({ user: existing, created: true });
+        return json(req, { user: existing, created: true });
       }
     }
     await writeLog(supabase, null, "CREATE_ACCOUNT", "Error", insertErr.message);
-    return json({ error: insertErr.message }, 500);
+    return json(req, { error: insertErr.message }, 500);
   }
 
   await recordPendingInvite(supabase, inviteCode, newUser.id_user, invitedDisplayName);
   await writeLog(supabase, newUser.id_user, "CREATE_ACCOUNT", "Success");
-  return json({ user: newUser, created: true });
+  return json(req, { user: newUser, created: true });
 });

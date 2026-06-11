@@ -5,13 +5,9 @@ import { ensureUser } from "../lib/userService";
 
 const AuthContext = createContext(null);
 
-const ADMIN_CACHE_KEY = 'lfp_isAdmin';
-
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = loading
-  const [isAdmin, setIsAdmin] = useState(() => {
-    try { return localStorage.getItem(ADMIN_CACHE_KEY) === 'true'; } catch { return false; }
-  });
+  const [isAdmin, setIsAdmin] = useState(false);
   const [authBlockReason, setAuthBlockReason] = useState(null);
   // True while fetching the current user's role from the database.
   const [isRoleLoading, setIsRoleLoading] = useState(false);
@@ -30,7 +26,6 @@ export function AuthProvider({ children }) {
       const isSuspended = user?.suspended_until && new Date(user.suspended_until).getTime() > Date.now();
       if (error || !user || user.is_deleted || user.is_banned || isSuspended) {
         setIsAdmin(false);
-        localStorage.removeItem(ADMIN_CACHE_KEY);
         if (user?.is_deleted) {
           setAuthBlockReason("accountDeleted");
         }
@@ -42,7 +37,6 @@ export function AuthProvider({ children }) {
       setAuthBlockReason(null);
       const admin = user.id_type === 2;
       setIsAdmin(admin);
-      localStorage.setItem(ADMIN_CACHE_KEY, String(admin));
     } catch {
       setIsAdmin(false);
     } finally {
@@ -124,7 +118,6 @@ export function AuthProvider({ children }) {
       } else {
         setIsAdmin(false);
         setIsRoleLoading(false);
-        try { localStorage.removeItem(ADMIN_CACHE_KEY); } catch { /* ignore */ }
       }
     });
 

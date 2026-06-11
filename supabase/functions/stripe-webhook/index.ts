@@ -68,10 +68,16 @@ async function updateUserSubscription(
 }
 
 Deno.serve(async (req: Request) => {
-  const stripeKey     = Deno.env.get("STRIPE_SECRET_KEY")!;
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
-  const supabaseUrl   = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const stripeKey     = Deno.env.get("STRIPE_SECRET_KEY");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const supabaseUrl   = Deno.env.get("SUPABASE_URL");
+  const serviceKey    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!stripeKey || !webhookSecret || !supabaseUrl || !serviceKey) {
+    return json({ error: "Webhook secrets are not configured" }, 500);
+  }
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-04-10" });
 

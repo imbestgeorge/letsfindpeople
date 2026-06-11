@@ -723,7 +723,7 @@ function Navbar({ onProfileSave }) {
       dropdown.removeEventListener("hidden.bs.dropdown", resetNotificationsDropdownOffset);
       window.removeEventListener("resize", updateNotificationsDropdownOffset);
     };
-  }, [session, isAdmin, savedProfile.idType]);
+  }, [session, isAdmin]);
 
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
@@ -1974,7 +1974,7 @@ function Navbar({ onProfileSave }) {
     () => getBasicPlanPrice(savedProfile.location),
     [savedProfile.location]
   );
-  const isAdminUser = isAdmin || savedProfile.idType === 2;
+  const isAdminUser = isAdmin;
   const showPricingNav = (
     session &&
     !isAdminUser &&

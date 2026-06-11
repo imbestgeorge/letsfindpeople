@@ -45,6 +45,25 @@ const SKIP_COLS = {
 
 const YES_NO_COLS_SQL = Object.values(YES_NO_COLS).join(", ");
 const SKIP_COLS_SQL   = Object.values(SKIP_COLS).join(", ");
+const PROFILE_PICTURE_MAX_SIZE = 3 * 1024 * 1024;
+const PROFILE_PICTURE_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const PROFILE_PICTURE_ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+const PROFILE_PICTURE_PUBLIC_PATH = "/storage/v1/object/public/profile-pictures/";
+
+function normalizeProfilePictureUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    const supabaseOrigin = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
+    if (url.origin !== supabaseOrigin) return null;
+    if (!url.pathname.startsWith(PROFILE_PICTURE_PUBLIC_PATH)) return null;
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return null;
+  }
+}
 
 // ── ensureUser ────────────────────────────────────────────────────────────────
 /**
@@ -207,9 +226,7 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
     show_snapchat:     !!showSnapchat,
     discord:           discordUsername   || null,
     show_discord:      !!showDiscord,
-    // Strip any cache-busting query param before persisting so the DB always
-    // stores a clean, stable URL.
-    profile_url: profileImageUrl ? profileImageUrl.split("?")[0] : null,
+    profile_url: normalizeProfilePictureUrl(profileImageUrl),
   };
 
   // Map yes/no answers ("yes" → TRUE, "no" → FALSE, absent/null → NULL).
@@ -289,9 +306,19 @@ export async function deleteUser() {
  * @returns {Promise<string>} Public URL
  */
 export async function uploadProfilePicture(supabaseUid, file) {
-  const ext         = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const allowedExts = ["jpg", "jpeg", "png", "webp", "gif"];
-  if (!allowedExts.includes(ext)) throw new Error("Invalid image file type.");
+  if (!file) throw new Error("Profile picture is required.");
+  if (!/^[0-9a-f-]{36}$/i.test(String(supabaseUid || ""))) {
+    throw new Error("Invalid user.");
+  }
+  if (!PROFILE_PICTURE_ALLOWED_TYPES.has(file.type)) {
+    throw new Error("Profile picture must be a JPG, PNG, WEBP, or GIF image.");
+  }
+  if (file.size > PROFILE_PICTURE_MAX_SIZE) {
+    throw new Error("Profile picture must be 3 MB or smaller.");
+  }
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  if (!PROFILE_PICTURE_ALLOWED_EXTS.has(ext)) throw new Error("Invalid image file type.");
 
   const storagePath = `${supabaseUid}.${ext}`;
 
