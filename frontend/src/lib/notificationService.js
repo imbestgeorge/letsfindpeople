@@ -14,15 +14,22 @@ const NOTIFICATION_COVER_BUCKET = "notification-covers";
 const ALLOWED_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 let notificationSubscriptionId = 0;
 
-function isWelcomeNotification(title, type) {
-  const normalizedTitle = String(title || "").trim().toLowerCase();
+function isWelcomeNotification(title, body, type) {
+  const normalizedTitle = String(title || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?]+$/g, "")
+    .trim();
+  const normalizedBody = String(body || "").trim().toLowerCase();
   const normalizedType = String(type || "").trim().toLowerCase();
 
   return (
     normalizedType === "welcome" ||
     normalizedType === "welcome_notification" ||
-    normalizedTitle === "welcome" ||
-    normalizedTitle.startsWith("welcome ")
+    (
+      normalizedTitle === "welcome" &&
+      normalizedBody === "your profile is ready. start searching and find people who share your interests!"
+    )
   );
 }
 
@@ -31,7 +38,7 @@ function mapNotification(row) {
   const title = row.title || "";
   const body = row.body || "";
   const drawEventId = row.draw_event_id == null ? null : Number(row.draw_event_id);
-  const coverUrl = row.cover_url || (isWelcomeNotification(title, type) ? welcomeCoverUrl : "");
+  const coverUrl = row.cover_url || (isWelcomeNotification(title, body, type) ? welcomeCoverUrl : "");
 
   return {
     id: row.id_notification,
