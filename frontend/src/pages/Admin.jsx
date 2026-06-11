@@ -1054,7 +1054,7 @@ function Admin() {
       Promise.resolve(supabase.rpc('write_log', {
         p_action: action,
         p_status: 'Success',
-        p_reason: eventIsDrawEvent ? `Created draw event: ${trimmedTitle}` : `Sent notification: ${trimmedTitle}`,
+        p_reason: eventIsDrawEvent ? `${trimmedTitle}` : `${trimmedTitle}`,
         p_metadata: {
           notificationId: notification?.id ?? null,
           drawEventId: notification?.drawEventId ?? null,
@@ -1084,7 +1084,7 @@ function Admin() {
       Promise.resolve(supabase.rpc('write_log', {
         p_action: 'ADMIN_DISABLE_DRAW_EVENT',
         p_status: 'Success',
-        p_reason: `Disabled draw event: ${event.title}`,
+        p_reason: `${event.title}`,
         p_metadata: { drawEventId: event.id, title: event.title },
       })).catch(() => {});
       fetchDrawEvents();
@@ -1106,7 +1106,7 @@ function Admin() {
       Promise.resolve(supabase.rpc('write_log', {
         p_action: 'ADMIN_ADD_KEYWORD',
         p_status: 'Success',
-        p_reason: `Added keyword: ${trimmedName}`,
+        p_reason: `${trimmedName}`,
         p_metadata: {
           keywordName: trimmedName,
           subcategoryId: parseInt(newKeywordSubcategoryId, 10),
