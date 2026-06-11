@@ -30,6 +30,7 @@ import {
 import "./Navbar.css";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -159,6 +160,52 @@ function formatNotificationTimestamp(value) {
   }).format(date);
 }
 
+function formatDrawInviteShareUrl(inviteLink) {
+  try {
+    const url = new URL(inviteLink);
+    return `${url.host}${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return inviteLink;
+  }
+}
+
+function buildDrawInviteShareMessage(inviteLink) {
+  return [
+    `What if someone exactly like you already exists 🤔? Find out on ${formatDrawInviteShareUrl(inviteLink)}`,
+    "(The sender 100% shared this just for the free Crunchyroll Mega Fan, ChatGPT Plus, Gemini Pro, and other accounts)",
+  ].join("\n\n");
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to the legacy copy path below.
+  }
+
+  if (typeof document === "undefined" || !document.body) return false;
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
 function combineAnswers(...answers) {
   if (answers.includes("yes")) return "yes";
   if (answers.includes("no")) return "no";
@@ -266,7 +313,6 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownMenuRef = useRef(null);
   const contactErrorRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
-  const drawInviteInputRef = useRef(null);
   const inviteAuthOpenedRef = useRef("");
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
@@ -518,7 +564,7 @@ function Navbar({ onProfileSave }) {
   const [drawInviteLink, setDrawInviteLink] = useState("");
   const [drawInviteLoading, setDrawInviteLoading] = useState(false);
   const [drawInviteError, setDrawInviteError] = useState("");
-  const [drawInviteCopied, setDrawInviteCopied] = useState(false);
+  const [drawInviteShareNotice, setDrawInviteShareNotice] = useState("");
   const [drawInviteCompleted, setDrawInviteCompleted] = useState(false);
 
   // tracks whether we've already hydrated state from the DB for the current session
@@ -1194,7 +1240,7 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     setDrawInviteLink("");
     setDrawInviteError("");
-    setDrawInviteCopied(false);
+    setDrawInviteShareNotice("");
     setDrawInviteCompleted(false);
 
     if (
@@ -1234,18 +1280,26 @@ function Navbar({ onProfileSave }) {
     unreadNotifications,
   ]);
 
-  const copyDrawInviteLink = async () => {
+  const shareDrawInviteLink = async () => {
     if (!drawInviteLink) return;
 
-    try {
-      await navigator.clipboard.writeText(drawInviteLink);
-      setDrawInviteCopied(true);
-      return;
-    } catch {
-      drawInviteInputRef.current?.select();
-      document.execCommand("copy");
-      setDrawInviteCopied(true);
+    const shareMessage = buildDrawInviteShareMessage(drawInviteLink);
+    setDrawInviteShareNotice("");
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: DRAW_INVITE_SHARE_TITLE,
+          text: shareMessage,
+        });
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+      }
     }
+
+    const copied = await copyTextToClipboard(shareMessage);
+    setDrawInviteShareNotice(copied ? "Share message copied." : "Sharing is not available in this browser.");
   };
 
   useEffect(() => {
@@ -2356,7 +2410,6 @@ function Navbar({ onProfileSave }) {
                       <div className="input-group">
                         <input
                           id="drawEventInviteLink"
-                          ref={drawInviteInputRef}
                           type="text"
                           className="form-control"
                           value={drawInviteLink}
@@ -2366,10 +2419,10 @@ function Navbar({ onProfileSave }) {
                         <button
                           type="button"
                           className="btn btn-primary"
-                          onClick={copyDrawInviteLink}
+                          onClick={shareDrawInviteLink}
                           disabled={!drawInviteLink || drawInviteLoading}
                         >
-                          {drawInviteCopied ? "Copied!" : "Copy"}
+                          Share
                         </button>
                       </div>
                     )}
@@ -2378,6 +2431,11 @@ function Navbar({ onProfileSave }) {
                     )}
                     {drawInviteError && (
                       <small className="text-danger d-block mt-1">{drawInviteError}</small>
+                    )}
+                    {drawInviteShareNotice && (
+                      <small className="text-muted d-block mt-1" aria-live="polite">
+                        {drawInviteShareNotice}
+                      </small>
                     )}
                   </div>
                 )}
