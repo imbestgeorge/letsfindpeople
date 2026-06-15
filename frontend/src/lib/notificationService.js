@@ -112,7 +112,15 @@ export async function listSiteNotifications(limit = 20) {
     p_limit: limit,
   });
   if (error) throw new Error(error.message);
-  return (data || []).map(mapNotification);
+
+  const notifications = (data || []).map(mapNotification);
+
+  // Pin welcome / direct notifications to the top, preserving the rest of the order.
+  return notifications.sort((a, b) => {
+    const aIsDirect = a.type === "direct" ? 0 : 1;
+    const bIsDirect = b.type === "direct" ? 0 : 1;
+    return aIsDirect - bIsDirect;
+  });
 }
 
 export async function getLatestEnabledDrawEventNotification() {
