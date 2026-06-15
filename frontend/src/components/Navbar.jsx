@@ -163,7 +163,7 @@ function formatNotificationTimestamp(value) {
 function formatDrawInviteShareUrl(inviteLink) {
   try {
     const url = new URL(inviteLink);
-    return `${url.host}${url.pathname}${url.search}${url.hash}`;
+    return `${url.protocol}//${url.host}${url.pathname}${url.search}${url.hash}`;
   } catch {
     return inviteLink;
   }
