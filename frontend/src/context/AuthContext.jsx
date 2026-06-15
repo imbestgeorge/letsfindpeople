@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
     try {
       const { data: user, error } = await supabase
         .from("users")
-        .select("id_type, is_deleted, is_banned, suspended_until")
+        .select("id_type, is_deleted, is_banned, suspension_reason, suspended_until")
         .eq("supabase_uid", uid)
         .maybeSingle();
       const isSuspended = user?.suspended_until && new Date(user.suspended_until).getTime() > Date.now();
@@ -28,6 +28,9 @@ export function AuthProvider({ children }) {
         setIsAdmin(false);
         if (user?.is_deleted) {
           setAuthBlockReason("accountDeleted");
+        }
+        if (user?.is_banned && user?.suspension_reason === "underage") {
+          setAuthBlockReason("underageBanned");
         }
         if (user?.is_deleted || user?.is_banned || isSuspended) {
           await supabase.auth.signOut();
@@ -103,9 +106,13 @@ export function AuthProvider({ children }) {
               if (err.message === "ACCOUNT_DELETED") {
                 setAuthBlockReason("accountDeleted");
               }
+              if (err.message === "ACCOUNT_BANNED_UNDERAGE") {
+                setAuthBlockReason("underageBanned");
+              }
               if (
                 err.message === "ACCOUNT_DELETED" ||
                 err.message === "ACCOUNT_BANNED" ||
+                err.message === "ACCOUNT_BANNED_UNDERAGE" ||
                 err.message === "ACCOUNT_SUSPENDED"
               ) {
                 await supabase.auth.signOut();

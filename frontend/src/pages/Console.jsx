@@ -404,11 +404,7 @@ export default function Console({ currentUser }) {
         }
       }
 
-      const selectedInterestNames = selectedKeywords
-        .map((id) => keywordMap[id]?.name)
-        .filter(Boolean)
-        .join(", ");
-      const { users } = await searchUsers(selectedKeywords, selectedInterestNames);
+      const { users } = await searchUsers(selectedKeywords);
       // Filter out the current user from backend results to avoid duplicate
       const filtered = session?.user?.id
         ? users.filter(u => u.supabaseUid !== session.user.id)

@@ -1859,6 +1859,52 @@ function Navbar({ onProfileSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ── Age gate: ban immediately if under 16 ────────────────────────────────
+    const parsedDay   = Number(birthDay);
+    const parsedMonth = Number(birthMonth);
+    const parsedYear  = Number(birthYear);
+    if (parsedYear && parsedMonth && parsedDay) {
+      const dob   = new Date(parsedYear, parsedMonth - 1, parsedDay);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const mDiff = today.getMonth() - dob.getMonth();
+      if (mDiff < 0 || (mDiff === 0 && today.getDate() < dob.getDate())) age--;
+
+      if (age < 16) {
+        // Wipe all local profile state first so nothing is shown
+        const blank = {
+          firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
+          location: "", countryCode: "", phoneNumber: "", showPhone: true,
+          instagramUsername: "", showInstagram: true,
+          tiktokUsername: "", showTiktok: true,
+          snapchatUsername: "", showSnapchat: true,
+          discordUsername: "", showDiscord: true,
+          profileImagePreview: null, answers: {}, selected: {}, skipped: {},
+          subscriptionStatus: "free", freeSearchesRemaining: 0, idType: 1,
+        };
+        setSavedProfile(blank);
+        if (onProfileSave) onProfileSave(blank);
+        setShowEditModal(false);
+
+        // Ban account server-side (nulls out all profile data, sets is_banned=true,
+        // suspension_reason='underage'). Fire-and-forget sign-out after.
+        if (session?.user) {
+          try {
+            await supabase.rpc("ban_underage_account");
+          } catch (err) {
+            console.error("Failed to ban underage account:", err.message);
+          } finally {
+            await supabase.auth.signOut();
+          }
+        }
+
+        navigate("/underage-banned", { replace: true });
+        return;
+      }
+    }
+    // ── End age gate ─────────────────────────────────────────────────────────
+
     const sanitizedAnswers = pickKeys(answers, yesNoKeys);
     const sanitizedSkipped = pickKeys(skipped, directKeys);
     const sanitizedSelected = sanitizeSelectedForProfile(

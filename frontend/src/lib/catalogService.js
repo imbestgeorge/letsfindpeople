@@ -157,7 +157,7 @@ export async function getCatalog() {
  * @param {string} [reason]
  * @returns {Promise<{ users: object[] }>}
  */
-export async function searchUsers(keywordIds, reason = "") {
+export async function searchUsers(keywordIds) {
   const ids = [...new Set(keywordIds.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
   if (ids.length === 0) throw new Error("keywordIds must contain valid integers.");
 
@@ -166,11 +166,8 @@ export async function searchUsers(keywordIds, reason = "") {
   });
   if (error) throw new Error(error.message);
 
-  Promise.resolve(supabase.rpc("write_log", {
-    p_action: "SEARCH",
-    p_status: "Success",
-    p_reason: reason || null,
-  })).catch(() => {});
+  // Note: the search_users_by_keywords RPC already writes the SEARCH log
+  // server-side. Do not write it again here to avoid double-logging.
 
   const users = (data || []).map(mapPublicUser);
 

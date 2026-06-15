@@ -40,6 +40,10 @@ const PAGE_META = {
     title: `${SITE_NAME} | Account Deleted`,
     description: "Your LetsFindPeople account status page.",
   },
+  "/underage-banned": {
+    title: `${SITE_NAME} | Account Banned`,
+    description: "Your LetsFindPeople account has been banned due to age restriction.",
+  },
   "/admin": {
     title: `${SITE_NAME} | Admin`,
     description: "LetsFindPeople administration dashboard.",
@@ -153,6 +157,11 @@ function AuthRedirectHandler() {
       return;
     }
 
+    if (authBlockReason === "underageBanned") {
+      navigate("/underage-banned", { replace: true });
+      return;
+    }
+
     if (!session) return;
 
     navigate(isAdmin ? "/admin" : "/", { replace: true });
@@ -190,6 +199,7 @@ function AppFrame({ savedProfile, setSavedProfile }) {
           <Route path="/" element={<Console currentUser={savedProfile} />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/account-deleted" element={<ErrorPage type="accountDeleted" />} />
+          <Route path="/underage-banned" element={<ErrorPage type="underageBanned" />} />
           <Route path="/console" element={<Console currentUser={savedProfile} />} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/privacy" element={<Privacy />} />
