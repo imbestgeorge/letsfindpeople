@@ -643,15 +643,6 @@ export default function Console({ currentUser }) {
                   : "*Your 3 free searches have been used up."
                 : `*You have ${freeSearchesRemaining} free ${freeSearchesRemaining === 1 ? "search" : "searches"} remaining`
               }
-              {freeSearchesRemaining <= 0 && (
-                <button
-                  type="button"
-                  className="console-get-more-link"
-                  onClick={() => document.dispatchEvent(new CustomEvent("open-pricing-dropdown"))}
-                >
-                  Get More Now
-                </button>
-              )}
             </p>
           )}
           {userCount >= 10000 && (

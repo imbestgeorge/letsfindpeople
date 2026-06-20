@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Dropdown as BsDropdown } from "bootstrap";
 import logo from "../assets/logo.png";
 import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
@@ -686,17 +685,6 @@ function Navbar({ onProfileSave }) {
       window.removeEventListener("resize", updatePricingDropdownOffset);
     };
   }, [session, savedProfile.subscriptionStatus]);
-
-  // Listen for a custom event from Console so it can open the pricing dropdown programmatically
-  useEffect(() => {
-    const handleOpenPricing = () => {
-      const toggle = pricingDropdownRef.current?.querySelector("[data-bs-toggle='dropdown']");
-      if (!toggle) return;
-      BsDropdown.getOrCreateInstance(toggle).toggle();
-    };
-    document.addEventListener("open-pricing-dropdown", handleOpenPricing);
-    return () => document.removeEventListener("open-pricing-dropdown", handleOpenPricing);
-  }, []);
 
   useEffect(() => {
     const dropdown = notificationsDropdownRef.current;
