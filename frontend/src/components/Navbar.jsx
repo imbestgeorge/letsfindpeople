@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Dropdown as BsDropdown } from "bootstrap";
 import logo from "../assets/logo.png";
 import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
@@ -691,17 +692,7 @@ function Navbar({ onProfileSave }) {
     const handleOpenPricing = () => {
       const toggle = pricingDropdownRef.current?.querySelector("[data-bs-toggle='dropdown']");
       if (!toggle) return;
-      // Use Bootstrap's JS API for reliable programmatic open
-      try {
-        const Dropdown = window.bootstrap?.Dropdown;
-        if (Dropdown) {
-          Dropdown.getOrCreateInstance(toggle).show();
-        } else {
-          toggle.click();
-        }
-      } catch {
-        toggle.click();
-      }
+      BsDropdown.getOrCreateInstance(toggle).toggle();
     };
     document.addEventListener("open-pricing-dropdown", handleOpenPricing);
     return () => document.removeEventListener("open-pricing-dropdown", handleOpenPricing);
@@ -2172,7 +2163,7 @@ function Navbar({ onProfileSave }) {
                   >
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Free Trial</h5>
-                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed" }}>3 free searches</span> that renew daily.</p>
+                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed", textDecorationThickness: "2px", textUnderlineOffset: "2px" }}>3 free searches</span> that renew daily.</p>
                     </div>
                     <div className="mb-3"></div>
                     <a
@@ -2187,7 +2178,7 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Basic Plan</h5>
-                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed" }}>unlimited searches</span> and <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed" }}>see who viewed your profile</span>.</p>
+                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed", textDecorationThickness: "2px", textUnderlineOffset: "2px" }}>unlimited searches</span> and <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed", textDecorationThickness: "2px", textUnderlineOffset: "2px" }}>see who viewed your profile</span>.</p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (
