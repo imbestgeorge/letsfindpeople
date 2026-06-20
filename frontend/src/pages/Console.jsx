@@ -111,6 +111,9 @@ export default function Console({ currentUser }) {
   const [freeSearchesRemaining, setFreeSearchesRemaining] = useState(
     currentUser?.freeSearchesRemaining ?? 3
   );
+  const [freeSearchesResetAt, setFreeSearchesResetAt] = useState(
+    currentUser?.freeSearchesResetAt ?? null
+  );
   const [latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
 
   const hasUnlimitedSearches =
@@ -172,8 +175,6 @@ export default function Console({ currentUser }) {
   const showSearchInfo =
     !isAdmin &&
     (!!searchSetupMessage || !hasUnlimitedSearches || userCount >= 10000);
-  const showGetMoreDrawEvent =
-    freeSearchesRemaining <= 0 && !!latestDrawEventNotification;
   const isSearchBlocked = !isLoggedIn || !isProfileComplete;
   const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
   const isSearchDisabled =
@@ -236,7 +237,8 @@ export default function Console({ currentUser }) {
 
   useEffect(() => {
     setFreeSearchesRemaining(currentUser?.freeSearchesRemaining ?? 3);
-  }, [currentUser?.freeSearchesRemaining]);
+    setFreeSearchesResetAt(currentUser?.freeSearchesResetAt ?? null);
+  }, [currentUser?.freeSearchesRemaining, currentUser?.freeSearchesResetAt]);
 
   useEffect(() => {
     if (!shouldOfferDrawEvent) {
@@ -396,6 +398,7 @@ export default function Console({ currentUser }) {
       if (!hasUnlimitedSearches) {
         const allowance = await consumeSearchAllowance();
         setFreeSearchesRemaining(allowance.remaining);
+        if (allowance.resetAt) setFreeSearchesResetAt(allowance.resetAt);
 
         if (!allowance.allowed) {
           setSearchError(allowance.reason || "You have no free searches remaining.");
@@ -614,14 +617,27 @@ export default function Console({ currentUser }) {
             </p>
           ) : !hasUnlimitedSearches && (
             <p className="console-free-searches-message text-muted mb-0">
-              *You have {freeSearchesRemaining} free {freeSearchesRemaining === 1 ? "search" : "searches"} remaining{showGetMoreDrawEvent ? "." : ""}
-              {showGetMoreDrawEvent && (
+              {freeSearchesRemaining <= 0 && freeSearchesResetAt
+                ? (() => {
+                    const resetDate = new Date(freeSearchesResetAt);
+                    const timeStr = resetDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                    const today = new Date();
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(today.getDate() + 1);
+                    const isToday = resetDate.toDateString() === today.toDateString();
+                    const isTomorrow = resetDate.toDateString() === tomorrow.toDateString();
+                    const dayLabel = isToday ? "today" : isTomorrow ? "tomorrow" : resetDate.toLocaleDateString(undefined, { weekday: "long" });
+                    return `*Your 3 free searches will reset ${dayLabel} at ${timeStr}.`;
+                  })()
+                : `*You have ${freeSearchesRemaining} free ${freeSearchesRemaining === 1 ? "search" : "searches"} remaining`
+              }
+              {freeSearchesRemaining <= 0 && (
                 <button
                   type="button"
                   className="console-get-more-link"
-                  onClick={() => openSiteNotificationModal(latestDrawEventNotification)}
+                  onClick={() => document.dispatchEvent(new CustomEvent("open-pricing-dropdown"))}
                 >
-                  Get More
+                  Get More Now
                 </button>
               )}
             </p>

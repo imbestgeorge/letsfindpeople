@@ -215,6 +215,7 @@ export async function consumeSearchAllowance() {
     remaining: Number(row?.remaining ?? 0),
     unlimited: !!row?.unlimited,
     reason: row?.reason || "",
+    resetAt: row?.reset_at || null,
   };
 }
 

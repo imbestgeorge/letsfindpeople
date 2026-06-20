@@ -106,7 +106,7 @@ export async function getUserProfile(supabaseUid) {
        tiktok, show_tiktok,
        snapchat, show_snapchat,
        discord, show_discord,
-       profile_url, is_deleted, is_banned, suspended_until, subscription_status, free_searches_remaining, id_type,
+       profile_url, is_deleted, is_banned, suspended_until, subscription_status, free_searches_remaining, free_searches_reset_at, id_type,
        ${YES_NO_COLS_SQL}, ${SKIP_COLS_SQL}`
     )
     .eq("supabase_uid", supabaseUid)
@@ -162,6 +162,7 @@ export async function getUserProfile(supabaseUid) {
         : null,
       subscriptionStatus: user.subscription_status || "free",
       freeSearchesRemaining: user.free_searches_remaining ?? 3,
+      freeSearchesResetAt: user.free_searches_reset_at || null,
       idType:             user.id_type || 1,
     },
     answers,

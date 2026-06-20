@@ -106,8 +106,8 @@ function getBasicPlanPrice(location) {
     .filter(Boolean);
   const countryCandidates = [...locationParts, getBrowserCountryCode()];
 
-  if (countryCandidates.some(country => GBP_COUNTRIES.has(country))) return "£1.99";
-  if (countryCandidates.some(country => EUROPE_COUNTRIES.has(country))) return "€1.99";
+  if (countryCandidates.some(country => GBP_COUNTRIES.has(country))) return "£2.99";
+  if (countryCandidates.some(country => EUROPE_COUNTRIES.has(country))) return "€2.99";
   return "$2.99";
 }
 
@@ -686,6 +686,18 @@ function Navbar({ onProfileSave }) {
     };
   }, [session, savedProfile.subscriptionStatus]);
 
+  // Listen for a custom event from Console so it can open the pricing dropdown programmatically
+  useEffect(() => {
+    const handleOpenPricing = () => {
+      const toggle = pricingDropdownRef.current?.querySelector("[data-bs-toggle='dropdown']");
+      if (toggle && !pricingDropdownMenuRef.current?.classList.contains("show")) {
+        toggle.click();
+      }
+    };
+    document.addEventListener("open-pricing-dropdown", handleOpenPricing);
+    return () => document.removeEventListener("open-pricing-dropdown", handleOpenPricing);
+  }, []);
+
   useEffect(() => {
     const dropdown = notificationsDropdownRef.current;
     const menu = notificationsDropdownMenuRef.current;
@@ -848,6 +860,7 @@ function Navbar({ onProfileSave }) {
           answers: newAnswers, selected: newSelected, skipped: newSkipped,
           subscriptionStatus: profile.subscriptionStatus || "free",
           freeSearchesRemaining: profile.freeSearchesRemaining ?? 3,
+          freeSearchesResetAt: profile.freeSearchesResetAt || null,
           idType: profile.idType || 1,
         };
         setSavedProfile(hydratedProfile);
@@ -2150,7 +2163,7 @@ function Navbar({ onProfileSave }) {
                   >
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Free Trial</h5>
-                      <p className="text mb-0">Access to limited searches and all keywords.</p>
+                      <p className="text mb-0">Access to <span style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: 500 }}>3 free searches</span> that renew daily.</p>
                     </div>
                     <div className="mb-3"></div>
                     <a
@@ -2165,7 +2178,7 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Basic Plan</h5>
-                      <p className="text mb-0">Access to unlimited searches and all keywords.</p>
+                      <p className="text mb-0">Access to <span style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: 500 }}>unlimited searches</span> and <span style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: 500 }}>see who viewed your profile</span>.</p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (
