@@ -690,7 +690,16 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     const handleOpenPricing = () => {
       const toggle = pricingDropdownRef.current?.querySelector("[data-bs-toggle='dropdown']");
-      if (toggle && !pricingDropdownMenuRef.current?.classList.contains("show")) {
+      if (!toggle) return;
+      // Use Bootstrap's JS API for reliable programmatic open
+      try {
+        const Dropdown = window.bootstrap?.Dropdown;
+        if (Dropdown) {
+          Dropdown.getOrCreateInstance(toggle).show();
+        } else {
+          toggle.click();
+        }
+      } catch {
         toggle.click();
       }
     };
@@ -2163,7 +2172,7 @@ function Navbar({ onProfileSave }) {
                   >
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Free Trial</h5>
-                      <p className="text mb-0">Access to <span style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: 500 }}>3 free searches</span> that renew daily.</p>
+                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed" }}>3 free searches</span> that renew daily.</p>
                     </div>
                     <div className="mb-3"></div>
                     <a
@@ -2178,7 +2187,7 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Basic Plan</h5>
-                      <p className="text mb-0">Access to <span style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: 500 }}>unlimited searches</span> and <span style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: 500 }}>see who viewed your profile</span>.</p>
+                      <p className="text mb-0">Access to <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed" }}>unlimited searches</span> and <span style={{ textDecoration: "underline", textDecorationColor: "#7c3aed" }}>see who viewed your profile</span>.</p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (

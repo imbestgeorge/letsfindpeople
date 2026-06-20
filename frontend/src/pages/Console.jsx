@@ -240,6 +240,16 @@ export default function Console({ currentUser }) {
     setFreeSearchesResetAt(currentUser?.freeSearchesResetAt ?? null);
   }, [currentUser?.freeSearchesRemaining, currentUser?.freeSearchesResetAt]);
 
+  // When searches are exhausted but resetAt is unknown, call the allowance
+  // function to both set the reset timestamp in the DB and fetch it back.
+  useEffect(() => {
+    if (!isLoggedIn || hasUnlimitedSearches || freeSearchesRemaining > 0 || freeSearchesResetAt) return;
+    consumeSearchAllowance()
+      .then((allowance) => { if (allowance.resetAt) setFreeSearchesResetAt(allowance.resetAt); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, hasUnlimitedSearches, freeSearchesRemaining, freeSearchesResetAt]);
+
   useEffect(() => {
     if (!shouldOfferDrawEvent) {
       setLatestDrawEventNotification(null);
@@ -617,18 +627,20 @@ export default function Console({ currentUser }) {
             </p>
           ) : !hasUnlimitedSearches && (
             <p className="console-free-searches-message text-muted mb-0">
-              {freeSearchesRemaining <= 0 && freeSearchesResetAt
-                ? (() => {
-                    const resetDate = new Date(freeSearchesResetAt);
-                    const timeStr = resetDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-                    const today = new Date();
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(today.getDate() + 1);
-                    const isToday = resetDate.toDateString() === today.toDateString();
-                    const isTomorrow = resetDate.toDateString() === tomorrow.toDateString();
-                    const dayLabel = isToday ? "today" : isTomorrow ? "tomorrow" : resetDate.toLocaleDateString(undefined, { weekday: "long" });
-                    return `*Your 3 free searches will reset ${dayLabel} at ${timeStr}.`;
-                  })()
+              {freeSearchesRemaining <= 0
+                ? freeSearchesResetAt
+                  ? (() => {
+                      const resetDate = new Date(freeSearchesResetAt);
+                      const timeStr = resetDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                      const today = new Date();
+                      const tomorrow = new Date(today);
+                      tomorrow.setDate(today.getDate() + 1);
+                      const isToday = resetDate.toDateString() === today.toDateString();
+                      const isTomorrow = resetDate.toDateString() === tomorrow.toDateString();
+                      const dayLabel = isToday ? "today" : isTomorrow ? "tomorrow" : resetDate.toLocaleDateString(undefined, { weekday: "long" });
+                      return `*Your 3 free searches will reset ${dayLabel} at ${timeStr}.`;
+                    })()
+                  : "*Your 3 free searches have been used up."
                 : `*You have ${freeSearchesRemaining} free ${freeSearchesRemaining === 1 ? "search" : "searches"} remaining`
               }
               {freeSearchesRemaining <= 0 && (
