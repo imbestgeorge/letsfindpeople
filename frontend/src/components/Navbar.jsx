@@ -289,7 +289,7 @@ function sanitizeSelectedForProfile(selected, selectedGender, countryNames) {
 
 function Navbar({ onProfileSave }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
-  const { session, isAdmin } = useAuth();
+  const { session, isAdmin, isLoading: authLoading } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const loginDropdownRef = useRef(null);
@@ -738,7 +738,7 @@ function Navbar({ onProfileSave }) {
 
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
-    if (!session?.user || !dbData || profileLoaded) return;
+    if (authLoading || !session?.user || !dbData || profileLoaded) return;
 
     const selectorItems = {
       visualArt: visualArtItems, digitalArt: digitalArtItems,
@@ -875,7 +875,7 @@ function Navbar({ onProfileSave }) {
         setProfileLoaded(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, dbData, profileLoaded]);
+  }, [authLoading, session, dbData, profileLoaded]);
 
   // Stage 2: compact state — 4 objects instead of ~100 individual hooks
   const [answers, setAnswers] = useState({});  // yes/no answers  keyed by question id
@@ -1206,6 +1206,8 @@ function Navbar({ onProfileSave }) {
   };
 
   const loadNotifications = useCallback(async ({ silent = false } = {}) => {
+    if (authLoading) return;
+
     if (!session?.user?.id) {
       setNotifications([]);
       setUnreadNotifications(0);
@@ -1227,7 +1229,7 @@ function Navbar({ onProfileSave }) {
     } finally {
       if (!silent) setNotificationsLoading(false);
     }
-  }, [session?.user?.id]);
+  }, [authLoading, session?.user?.id]);
 
   const openNotification = useCallback(async (notification) => {
     if (!notification) return;
@@ -1504,7 +1506,7 @@ function Navbar({ onProfileSave }) {
   }, [chatLoading, chatMessages.length, showChatModal]);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (authLoading || !session?.user?.id) return;
 
     let isMounted = true;
     loadNotifications();
@@ -1517,7 +1519,7 @@ function Navbar({ onProfileSave }) {
       isMounted = false;
       removeSiteNotificationSubscription(channel);
     };
-  }, [loadNotifications, session?.user?.id]);
+  }, [authLoading, loadNotifications, session?.user?.id]);
 
   useEffect(() => {
     const hasSubscription =
