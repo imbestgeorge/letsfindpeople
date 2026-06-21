@@ -13,9 +13,20 @@ const NOTIFICATION_COVER_BUCKET = "notification-covers";
 const ALLOWED_COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 let notificationSubscriptionId = 0;
 
+function normalizeNotificationTitle(title) {
+  switch (title) {
+    case "Free Searches Now Renew Daily!":
+      return "Free Searches Now Renew Daily";
+    case "Someone joined with your invite":
+      return "Someone Joined With Your Invite";
+    default:
+      return title;
+  }
+}
+
 function mapNotification(row) {
   const type = row.notification_type || "general";
-  const title = row.title || "";
+  const title = normalizeNotificationTitle(row.title || "");
   const body = row.body || "";
   const drawEventId = row.draw_event_id == null ? null : Number(row.draw_event_id);
 
