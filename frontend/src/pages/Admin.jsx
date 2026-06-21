@@ -2,10 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
 import {
+  BULK_EMAIL_BODY_MAX_LENGTH,
+  BULK_EMAIL_CTA_LABEL_MAX_LENGTH,
+  BULK_EMAIL_CTA_URL_MAX_LENGTH,
+  BULK_EMAIL_SUBJECT_MAX_LENGTH,
   createSiteNotification,
+  editDrawEvent,
+  mapAdminDrawEvent,
   NOTIFICATION_BODY_MAX_LENGTH,
   NOTIFICATION_TITLE_MAX_LENGTH,
   sendDrawEventEmail,
+  sendBulkUserEmail,
   SITE_NOTIFICATION_DELIVERY_SCOPES,
   uploadNotificationCover,
 } from '../lib/notificationService';
@@ -155,6 +162,25 @@ function Admin() {
   const [drawEvents, setDrawEvents] = useState([]);
   const [drawEventsLoading, setDrawEventsLoading] = useState(false);
   const [drawEventsError, setDrawEventsError] = useState(null);
+  const [showEditDrawEventModal, setShowEditDrawEventModal] = useState(false);
+  const [editingDrawEvent, setEditingDrawEvent] = useState(null);
+  const [editDrawEventTitle, setEditDrawEventTitle] = useState('');
+  const [editDrawEventBody, setEditDrawEventBody] = useState('');
+  const [editDrawEventCoverUrl, setEditDrawEventCoverUrl] = useState('');
+  const [editDrawEventCoverFile, setEditDrawEventCoverFile] = useState(null);
+  const [editDrawEventCoverPreview, setEditDrawEventCoverPreview] = useState('');
+  const [editDrawEventDeliveryScope, setEditDrawEventDeliveryScope] = useState(SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS);
+  const [editDrawEventSaving, setEditDrawEventSaving] = useState(false);
+  const [editDrawEventError, setEditDrawEventError] = useState('');
+
+  // Bulk email state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailCtaLabel, setEmailCtaLabel] = useState('');
+  const [emailCtaUrl, setEmailCtaUrl] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const createCharts = useCallback(() => {
     Object.values(chartInstancesRef.current).forEach((chart) => {
@@ -760,12 +786,7 @@ function Admin() {
     try {
       const { data, error } = await supabase.rpc('list_admin_draw_events');
       if (error) throw new Error(error.message);
-      setDrawEvents((data || []).map((event) => ({
-        id: event.id_draw_event,
-        title: event.title || '',
-        createdAt: event.created_at,
-        isDisabled: !!event.is_disabled,
-      })));
+      setDrawEvents((data || []).map(mapAdminDrawEvent).filter(Boolean));
     } catch (err) {
       setDrawEventsError(err.message);
     } finally {
@@ -860,6 +881,14 @@ function Admin() {
       }
     };
   }, [eventCoverPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (editDrawEventCoverPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(editDrawEventCoverPreview);
+      }
+    };
+  }, [editDrawEventCoverPreview]);
 
   // User pagination methods (server-side)
   const getTotalUserPages = () => {
@@ -1029,6 +1058,162 @@ function Admin() {
       return;
     }
     setEventCoverPreview(URL.createObjectURL(file));
+  };
+
+  const openEmailModal = () => {
+    setEmailSubject('');
+    setEmailBody('');
+    setEmailCtaLabel('');
+    setEmailCtaUrl('');
+    setEmailError('');
+    setShowEmailModal(true);
+  };
+
+  const closeEmailModal = ({ force = false } = {}) => {
+    if (emailSending && !force) return;
+    setShowEmailModal(false);
+    setEmailSubject('');
+    setEmailBody('');
+    setEmailCtaLabel('');
+    setEmailCtaUrl('');
+    setEmailError('');
+  };
+
+  const handleSendEmail = async (e) => {
+    e?.preventDefault();
+    const trimmedSubject = emailSubject.trim();
+    const trimmedBody = emailBody.trim();
+    const trimmedCtaLabel = emailCtaLabel.trim();
+    const trimmedCtaUrl = emailCtaUrl.trim();
+
+    if (!trimmedSubject) { setEmailError('Subject is required.'); return; }
+    if (!trimmedBody) { setEmailError('Message is required.'); return; }
+    if ((trimmedCtaLabel && !trimmedCtaUrl) || (!trimmedCtaLabel && trimmedCtaUrl)) {
+      setEmailError('Button label and URL must be filled together.');
+      return;
+    }
+    if (!window.confirm('Send this email to all current active users?')) return;
+
+    setEmailSending(true);
+    setEmailError('');
+
+    try {
+      const result = await sendBulkUserEmail({
+        subject: trimmedSubject,
+        body: trimmedBody,
+        ctaLabel: trimmedCtaLabel,
+        ctaUrl: trimmedCtaUrl,
+      });
+      Promise.resolve(supabase.rpc('write_log', {
+        p_action: 'ADMIN_SEND_EMAIL',
+        p_status: 'Success',
+        p_reason: trimmedSubject,
+        p_metadata: {
+          subject: trimmedSubject,
+          recipientCount: result?.recipientCount ?? null,
+          hasCta: !!trimmedCtaUrl,
+        },
+      })).catch(() => {});
+      alert(`Email sent to ${result?.recipientCount ?? 0} current users.`);
+      closeEmailModal({ force: true });
+    } catch (err) {
+      setEmailError(err.message || 'Failed to send email.');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  const openEditDrawEventModal = (event) => {
+    if (!event) return;
+    setEditingDrawEvent(event);
+    setEditDrawEventTitle(event.title || '');
+    setEditDrawEventBody(event.body || '');
+    setEditDrawEventCoverUrl(event.coverUrl || '');
+    setEditDrawEventCoverFile(null);
+    setEditDrawEventCoverPreview(event.coverUrl || '');
+    setEditDrawEventDeliveryScope(event.deliveryScope || SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS);
+    setEditDrawEventError('');
+    setShowEditDrawEventModal(true);
+  };
+
+  const closeEditDrawEventModal = ({ force = false } = {}) => {
+    if (editDrawEventSaving && !force) return;
+    setShowEditDrawEventModal(false);
+    setEditingDrawEvent(null);
+    setEditDrawEventTitle('');
+    setEditDrawEventBody('');
+    setEditDrawEventCoverUrl('');
+    setEditDrawEventCoverFile(null);
+    setEditDrawEventCoverPreview('');
+    setEditDrawEventDeliveryScope(SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS);
+    setEditDrawEventError('');
+  };
+
+  const handleEditDrawEventCoverChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setEditDrawEventCoverFile(file);
+    setEditDrawEventError('');
+    if (!file) {
+      setEditDrawEventCoverPreview(editDrawEventCoverUrl);
+      return;
+    }
+    setEditDrawEventCoverPreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveEditDrawEventCover = () => {
+    setEditDrawEventCoverUrl('');
+    setEditDrawEventCoverFile(null);
+    setEditDrawEventCoverPreview('');
+    setEditDrawEventError('');
+  };
+
+  const handleSaveDrawEvent = async (e) => {
+    e?.preventDefault();
+    if (!editingDrawEvent) return;
+
+    const trimmedTitle = editDrawEventTitle.trim();
+    const trimmedBody = editDrawEventBody.trim();
+
+    if (!trimmedTitle) { setEditDrawEventError('Title is required.'); return; }
+    if (!trimmedBody) { setEditDrawEventError('Description is required.'); return; }
+
+    setEditDrawEventSaving(true);
+    setEditDrawEventError('');
+
+    try {
+      const coverUrl = editDrawEventCoverFile
+        ? await uploadNotificationCover(editDrawEventCoverFile)
+        : editDrawEventCoverUrl;
+      const updatedEvent = await editDrawEvent({
+        drawEventId: editingDrawEvent.id,
+        title: trimmedTitle,
+        body: trimmedBody,
+        coverUrl,
+        deliveryScope: editDrawEventDeliveryScope,
+      });
+      if (updatedEvent) {
+        setDrawEvents((events) => events.map((event) => (
+          event.id === updatedEvent.id ? { ...event, ...updatedEvent } : event
+        )));
+      }
+      Promise.resolve(supabase.rpc('write_log', {
+        p_action: 'ADMIN_EDIT_DRAW_EVENT',
+        p_status: 'Success',
+        p_reason: trimmedTitle,
+        p_metadata: {
+          drawEventId: editingDrawEvent.id,
+          oldTitle: editingDrawEvent.title,
+          newTitle: trimmedTitle,
+          deliveryScope: editDrawEventDeliveryScope,
+        },
+      })).catch(() => {});
+      closeEditDrawEventModal({ force: true });
+      fetchDrawEvents();
+    } catch (err) {
+      setEditDrawEventError(err.message || 'Failed to save draw event.');
+    } finally {
+      setEditDrawEventSaving(false);
+    }
   };
 
   const handleSendEvent = async (e) => {
@@ -1591,13 +1776,22 @@ function Admin() {
       {page === 5 && (
         <>
           <div className="admin-toolbar d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <button
-              type="button"
-              className="btn text-white admin-add-keyword-btn"
-              onClick={openEventModal}
-            >
-              Send Notification
-            </button>
+            <div className="d-flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn text-white admin-add-keyword-btn"
+                onClick={openEventModal}
+              >
+                Send Notification
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-primary"
+                onClick={openEmailModal}
+              >
+                Send Email
+              </button>
+            </div>
           </div>
 
           {drawEventsLoading ? (
@@ -1625,21 +1819,50 @@ function Admin() {
                     <tr key={event.id}>
                       <td className="text-start">
                         <div className="fw-semibold">{event.title}</div>
+                        {event.body && (
+                          <div className="text-muted small text-truncate" style={{ maxWidth: '720px' }}>
+                            {event.body}
+                          </div>
+                        )}
                         {event.createdAt && (
                           <small className="text-muted">
                             {new Date(event.createdAt).toLocaleString('en-GB')}
                           </small>
                         )}
+                        <div className="d-flex flex-wrap gap-2 mt-2">
+                          <span className={`badge ${event.isDisabled ? 'bg-secondary' : 'bg-success'}`}>
+                            {event.isDisabled ? 'Disabled' : 'Active'}
+                          </span>
+                          <span className="badge bg-light text-dark border">
+                            {event.deliveryScope === SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_AND_FUTURE_USERS
+                              ? 'Current and future users'
+                              : 'Current users'}
+                          </span>
+                          {event.emailSentAt && (
+                            <span className="badge bg-light text-dark border">
+                              Email sent to {event.emailRecipientCount}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDisableDrawEvent(event)}
-                          disabled={event.isDisabled}
-                        >
-                          {event.isDisabled ? 'Disabled' : 'Disable'}
-                        </button>
+                        <div className="d-flex flex-wrap justify-content-center gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openEditDrawEventModal(event)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDisableDrawEvent(event)}
+                            disabled={event.isDisabled}
+                          >
+                            {event.isDisabled ? 'Disabled' : 'Disable'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1939,6 +2162,229 @@ function Admin() {
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     ) : (
                       'Send'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Email Modal */}
+      {showEmailModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <form onSubmit={handleSendEmail}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Send Email</h5>
+                  <button type="button" className="btn-close" onClick={() => closeEmailModal()} disabled={emailSending}></button>
+                </div>
+                <div className="modal-body">
+                  {emailError && (
+                    <div className="alert alert-danger py-2" role="alert">
+                      {emailError}
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label htmlFor="emailSubject" className="form-label">Subject</label>
+                    <input
+                      id="emailSubject"
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter email subject"
+                      value={emailSubject}
+                      maxLength={BULK_EMAIL_SUBJECT_MAX_LENGTH}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      disabled={emailSending}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="emailBody" className="form-label">Message</label>
+                    <textarea
+                      id="emailBody"
+                      className="form-control"
+                      rows="7"
+                      placeholder="Enter email message"
+                      value={emailBody}
+                      maxLength={BULK_EMAIL_BODY_MAX_LENGTH}
+                      onChange={(e) => setEmailBody(e.target.value)}
+                      disabled={emailSending}
+                      style={{ height: '180px', resize: 'none' }}
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div className="row g-3">
+                    <div className="col-md-5">
+                      <label htmlFor="emailCtaLabel" className="form-label">
+                        Button Label <span className="text-muted fw-normal">(Optional)</span>
+                      </label>
+                      <input
+                        id="emailCtaLabel"
+                        type="text"
+                        className="form-control"
+                        placeholder="Open LetsFindPeople"
+                        value={emailCtaLabel}
+                        maxLength={BULK_EMAIL_CTA_LABEL_MAX_LENGTH}
+                        onChange={(e) => setEmailCtaLabel(e.target.value)}
+                        disabled={emailSending}
+                      />
+                    </div>
+                    <div className="col-md-7">
+                      <label htmlFor="emailCtaUrl" className="form-label">
+                        Button URL <span className="text-muted fw-normal">(Optional)</span>
+                      </label>
+                      <input
+                        id="emailCtaUrl"
+                        type="url"
+                        className="form-control"
+                        placeholder="https://letsfindpeople.com"
+                        value={emailCtaUrl}
+                        maxLength={BULK_EMAIL_CTA_URL_MAX_LENGTH}
+                        onChange={(e) => setEmailCtaUrl(e.target.value)}
+                        disabled={emailSending}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => closeEmailModal()} disabled={emailSending}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                  >
+                    {emailSending ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      'Send'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Draw Event Modal */}
+      {showEditDrawEventModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <form onSubmit={handleSaveDrawEvent}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Edit Draw Event</h5>
+                  <button type="button" className="btn-close" onClick={() => closeEditDrawEventModal()} disabled={editDrawEventSaving}></button>
+                </div>
+                <div className="modal-body">
+                  {editDrawEventError && (
+                    <div className="alert alert-danger py-2" role="alert">
+                      {editDrawEventError}
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label htmlFor="editDrawEventTitle" className="form-label">Title</label>
+                    <input
+                      id="editDrawEventTitle"
+                      type="text"
+                      className="form-control"
+                      value={editDrawEventTitle}
+                      maxLength={NOTIFICATION_TITLE_MAX_LENGTH}
+                      onChange={(e) => setEditDrawEventTitle(e.target.value)}
+                      disabled={editDrawEventSaving}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="editDrawEventBody" className="form-label">Description</label>
+                    <textarea
+                      id="editDrawEventBody"
+                      className="form-control"
+                      rows="5"
+                      value={editDrawEventBody}
+                      maxLength={NOTIFICATION_BODY_MAX_LENGTH}
+                      onChange={(e) => setEditDrawEventBody(e.target.value)}
+                      disabled={editDrawEventSaving}
+                      style={{ height: '140px', resize: 'none' }}
+                      required
+                    ></textarea>
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="editDrawEventDeliveryScope" className="form-label">Delivery</label>
+                    <select
+                      id="editDrawEventDeliveryScope"
+                      className="form-select"
+                      value={editDrawEventDeliveryScope}
+                      onChange={(e) => setEditDrawEventDeliveryScope(e.target.value)}
+                      disabled={editDrawEventSaving}
+                    >
+                      <option value={SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS}>
+                        Current users only
+                      </option>
+                      <option value={SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_AND_FUTURE_USERS}>
+                        Current and future users
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="editDrawEventCover" className="form-label">
+                      Cover <span className="text-muted fw-normal">(Optional)</span>
+                    </label>
+                    <input
+                      id="editDrawEventCover"
+                      type="file"
+                      className="form-control"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleEditDrawEventCoverChange}
+                      disabled={editDrawEventSaving}
+                    />
+                  </div>
+
+                  {editDrawEventCoverPreview && (
+                    <div className="mb-3">
+                      <div className="ratio ratio-16x9 bg-light rounded overflow-hidden border">
+                        <img
+                          src={editDrawEventCoverPreview}
+                          alt=""
+                          className="w-100 h-100 object-fit-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm mt-2"
+                        onClick={handleRemoveEditDrawEventCover}
+                        disabled={editDrawEventSaving}
+                      >
+                        Remove Cover
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => closeEditDrawEventModal()} disabled={editDrawEventSaving}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={editDrawEventSaving || !editDrawEventTitle.trim() || !editDrawEventBody.trim()}
+                  >
+                    {editDrawEventSaving ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      'Save'
                     )}
                   </button>
                 </div>

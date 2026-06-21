@@ -189,3 +189,27 @@ export function buildDrawEventStartedEmail({
     coverUrl,
   });
 }
+
+export function buildAdminBulkEmail({
+  subject,
+  body,
+  ctaLabel,
+  ctaUrl,
+}: {
+  subject: string;
+  body: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+}): EmailTemplate {
+  const safeSubject = String(subject || BRAND_NAME).trim() || BRAND_NAME;
+  const preview = splitParagraphs(body)[0] || safeSubject;
+
+  return buildLayout({
+    subject: safeSubject,
+    preview,
+    heading: safeSubject,
+    body: String(body || ""),
+    ctaLabel,
+    ctaUrl,
+  });
+}

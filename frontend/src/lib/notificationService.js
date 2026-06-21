@@ -3,6 +3,10 @@ import { supabase } from "./supabaseClient";
 export const NOTIFICATION_TITLE_MAX_LENGTH = 120;
 export const NOTIFICATION_BODY_MAX_LENGTH = 2000;
 export const NOTIFICATION_COVER_MAX_SIZE = 3 * 1024 * 1024;
+export const BULK_EMAIL_SUBJECT_MAX_LENGTH = 120;
+export const BULK_EMAIL_BODY_MAX_LENGTH = 5000;
+export const BULK_EMAIL_CTA_LABEL_MAX_LENGTH = 40;
+export const BULK_EMAIL_CTA_URL_MAX_LENGTH = 2048;
 export const OPEN_SITE_NOTIFICATION_EVENT = "lfp:open-site-notification";
 export const SITE_NOTIFICATION_DELIVERY_SCOPES = {
   CURRENT_USERS: "current_users",
@@ -196,6 +200,29 @@ function getDeliveryScope(value) {
     : SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS;
 }
 
+function getRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+export function mapAdminDrawEvent(row) {
+  if (!row) return null;
+
+  return {
+    id: Number(row.id_draw_event),
+    notificationId: row.id_notification == null ? null : Number(row.id_notification),
+    title: row.title || "",
+    body: row.body || "",
+    coverUrl: row.cover_url || "",
+    createdAt: row.created_at,
+    isDisabled: !!row.is_disabled,
+    disabledAt: row.disabled_at || null,
+    deliveryScope: row.delivery_scope || SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS,
+    emailSentAt: row.email_sent_at || null,
+    emailRecipientCount: Number(row.email_recipient_count || 0),
+  };
+}
+
 function isMissingDeliveryScopeRpcError(error) {
   const message = [
     error?.code,
@@ -254,12 +281,91 @@ export async function createSiteNotification({
   return row ? mapNotification(row) : null;
 }
 
+export async function editDrawEvent({
+  drawEventId,
+  title,
+  body,
+  coverUrl,
+  deliveryScope = SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS,
+}) {
+  const id = Number(drawEventId);
+  const trimmedTitle = String(title || "").trim();
+  const trimmedBody = String(body || "").trim();
+  const trimmedCoverUrl = String(coverUrl || "").trim();
+  const normalizedDeliveryScope = getDeliveryScope(deliveryScope);
+
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid draw event.");
+  if (!trimmedTitle) throw new Error("Title is required.");
+  if (!trimmedBody) throw new Error("Description is required.");
+  if (trimmedTitle.length > NOTIFICATION_TITLE_MAX_LENGTH) {
+    throw new Error(`Title must be ${NOTIFICATION_TITLE_MAX_LENGTH} characters or fewer.`);
+  }
+  if (trimmedBody.length > NOTIFICATION_BODY_MAX_LENGTH) {
+    throw new Error(`Description must be ${NOTIFICATION_BODY_MAX_LENGTH} characters or fewer.`);
+  }
+
+  const { data, error } = await supabase.rpc("edit_draw_event", {
+    p_draw_event_id: id,
+    p_title: trimmedTitle,
+    p_body: trimmedBody,
+    p_cover_url: trimmedCoverUrl || null,
+    p_delivery_scope: normalizedDeliveryScope,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return mapAdminDrawEvent(row);
+}
+
 export async function sendDrawEventEmail(drawEventId) {
   const id = Number(drawEventId);
   if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid draw event.");
 
   const { data, error } = await supabase.functions.invoke("send-draw-event-email", {
     body: { drawEventId: id },
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function sendBulkUserEmail({
+  subject,
+  body,
+  ctaLabel = "",
+  ctaUrl = "",
+}) {
+  const trimmedSubject = String(subject || "").trim();
+  const trimmedBody = String(body || "").trim();
+  const trimmedCtaLabel = String(ctaLabel || "").trim();
+  const trimmedCtaUrl = String(ctaUrl || "").trim();
+
+  if (!trimmedSubject) throw new Error("Subject is required.");
+  if (!trimmedBody) throw new Error("Message is required.");
+  if (trimmedSubject.length > BULK_EMAIL_SUBJECT_MAX_LENGTH) {
+    throw new Error(`Subject must be ${BULK_EMAIL_SUBJECT_MAX_LENGTH} characters or fewer.`);
+  }
+  if (trimmedBody.length > BULK_EMAIL_BODY_MAX_LENGTH) {
+    throw new Error(`Message must be ${BULK_EMAIL_BODY_MAX_LENGTH} characters or fewer.`);
+  }
+  if (trimmedCtaLabel.length > BULK_EMAIL_CTA_LABEL_MAX_LENGTH) {
+    throw new Error(`Button label must be ${BULK_EMAIL_CTA_LABEL_MAX_LENGTH} characters or fewer.`);
+  }
+  if (trimmedCtaUrl.length > BULK_EMAIL_CTA_URL_MAX_LENGTH) {
+    throw new Error(`Button URL must be ${BULK_EMAIL_CTA_URL_MAX_LENGTH} characters or fewer.`);
+  }
+  if ((trimmedCtaLabel && !trimmedCtaUrl) || (!trimmedCtaLabel && trimmedCtaUrl)) {
+    throw new Error("Button label and URL must be filled together.");
+  }
+
+  const { data, error } = await supabase.functions.invoke("send-bulk-email", {
+    body: {
+      subject: trimmedSubject,
+      body: trimmedBody,
+      ctaLabel: trimmedCtaLabel || null,
+      ctaUrl: trimmedCtaUrl || null,
+      requestId: getRequestId(),
+    },
   });
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);

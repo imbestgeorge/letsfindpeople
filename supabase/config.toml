@@ -56,6 +56,7 @@ enable_confirmations = false
 #   RESEND_FROM_NAME=LetsFindPeople
 #   EMAIL_LOGO_URL=https://letsfindpeople.com/logo.png
 #   DRAW_EVENT_EMAIL_MAX_RECIPIENTS=5000
+#   BULK_EMAIL_MAX_RECIPIENTS=5000
 
 [functions.stripe-webhook]
 verify_jwt = false
