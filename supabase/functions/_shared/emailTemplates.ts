@@ -192,22 +192,27 @@ export function buildDrawEventStartedEmail({
 
 export function buildAdminBulkEmail({
   subject,
+  preview,
+  heading,
   body,
   ctaLabel,
   ctaUrl,
 }: {
   subject: string;
+  preview: string;
+  heading: string;
   body: string;
   ctaLabel?: string;
   ctaUrl?: string;
 }): EmailTemplate {
   const safeSubject = String(subject || BRAND_NAME).trim() || BRAND_NAME;
-  const preview = splitParagraphs(body)[0] || safeSubject;
+  const safePreview = String(preview || "").trim() || safeSubject;
+  const safeHeading = String(heading || "").trim() || safeSubject;
 
   return buildLayout({
     subject: safeSubject,
-    preview,
-    heading: safeSubject,
+    preview: safePreview,
+    heading: safeHeading,
     body: String(body || ""),
     ctaLabel,
     ctaUrl,

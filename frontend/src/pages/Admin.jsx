@@ -5,6 +5,8 @@ import {
   BULK_EMAIL_BODY_MAX_LENGTH,
   BULK_EMAIL_CTA_LABEL_MAX_LENGTH,
   BULK_EMAIL_CTA_URL_MAX_LENGTH,
+  BULK_EMAIL_HEADING_MAX_LENGTH,
+  BULK_EMAIL_PREVIEW_MAX_LENGTH,
   BULK_EMAIL_SUBJECT_MAX_LENGTH,
   createSiteNotification,
   editDrawEvent,
@@ -176,6 +178,8 @@ function Admin() {
   // Bulk email state
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
+  const [emailPreview, setEmailPreview] = useState('');
+  const [emailHeading, setEmailHeading] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [emailCtaLabel, setEmailCtaLabel] = useState('');
   const [emailCtaUrl, setEmailCtaUrl] = useState('');
@@ -1062,6 +1066,8 @@ function Admin() {
 
   const openEmailModal = () => {
     setEmailSubject('');
+    setEmailPreview('');
+    setEmailHeading('');
     setEmailBody('');
     setEmailCtaLabel('');
     setEmailCtaUrl('');
@@ -1073,6 +1079,8 @@ function Admin() {
     if (emailSending && !force) return;
     setShowEmailModal(false);
     setEmailSubject('');
+    setEmailPreview('');
+    setEmailHeading('');
     setEmailBody('');
     setEmailCtaLabel('');
     setEmailCtaUrl('');
@@ -1082,11 +1090,15 @@ function Admin() {
   const handleSendEmail = async (e) => {
     e?.preventDefault();
     const trimmedSubject = emailSubject.trim();
+    const trimmedPreview = emailPreview.trim();
+    const trimmedHeading = emailHeading.trim();
     const trimmedBody = emailBody.trim();
     const trimmedCtaLabel = emailCtaLabel.trim();
     const trimmedCtaUrl = emailCtaUrl.trim();
 
     if (!trimmedSubject) { setEmailError('Subject is required.'); return; }
+    if (!trimmedPreview) { setEmailError('Preview is required.'); return; }
+    if (!trimmedHeading) { setEmailError('Heading is required.'); return; }
     if (!trimmedBody) { setEmailError('Message is required.'); return; }
     if ((trimmedCtaLabel && !trimmedCtaUrl) || (!trimmedCtaLabel && trimmedCtaUrl)) {
       setEmailError('Button label and URL must be filled together.');
@@ -1100,6 +1112,8 @@ function Admin() {
     try {
       const result = await sendBulkUserEmail({
         subject: trimmedSubject,
+        preview: trimmedPreview,
+        heading: trimmedHeading,
         body: trimmedBody,
         ctaLabel: trimmedCtaLabel,
         ctaUrl: trimmedCtaUrl,
@@ -1110,6 +1124,8 @@ function Admin() {
         p_reason: trimmedSubject,
         p_metadata: {
           subject: trimmedSubject,
+          preview: trimmedPreview,
+          heading: trimmedHeading,
           recipientCount: result?.recipientCount ?? null,
           hasCta: !!trimmedCtaUrl,
         },
@@ -1818,32 +1834,7 @@ function Admin() {
                   drawEvents.map((event) => (
                     <tr key={event.id}>
                       <td className="text-start">
-                        <div className="fw-semibold">{event.title}</div>
-                        {event.body && (
-                          <div className="text-muted small text-truncate" style={{ maxWidth: '720px' }}>
-                            {event.body}
-                          </div>
-                        )}
-                        {event.createdAt && (
-                          <small className="text-muted">
-                            {new Date(event.createdAt).toLocaleString('en-GB')}
-                          </small>
-                        )}
-                        <div className="d-flex flex-wrap gap-2 mt-2">
-                          <span className={`badge ${event.isDisabled ? 'bg-secondary' : 'bg-success'}`}>
-                            {event.isDisabled ? 'Disabled' : 'Active'}
-                          </span>
-                          <span className="badge bg-light text-dark border">
-                            {event.deliveryScope === SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_AND_FUTURE_USERS
-                              ? 'Current and future users'
-                              : 'Current users'}
-                          </span>
-                          {event.emailSentAt && (
-                            <span className="badge bg-light text-dark border">
-                              Email sent to {event.emailRecipientCount}
-                            </span>
-                          )}
-                        </div>
+                        {event.title}
                       </td>
                       <td>
                         <div className="d-flex flex-wrap justify-content-center gap-2">
@@ -2174,7 +2165,7 @@ function Admin() {
       {/* Send Email Modal */}
       {showEmailModal && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <form onSubmit={handleSendEmail}>
                 <div className="modal-header">
@@ -2198,6 +2189,36 @@ function Admin() {
                       value={emailSubject}
                       maxLength={BULK_EMAIL_SUBJECT_MAX_LENGTH}
                       onChange={(e) => setEmailSubject(e.target.value)}
+                      disabled={emailSending}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="emailPreview" className="form-label">Preview</label>
+                    <input
+                      id="emailPreview"
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter email preview"
+                      value={emailPreview}
+                      maxLength={BULK_EMAIL_PREVIEW_MAX_LENGTH}
+                      onChange={(e) => setEmailPreview(e.target.value)}
+                      disabled={emailSending}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="emailHeading" className="form-label">Heading</label>
+                    <input
+                      id="emailHeading"
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter email heading"
+                      value={emailHeading}
+                      maxLength={BULK_EMAIL_HEADING_MAX_LENGTH}
+                      onChange={(e) => setEmailHeading(e.target.value)}
                       disabled={emailSending}
                       required
                     />
@@ -2259,7 +2280,7 @@ function Admin() {
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                    disabled={emailSending || !emailSubject.trim() || !emailPreview.trim() || !emailHeading.trim() || !emailBody.trim()}
                   >
                     {emailSending ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -2277,7 +2298,7 @@ function Admin() {
       {/* Edit Draw Event Modal */}
       {showEditDrawEventModal && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <form onSubmit={handleSaveDrawEvent}>
                 <div className="modal-header">

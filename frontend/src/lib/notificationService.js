@@ -4,6 +4,8 @@ export const NOTIFICATION_TITLE_MAX_LENGTH = 120;
 export const NOTIFICATION_BODY_MAX_LENGTH = 2000;
 export const NOTIFICATION_COVER_MAX_SIZE = 3 * 1024 * 1024;
 export const BULK_EMAIL_SUBJECT_MAX_LENGTH = 120;
+export const BULK_EMAIL_PREVIEW_MAX_LENGTH = 180;
+export const BULK_EMAIL_HEADING_MAX_LENGTH = 120;
 export const BULK_EMAIL_BODY_MAX_LENGTH = 5000;
 export const BULK_EMAIL_CTA_LABEL_MAX_LENGTH = 40;
 export const BULK_EMAIL_CTA_URL_MAX_LENGTH = 2048;
@@ -331,19 +333,31 @@ export async function sendDrawEventEmail(drawEventId) {
 
 export async function sendBulkUserEmail({
   subject,
+  preview,
+  heading,
   body,
   ctaLabel = "",
   ctaUrl = "",
 }) {
   const trimmedSubject = String(subject || "").trim();
+  const trimmedPreview = String(preview || "").trim();
+  const trimmedHeading = String(heading || "").trim();
   const trimmedBody = String(body || "").trim();
   const trimmedCtaLabel = String(ctaLabel || "").trim();
   const trimmedCtaUrl = String(ctaUrl || "").trim();
 
   if (!trimmedSubject) throw new Error("Subject is required.");
+  if (!trimmedPreview) throw new Error("Preview is required.");
+  if (!trimmedHeading) throw new Error("Heading is required.");
   if (!trimmedBody) throw new Error("Message is required.");
   if (trimmedSubject.length > BULK_EMAIL_SUBJECT_MAX_LENGTH) {
     throw new Error(`Subject must be ${BULK_EMAIL_SUBJECT_MAX_LENGTH} characters or fewer.`);
+  }
+  if (trimmedPreview.length > BULK_EMAIL_PREVIEW_MAX_LENGTH) {
+    throw new Error(`Preview must be ${BULK_EMAIL_PREVIEW_MAX_LENGTH} characters or fewer.`);
+  }
+  if (trimmedHeading.length > BULK_EMAIL_HEADING_MAX_LENGTH) {
+    throw new Error(`Heading must be ${BULK_EMAIL_HEADING_MAX_LENGTH} characters or fewer.`);
   }
   if (trimmedBody.length > BULK_EMAIL_BODY_MAX_LENGTH) {
     throw new Error(`Message must be ${BULK_EMAIL_BODY_MAX_LENGTH} characters or fewer.`);
@@ -361,6 +375,8 @@ export async function sendBulkUserEmail({
   const { data, error } = await supabase.functions.invoke("send-bulk-email", {
     body: {
       subject: trimmedSubject,
+      preview: trimmedPreview,
+      heading: trimmedHeading,
       body: trimmedBody,
       ctaLabel: trimmedCtaLabel || null,
       ctaUrl: trimmedCtaUrl || null,
