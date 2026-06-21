@@ -2610,7 +2610,10 @@ function Navbar({ onProfileSave }) {
                     <>
                       <div className="analytics-summary-grid">
                         {analyticsSummaryItems.map((item) => (
-                          <div key={item.label} className="analytics-summary-tile">
+                          <div
+                            key={item.label}
+                            className={`analytics-summary-tile ${item.label === "Profile views" ? "analytics-summary-tile-profile-views" : ""}`}
+                          >
                             <div className="analytics-summary-value">
                               {Number(item.value || 0).toLocaleString()}
                             </div>
@@ -2649,7 +2652,6 @@ function Navbar({ onProfileSave }) {
                                   <div className="analytics-viewer-keywords">
                                     {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
                                   </div>
-                                  <div className="analytics-viewer-count">+1</div>
                                 </div>
                                 {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
                               </div>

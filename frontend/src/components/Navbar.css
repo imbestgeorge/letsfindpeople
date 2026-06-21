@@ -176,6 +176,16 @@
   padding: 0.85rem;
 }
 
+.analytics-summary-tile-profile-views {
+  background: #6D28D9;
+  border-color: #6D28D9;
+}
+
+.analytics-summary-tile-profile-views .analytics-summary-value,
+.analytics-summary-tile-profile-views .analytics-summary-label {
+  color: #ffffff;
+}
+
 .analytics-summary-value {
   color: #212529;
   font-size: 1.5rem;
@@ -201,7 +211,7 @@
   display: grid;
   column-gap: 0.75rem;
   row-gap: 0.25rem;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 56px;
   padding: 0.65rem 0;
 }
@@ -252,18 +262,7 @@
 }
 
 .analytics-viewer-keywords {
-  grid-column: 1 / 3;
-}
-
-.analytics-viewer-count {
-  align-self: center;
-  color: #6D28D9;
-  font-size: 1rem;
-  font-weight: 700;
-  grid-column: 3;
-  grid-row: 1 / 3;
-  justify-self: center;
-  white-space: nowrap;
+  grid-column: 1 / -1;
 }
 
 .analytics-viewer-divider {
