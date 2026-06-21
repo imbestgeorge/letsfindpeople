@@ -688,15 +688,25 @@ function Navbar({ onProfileSave }) {
   }, [session, savedProfile.subscriptionStatus]);
 
   useEffect(() => {
+    let openTimeoutId = null;
+
     const openPricingDropdown = () => {
-      if (!pricingDropdownMenuRef.current?.classList.contains("show")) {
-        pricingDropdownToggleRef.current?.click();
-      }
-      pricingDropdownToggleRef.current?.blur();
+      if (openTimeoutId) window.clearTimeout(openTimeoutId);
+
+      openTimeoutId = window.setTimeout(() => {
+        if (!pricingDropdownMenuRef.current?.classList.contains("show")) {
+          pricingDropdownToggleRef.current?.click();
+        }
+        pricingDropdownToggleRef.current?.blur();
+        openTimeoutId = null;
+      }, 0);
     };
 
     window.addEventListener("lfp:open-pricing", openPricingDropdown);
-    return () => window.removeEventListener("lfp:open-pricing", openPricingDropdown);
+    return () => {
+      if (openTimeoutId) window.clearTimeout(openTimeoutId);
+      window.removeEventListener("lfp:open-pricing", openPricingDropdown);
+    };
   }, []);
 
   useEffect(() => {

@@ -677,9 +677,10 @@ export default function Console({ currentUser }) {
                           {`*Your 3 free searches will reset ${dayLabel} at ${timeStr}. `}
                           <a
                             href="#"
-                            className="console-pricing-link"
+                            className="console-get-more-link"
                             onClick={(event) => {
                               event.preventDefault();
+                              event.stopPropagation();
                               openPricingDropdown();
                             }}
                           >
