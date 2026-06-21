@@ -1824,7 +1824,7 @@ function Admin() {
               <thead>
                 <tr>
                   <th scope="col">Draw Events</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col" className="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1836,8 +1836,8 @@ function Admin() {
                       <td className="text-start">
                         {event.title}
                       </td>
-                      <td>
-                        <div className="d-flex flex-wrap justify-content-center gap-2">
+                      <td className="text-end">
+                        <div className="d-flex flex-wrap justify-content-end gap-2">
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
