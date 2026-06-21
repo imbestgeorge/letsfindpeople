@@ -2111,7 +2111,7 @@ function Navbar({ onProfileSave }) {
     { label: "Total searches done", value: analytics.totalSearchesDone },
     { label: "Times you appeared in search", value: analytics.totalTimesSearched },
     {
-      label: hasProAnalyticsAccess ? "Profile views (view below)" : "Profile views",
+      label: hasProAnalyticsAccess ? "Profile views (available below)" : "Profile views",
       value: analytics.totalProfileViews,
     },
   ];
@@ -2305,9 +2305,11 @@ function Navbar({ onProfileSave }) {
 
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
-                    <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openAnalytics(); }}>Analytics</a></li>
                     {!isAdminUser && (
-                      <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setShowCancelSubModal(true); }}>Settings</a></li>
+                      <>
+                        <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openAnalytics(); }}>Analytics</a></li>
+                        <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setShowCancelSubModal(true); }}>Settings</a></li>
+                      </>
                     )}
                     <li><a className="dropdown-item" href="#" onClick={handleLogout}>Logout</a></li>
                   </ul>
