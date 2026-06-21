@@ -2180,7 +2180,7 @@ function Navbar({ onProfileSave }) {
                     ref={pricingDropdownMenuRef}
                   >
                     <div className="row align-items-center">
-                      <h5 className="title mb-2">Free Trial</h5>
+                      <h5 className="title mb-2">Free Plan</h5>
                       <p className="text mb-0">Access to <span>3 free searches</span> that renew daily.</p>
                     </div>
                     <div className="mb-3"></div>
@@ -2195,7 +2195,7 @@ function Navbar({ onProfileSave }) {
                     <hr />
 
                     <div className="row align-items-center">
-                      <h5 className="title mb-2">Basic Plan</h5>
+                      <h5 className="title mb-2">Pro Plan</h5>
                       <p className="text mb-0">Access to <span>unlimited searches</span> and <span>see who viewed your profile</span>.</p>
                     </div>
                     <div className="mb-3"></div>
@@ -2564,10 +2564,10 @@ function Navbar({ onProfileSave }) {
                     <div>
                       <div>
                         {savedProfile.subscriptionStatus === "active"
-                          ? "Basic Plan"
+                          ? "Pro Plan"
                           : savedProfile.subscriptionStatus === "canceling"
-                            ? "Basic Plan (canceling)"
-                            : "Free Trial"}
+                            ? "Pro Plan (canceling)"
+                            : "Free Plan"}
                       </div>
                       <div>
                         {subscriptionDetails.loading

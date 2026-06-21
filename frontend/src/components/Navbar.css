@@ -325,7 +325,7 @@
     top: 100%;
     right: 0;
     left: auto;
-    width: min(320px, calc(100vw - 1rem));
+    width: min(300px, calc(100vw - 1rem));
     min-width: 0;
     max-height: none;
     overflow-y: visible;
