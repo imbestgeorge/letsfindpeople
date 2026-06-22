@@ -4,7 +4,7 @@ export default function Privacy() {
       <h1 className="policy-title">Privacy Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 June 2026</strong>
+          <strong>Last updated: 22 June 2026</strong>
         </p>
 
         <p>
@@ -39,8 +39,8 @@ export default function Privacy() {
           <li>
             <strong>Location data:</strong> city and country you provide or
             detect via your browser&apos;s geolocation API. Browser location is
-            requested only when you choose to use the automatic location
-            option.
+            requested only when you choose the automatic location option and
+            grant your browser&apos;s location permission.
           </li>
           <li>
             <strong>Interest data:</strong> keywords, answers to interest
@@ -53,9 +53,10 @@ export default function Privacy() {
             Service.
           </li>
           <li>
-            <strong>Communications data:</strong> global chat messages you send,
-            notification read or dismissal status, draw-event invite activity,
-            and keyword requests you submit.
+            <strong>Communications and permission data:</strong> global chat
+            messages you send, notification read or dismissal status,
+            draw-event invite activity, keyword requests you submit, and the
+            profile visibility permissions you choose.
           </li>
           <li>
             <strong>Payment and subscription data:</strong> subscription status,
@@ -96,13 +97,19 @@ export default function Privacy() {
           impenetrable, and we cannot guarantee absolute security.
         </p>
 
-        <h4>4. Data Visibility</h4>
+        <h4>4. Data Visibility and Permissions</h4>
         <p>
           Your public profile may show your name, profile picture, location, and
           selected interests when another user finds you through the Service.
-          Contact information (phone number, social media usernames) is only
-          shown to other users if you explicitly enable the visibility toggle for
-          each field. Your email address is never shown publicly.
+          Contact information (phone number, Instagram, TikTok, Snapchat, and
+          Discord usernames) is only shown to other users if you explicitly
+          enable the visibility permission for each field. Your email address is
+          never shown publicly.
+        </p>
+        <p>
+          You can change these profile visibility permissions at any time from
+          your profile settings. If you deny browser location permission, you can
+          still enter your location manually.
         </p>
         <p>
           Messages sent in the international chat are visible to signed-in users

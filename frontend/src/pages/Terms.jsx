@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="policy-title">Terms &amp; Conditions</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 June 2026</strong>
+          <strong>Last updated: 22 June 2026</strong>
         </p>
 
         <p>
@@ -51,6 +51,10 @@ export default function Terms() {
             Harvest, collect, or store other users&apos; contact information for
             purposes other than genuine personal connection.
           </li>
+          <li>
+            Ignore, bypass, or misuse another user&apos;s profile visibility
+            choices or contact permissions.
+          </li>
           <li>Impersonate another person or create a false profile.</li>
           <li>Use the Service to harass, stalk, spam, or harm other users.</li>
           <li>
@@ -72,9 +76,10 @@ export default function Terms() {
         <p>
           You are solely responsible for the information you submit to your
           profile, including your name, location, contact details, profile
-          picture, interest selections, keyword requests, uploaded images, and
-          messages you send through the Service. You must have the rights needed
-          to upload or submit that content. You grant LetsFindPeople a
+          picture, contact visibility permissions, interest selections, keyword
+          requests, uploaded images, and messages you send through the Service.
+          You must have the rights needed to upload or submit that content. You
+          grant LetsFindPeople a
           non-exclusive licence to store, moderate, and display this information
           to other users of the Service as intended by its functionality.
         </p>
@@ -91,7 +96,7 @@ export default function Terms() {
 
         <h4>6. Subscription Plans</h4>
         <p>
-          The Service offers a free trial with limited searches, and a paid Basic
+          The Service offers a Free Plan with limited searches, and a paid Basic
           Plan for unlimited searches. Subscriptions are billed monthly. You may
           cancel your subscription at any time via the &quot;Cancel
           Subscription&quot; option in your account. Cancellation stops future
@@ -99,11 +104,11 @@ export default function Terms() {
           billing period (see Refunds Policy).
         </p>
 
-        <h4>7. Free Trial Limits</h4>
+        <h4>7. Free Plan Limits</h4>
         <p>
-          Free trial users are limited to a set number of searches. Attempting
-          to bypass these limits through multiple accounts or automated means is
-          a violation of these Terms.
+          Free Plan users are limited to a set number of searches. Attempting to
+          bypass these limits through multiple accounts or automated means is a
+          violation of these Terms.
         </p>
 
         <h4>8. Moderation and Termination</h4>

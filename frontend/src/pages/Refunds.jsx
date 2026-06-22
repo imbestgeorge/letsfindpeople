@@ -4,7 +4,7 @@ export default function Refunds() {
       <h1 className="policy-title">Refunds Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 June 2026</strong>
+          <strong>Last updated: 22 June 2026</strong>
         </p>
 
         <p>
@@ -45,10 +45,10 @@ export default function Refunds() {
           </li>
         </ul>
 
-        <h4>3. Free Trial</h4>
+        <h4>3. Free Plan</h4>
         <p>
-          A free trial is available so you can evaluate the Service before
-          committing to a paid plan. We encourage you to use the free trial to
+          A Free Plan is available so you can evaluate the Service before
+          committing to a paid plan. We encourage you to use the Free Plan to
           ensure the Service meets your needs before subscribing.
         </p>
 

@@ -108,13 +108,13 @@ const formatLogDetails = (row) => {
   if (keywordNames) return `Keywords: ${keywordNames}`;
   if (keywordIds) return `Keyword IDs: ${keywordIds}`;
   if (reason) return reason;
-  if (metadata.targetEmail) return `Target: ${metadata.targetEmail}`;
+  if (metadata.targetEmail) return metadata.targetEmail;
   if (metadata.subject) return `Subject: ${metadata.subject}`;
   if (metadata.title) return `Title: ${metadata.title}`;
   if (metadata.newTitle || metadata.oldTitle) {
     return [metadata.oldTitle, metadata.newTitle].filter(Boolean).join(' -> ');
   }
-  if (metadata.keywordName) return `Keyword: ${metadata.keywordName}`;
+  if (metadata.keywordName) return metadata.keywordName;
   if (metadata.newName || metadata.oldName) {
     return [metadata.oldName, metadata.newName].filter(Boolean).join(' -> ');
   }
@@ -1879,12 +1879,12 @@ function Admin() {
               <thead>
                 <tr>
                   <th scope="col">Draw Events</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col" colSpan={2}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {drawEvents.length === 0 ? (
-                  <tr><td colSpan={2} className="text-muted">No draw events found.</td></tr>
+                  <tr><td colSpan={3} className="text-muted">No draw events found.</td></tr>
                 ) : (
                   drawEvents.map((event) => (
                     <tr key={event.id}>
@@ -1892,23 +1892,23 @@ function Admin() {
                         {event.title}
                       </td>
                       <td>
-                        <div className="d-flex flex-wrap justify-content-center gap-2">
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => openEditDrawEventModal(event)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleDisableDrawEvent(event)}
-                            disabled={event.isDisabled}
-                          >
-                            {event.isDisabled ? 'Disabled' : 'Disable'}
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => openEditDrawEventModal(event)}
+                        >
+                          Edit
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDisableDrawEvent(event)}
+                          disabled={event.isDisabled}
+                        >
+                          {event.isDisabled ? 'Disabled' : 'Disable'}
+                        </button>
                       </td>
                     </tr>
                   ))
