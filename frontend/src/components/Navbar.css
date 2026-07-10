@@ -214,18 +214,11 @@
 }
 
 .analytics-upgrade-overlay {
-  align-items: center;
-  bottom: 0;
-  color: #6c757d;
-  display: flex;
-  font-weight: 500;
-  justify-content: center;
   left: 0;
-  padding: 1rem;
   position: absolute;
   right: 0;
-  text-align: center;
-  top: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .analytics-viewer-row {

@@ -245,6 +245,8 @@ export default function Console({ currentUser }) {
   const [userCount, setUserCount] = useState(null);
   const peopleContainerRef = useRef(null);
   const keywordScrollAreaRef = useRef(null);
+  const previousKeywordSearchTermRef = useRef("");
+  const pendingKeywordAutoScrollRef = useRef(false);
   const firstUnselectedKeywordRef = useRef(null);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 576px)").matches : false
@@ -700,11 +702,25 @@ export default function Console({ currentUser }) {
   const deferredFilteredKeywords = useDeferredValue(filteredKeywords);
 
   useEffect(() => {
-    if (!debouncedSearchTerm.trim()) return undefined;
+    const trimmedSearchTerm = debouncedSearchTerm.trim();
+    if (previousKeywordSearchTermRef.current === trimmedSearchTerm) return;
+
+    previousKeywordSearchTermRef.current = trimmedSearchTerm;
+    pendingKeywordAutoScrollRef.current = !!trimmedSearchTerm;
+  }, [debouncedSearchTerm]);
+
+  useEffect(() => {
+    if (!pendingKeywordAutoScrollRef.current) return undefined;
+    if (deferredFilteredKeywords !== filteredKeywords) return undefined;
 
     const scrollArea = keywordScrollAreaRef.current;
     const firstUnselectedKeyword = firstUnselectedKeywordRef.current;
-    if (!scrollArea || !firstUnselectedKeyword) return undefined;
+    if (!scrollArea || !firstUnselectedKeyword) {
+      pendingKeywordAutoScrollRef.current = false;
+      return undefined;
+    }
+
+    pendingKeywordAutoScrollRef.current = false;
 
     const frameId = window.requestAnimationFrame(() => {
       scrollArea.scrollTo({
@@ -714,7 +730,7 @@ export default function Console({ currentUser }) {
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [debouncedSearchTerm]);
+  }, [deferredFilteredKeywords, filteredKeywords]);
 
   // Keyword Selection
   const toggleKeyword = (id) => {

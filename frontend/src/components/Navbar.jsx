@@ -2182,7 +2182,7 @@ function Navbar({ onProfileSave }) {
         })}
       </div>
       {isLocked && (
-        <div className="analytics-upgrade-overlay">
+        <div className="analytics-upgrade-overlay text-muted text-center py-3">
           Upgrade to the{" "}
           <a
             href="#"
