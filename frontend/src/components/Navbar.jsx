@@ -31,6 +31,8 @@ import {
 import "./Navbar.css";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
+const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 25;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
@@ -585,10 +587,28 @@ function Navbar({ onProfileSave }) {
   });
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
+  const [isMobileKeywordLimitView, setIsMobileKeywordLimitView] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 576px)").matches : false
+  );
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
   const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification;
+  const profileKeywordResultLimit = isMobileKeywordLimitView
+    ? MOBILE_PROFILE_KEYWORD_RESULT_LIMIT
+    : DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const mediaQuery = window.matchMedia("(max-width: 576px)");
+    const handleViewportChange = (event) => setIsMobileKeywordLimitView(event.matches);
+
+    setIsMobileKeywordLimitView(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleViewportChange);
+
+    return () => mediaQuery.removeEventListener("change", handleViewportChange);
+  }, []);
 
   // Reset profile state when the user logs out
   useEffect(() => {
@@ -1676,7 +1696,7 @@ function Navbar({ onProfileSave }) {
     }, 0);
   }, [routerLocation.pathname, routerLocation.search, navigate, session]);
 
-  // Renders a keyword selector. Caps unselected items at 100 when no search is
+  // Renders a keyword selector. Caps unselected items at 30 when no search is
   // active to keep performance reasonable; selected items always show.
   const renderKeywords = (key, items, canSkip) => {
     const term = (debouncedSearches[key] || "").toLowerCase();
@@ -1696,8 +1716,8 @@ function Navbar({ onProfileSave }) {
     };
     const filteredSel = allFiltered.filter(isSelectedItem);
     const filteredUnsel = allFiltered.filter(i => !isSelectedItem(i));
-    const unselToShow = term ? filteredUnsel : filteredUnsel.slice(0, 100);
-    const hasMore = !term && filteredUnsel.length > 100;
+    const unselToShow = term ? filteredUnsel : filteredUnsel.slice(0, profileKeywordResultLimit);
+    const hasMore = !term && filteredUnsel.length > profileKeywordResultLimit;
     const requestTerm = (debouncedSearches[key] || "").trim();
     const requestState = keywordRequestStatuses[key]?.term === requestTerm
       ? keywordRequestStatuses[key].status
@@ -1779,7 +1799,7 @@ function Navbar({ onProfileSave }) {
               </div>
             </div>
             {!isLoadingKw && hasMore && (
-              <small className="text-muted d-block mt-1">Showing 100 of {filteredUnsel.length} results. Use the search bar to find more.</small>
+              <small className="text-muted d-block mt-1">Showing {profileKeywordResultLimit} of {filteredUnsel.length} results. Use the search bar to find more.</small>
             )}
           </>
         )}
@@ -1801,8 +1821,8 @@ function Navbar({ onProfileSave }) {
     const allFiltered = allItems.filter(item => item.name.toLowerCase().includes(term));
     const filteredSel = allFiltered.filter(item => item.isSelected);
     const filteredUnsel = allFiltered.filter(item => !item.isSelected);
-    const unselToShow = term ? filteredUnsel : filteredUnsel.slice(0, 100);
-    const hasMore = !term && filteredUnsel.length > 100;
+    const unselToShow = term ? filteredUnsel : filteredUnsel.slice(0, profileKeywordResultLimit);
+    const hasMore = !term && filteredUnsel.length > profileKeywordResultLimit;
     const requestTerm = (debouncedSearches[searchKey] || "").trim();
     const requestState = keywordRequestStatuses[searchKey]?.term === requestTerm
       ? keywordRequestStatuses[searchKey].status
@@ -1873,7 +1893,7 @@ function Navbar({ onProfileSave }) {
           </div>
         </div>
         {!isLoadingKw && hasMore && (
-          <small className="text-muted d-block mt-1">Showing 100 of {filteredUnsel.length} results. Use the search bar to find more.</small>
+          <small className="text-muted d-block mt-1">Showing {profileKeywordResultLimit} of {filteredUnsel.length} results. Use the search bar to find more.</small>
         )}
       </div>
     );
@@ -2126,6 +2146,40 @@ function Navbar({ onProfileSave }) {
       : (viewer.keywordIds || [])
       .map((id) => analyticsKeywordNameMap[id])
       .filter(Boolean)
+  );
+  const renderAnalyticsViewersList = (isLocked = false) => (
+    <div
+      className={`analytics-viewers-list${isLocked ? " analytics-viewers-list--blurred" : ""}`}
+      aria-hidden={isLocked ? "true" : undefined}
+    >
+      {analytics.viewers.map((viewer, index) => {
+        const keywordLabels = getAnalyticsKeywordLabels(viewer);
+
+        return (
+          <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
+            <div className="analytics-viewer-row">
+              <div className="analytics-viewer-person">
+                <img
+                  src={viewer.viewerProfileUrl || defaultProfile}
+                  alt={viewer.viewerName}
+                  className="analytics-viewer-avatar"
+                />
+                <span className="analytics-viewer-name">{viewer.viewerName}</span>
+              </div>
+              {viewer.createdAt && (
+                <div className="analytics-viewer-time">
+                  {formatAnalyticsViewTime(viewer.createdAt)}
+                </div>
+              )}
+              <div className="analytics-viewer-keywords">
+                {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
+              </div>
+            </div>
+            {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
+          </div>
+        );
+      })}
+    </div>
   );
 
   return (
@@ -2635,8 +2689,8 @@ function Navbar({ onProfileSave }) {
 
                       <hr className="my-3" />
 
-                      {!hasProAnalyticsAccess ? (
-                        <div className="text-muted text-center py-4">
+                      {!hasProAnalyticsAccess && (
+                        <div className="text-muted text-center py-3">
                           Upgrade to the{" "}
                           <a
                             href="#"
@@ -2651,40 +2705,14 @@ function Navbar({ onProfileSave }) {
                           </a>{" "}
                           to see who viewed your profile.
                         </div>
-                      ) : analytics.viewers.length === 0 ? (
+                      )}
+
+                      {analytics.viewers.length === 0 ? (
                         <div className="text-muted text-center py-4">
                           No profile views yet
                         </div>
                       ) : (
-                        <div className="analytics-viewers-list">
-                          {analytics.viewers.map((viewer, index) => {
-                            const keywordLabels = getAnalyticsKeywordLabels(viewer);
-
-                            return (
-                              <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
-                                <div className="analytics-viewer-row">
-                                  <div className="analytics-viewer-person">
-                                    <img
-                                      src={viewer.viewerProfileUrl || defaultProfile}
-                                      alt={viewer.viewerName}
-                                      className="analytics-viewer-avatar"
-                                    />
-                                    <span className="analytics-viewer-name">{viewer.viewerName}</span>
-                                  </div>
-                                  {viewer.createdAt && (
-                                    <div className="analytics-viewer-time">
-                                      {formatAnalyticsViewTime(viewer.createdAt)}
-                                    </div>
-                                  )}
-                                  <div className="analytics-viewer-keywords">
-                                    {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
-                                  </div>
-                                </div>
-                                {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
-                              </div>
-                            );
-                          })}
-                        </div>
+                        renderAnalyticsViewersList(!hasProAnalyticsAccess)
                       )}
                     </>
                   )}

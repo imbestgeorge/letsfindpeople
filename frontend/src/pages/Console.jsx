@@ -19,6 +19,8 @@ import {
 } from "../lib/notificationService";
 
 const MAX_SEARCH_KEYWORDS = 12;
+const DESKTOP_KEYWORD_RESULT_LIMIT = 100;
+const MOBILE_KEYWORD_RESULT_LIMIT = 25;
 const MIN_SEARCH_AGE = 16;
 const MAX_SEARCH_AGE = 64;
 const WORLD_COUNTRY_FILTER = "World";
@@ -335,6 +337,9 @@ export default function Console({ currentUser }) {
     catalogLoading ||
     hasTooManyKeywords ||
     (!hasUnlimitedSearches && !hasFreeSearchesRemaining);
+  const keywordResultLimit = isMobileView
+    ? MOBILE_KEYWORD_RESULT_LIMIT
+    : DESKTOP_KEYWORD_RESULT_LIMIT;
 
   useEffect(() => {
     if (!focusedUserId) return undefined;
@@ -767,9 +772,9 @@ export default function Console({ currentUser }) {
           ({selectedKeywords.length} selected)
         </small>
         <small className="console-results-count text-muted">
-          {deferredFilteredKeywords.length > 100 ? (
+          {deferredFilteredKeywords.length > keywordResultLimit ? (
             <>
-              Showing 100 out of {deferredFilteredKeywords.length.toLocaleString()} keywords.
+              Showing {keywordResultLimit} out of {deferredFilteredKeywords.length.toLocaleString()} keywords.
               <span className="console-results-hint"> Use the search bar to find more.</span>
             </>
           ) : (
@@ -793,7 +798,7 @@ export default function Console({ currentUser }) {
                 {(() => {
                   const selected = deferredFilteredKeywords.filter((item) => selectedKeywords.includes(item.id));
                   const unselected = deferredFilteredKeywords.filter((item) => !selectedKeywords.includes(item.id));
-                  const visibleUnselected = unselected.slice(0, Math.max(0, 100 - selected.length));
+                  const visibleUnselected = unselected.slice(0, Math.max(0, keywordResultLimit - selected.length));
                   return (
                     <>
                       {selected.map((item) => (

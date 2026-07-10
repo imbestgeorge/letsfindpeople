@@ -204,6 +204,11 @@
   scrollbar-width: thin;
 }
 
+.analytics-viewers-list--blurred {
+  filter: blur(4px);
+  user-select: none;
+}
+
 .analytics-viewer-row {
   align-items: center;
   display: grid;
