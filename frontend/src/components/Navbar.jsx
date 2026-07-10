@@ -5,19 +5,41 @@ import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
-import { updateUserProfile, deleteUser, getUserProfile, sendProfileCompletedEmail, uploadProfilePicture } from "../lib/userService";
-import { requestKeyword } from "../lib/catalogService";
+import {
+  updateUserProfile,
+  deleteUser,
+  getUserProfile,
+  isUsernameAvailable,
+  normalizeUsername,
+  sendProfileCompletedEmail,
+  touchMyPresence,
+  uploadProfileGalleryImage,
+  uploadProfilePicture,
+  USERNAME_PATTERN,
+} from "../lib/userService";
+import { getPublicUserById, getPublicUserByUsername, requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
+  CONNECTION_STREAK_MESSAGE_COUNT,
+  GLOBAL_CHAT_CHANNELS,
   getUnreadGlobalChatMessageCount,
+  getUnreadDirectMessageCount,
+  getKeywordOfTheDay,
+  listDirectChatMessages,
   listGlobalChatMessages,
+  listMyDirectChats,
+  markDirectChatMessagesRead,
   markGlobalChatMessagesRead,
+  reportChat,
+  reportChatMessage,
   removeGlobalChatSubscription,
+  sendDirectChatMessage,
   sendGlobalChatMessage,
+  subscribeToDirectChatMessages,
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
-import { getMyProfileAnalytics } from "../lib/analyticsService";
+import { getMyProfileAnalytics, recordProfileView } from "../lib/analyticsService";
 import {
   getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
@@ -29,11 +51,32 @@ import {
 } from "../lib/notificationService";
 
 import "./Navbar.css";
+import ProfilePreviewModal from "./ProfilePreviewModal";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 25;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
+const PROFILE_GALLERY_MAX_IMAGES = 3;
+const PROFILE_ROUTE_RESERVED_PATHS = new Set([
+  "",
+  "admin",
+  "auth",
+  "account-deleted",
+  "underage-banned",
+  "console",
+  "privacy",
+  "terms",
+  "cookies",
+  "refunds",
+  "contact",
+]);
+const PROFILE_THEME_OPTIONS = [
+  { value: "violet", label: "Violet", color: "#6D28D9" },
+  { value: "ocean", label: "Ocean", color: "#0284C7" },
+  { value: "sunset", label: "Sunset", color: "#F97316" },
+  { value: "forest", label: "Forest", color: "#16A34A" },
+];
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -177,6 +220,61 @@ function buildDrawInviteShareMessage() {
   return "What if someone exactly like you already exists 🤔? Find out on https://letsfindpeople.com";
 }
 
+function getProfileUsernameFromPath(pathname) {
+  const parts = String(pathname || "")
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length !== 1) return "";
+
+  const username = parts[0].toLowerCase();
+  if (PROFILE_ROUTE_RESERVED_PATHS.has(username)) return "";
+  if (!USERNAME_PATTERN.test(username)) return "";
+  return username;
+}
+
+function getProfileDisplayName(profile) {
+  return profile?.name ||
+    `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() ||
+    profile?.email ||
+    "Member";
+}
+
+function normalizePublicProfile(profile) {
+  if (!profile) return null;
+
+  return {
+    ...profile,
+    id: profile.id ?? profile.id_user ?? profile.otherUserId ?? null,
+    name: getProfileDisplayName(profile),
+    profilePicture: profile.profilePicture || profile.profileImagePreview || profile.profileUrl || null,
+    profileGalleryUrls: Array.isArray(profile.profileGalleryUrls) ? profile.profileGalleryUrls : [],
+    profileTheme: profile.profileTheme || "violet",
+    contacts: {
+      phone: { value: "", show: false },
+      instagram: {
+        value: profile.contacts?.instagram?.value || profile.instagramUsername || profile.instagram || "",
+        show: profile.contacts?.instagram?.show ?? profile.showInstagram ?? true,
+      },
+      tiktok: {
+        value: profile.contacts?.tiktok?.value || profile.tiktokUsername || profile.tiktok || "",
+        show: profile.contacts?.tiktok?.show ?? profile.showTiktok ?? true,
+      },
+      snapchat: {
+        value: profile.contacts?.snapchat?.value || profile.snapchatUsername || profile.snapchat || "",
+        show: profile.contacts?.snapchat?.show ?? profile.showSnapchat ?? true,
+      },
+      discord: {
+        value: profile.contacts?.discord?.value || profile.discordUsername || profile.discord || "",
+        show: profile.contacts?.discord?.show ?? profile.showDiscord ?? true,
+      },
+    },
+    isOnline: !!profile.isOnline,
+    keywordIds: Array.isArray(profile.keywordIds) ? profile.keywordIds : [],
+  };
+}
+
 async function copyTextToClipboard(text) {
   try {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -302,7 +400,7 @@ function sanitizeSelectedForProfile(selected, selectedGender, countryNames) {
 
 function Navbar({ onProfileSave }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
-  const { session, isAdmin, isLoading: authLoading } = useAuth();
+  const { session, isAdmin, isLoading: authLoading, showAllNavbarOptions } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const loginDropdownRef = useRef(null);
@@ -313,9 +411,9 @@ function Navbar({ onProfileSave }) {
   const pricingDropdownMenuRef = useRef(null);
   const notificationsDropdownRef = useRef(null);
   const notificationsDropdownMenuRef = useRef(null);
-  const contactErrorRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
   const inviteAuthOpenedRef = useRef("");
+  const profileRouteRequestRef = useRef("");
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
@@ -385,6 +483,38 @@ function Navbar({ onProfileSave }) {
     });
     return map;
   }, [dbData]);
+  const profileKeywordMap = useMemo(() => {
+    const map = {};
+    (dbData?.categories ?? []).forEach(cat => {
+      cat.subcategories.forEach(sub => {
+        sub.items.forEach(item => {
+          map[item.id] = { name: item.name, subcategory: sub.name };
+        });
+      });
+    });
+    return map;
+  }, [dbData]);
+  const allKeywordsForChat = useMemo(() => (
+    (dbData?.categories ?? []).flatMap(cat =>
+      cat.subcategories.flatMap(sub =>
+        sub.items.map(item => ({ id: item.id, name: item.name, subcategory: sub.name }))
+      )
+    )
+  ), [dbData]);
+  const keywordOfTheDay = useMemo(
+    () => getKeywordOfTheDay(allKeywordsForChat),
+    [allKeywordsForChat]
+  );
+  const chatChannels = useMemo(() => (
+    GLOBAL_CHAT_CHANNELS.map((channel) => (
+      channel.key === "icebreaker"
+        ? {
+            ...channel,
+            description: `Talk about ${keywordOfTheDay.name} for 24h`,
+          }
+        : channel
+    ))
+  ), [keywordOfTheDay.name]);
   const analyticsKeywordNameMap = useMemo(() => {
     const map = {};
     (dbData?.categories ?? []).forEach(cat => {
@@ -442,14 +572,14 @@ function Navbar({ onProfileSave }) {
   const [validated, setValidated] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState("idle");
+  const [usernameMessage, setUsernameMessage] = useState("");
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [location, setLocation] = useState("");
   const [locatingUser, setLocatingUser] = useState(false);
-  const [countryCode, setCountryCode] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [showPhone, setShowPhone] = useState(true);
   const [instagramUsername, setInstagramUsername] = useState("");
   const [showInstagram, setShowInstagram] = useState(true);
   const [tiktokUsername, setTiktokUsername] = useState("");
@@ -461,6 +591,9 @@ function Navbar({ onProfileSave }) {
   const [_profileImage, setProfileImage] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState(null);
   const [profileImageSizeError, setProfileImageSizeError] = useState(false);
+  const [profileGalleryItems, setProfileGalleryItems] = useState([]);
+  const [profileGallerySizeError, setProfileGallerySizeError] = useState("");
+  const [profileTheme, setProfileTheme] = useState("violet");
 
   const resizeProfileImage = (file) => new Promise((resolve, reject) => {
     const imageUrl = URL.createObjectURL(file);
@@ -542,14 +675,48 @@ function Navbar({ onProfileSave }) {
     setProfileImageSizeError(false);
   };
 
+  const handleProfileGalleryImageChange = (index, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/") || file.size > 3 * 1024 * 1024) {
+      setProfileGallerySizeError("Each image must be a JPG, PNG, WEBP, or GIF under 3 MB.");
+      return;
+    }
+
+    setProfileGallerySizeError("");
+    setProfileGalleryItems((prev) => {
+      const next = [...prev];
+      const existing = next[index];
+      if (existing?.preview?.startsWith("blob:")) URL.revokeObjectURL(existing.preview);
+      next[index] = {
+        file,
+        preview: URL.createObjectURL(file),
+        url: "",
+      };
+      return next.slice(0, PROFILE_GALLERY_MAX_IMAGES);
+    });
+  };
+
+  const removeProfileGalleryImage = (index) => {
+    setProfileGalleryItems((prev) => {
+      const existing = prev[index];
+      if (existing?.preview?.startsWith("blob:")) URL.revokeObjectURL(existing.preview);
+      return prev.filter((_, itemIndex) => itemIndex !== index);
+    });
+    setProfileGallerySizeError("");
+  };
+
   const [savedProfile, setSavedProfile] = useState({
+    id: null, username: "",
     firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
     location: "", countryCode: "", phoneNumber: "", showPhone: true,
     instagramUsername: "", showInstagram: true,
     tiktokUsername: "", showTiktok: true,
     snapchatUsername: "", showSnapchat: true,
     discordUsername: "", showDiscord: true,
-    profileImagePreview: null, answers: {}, selected: {}, skipped: {},
+    profileImagePreview: null, profileGalleryUrls: [], profileTheme: "violet",
+    answers: {}, selected: {}, skipped: {},
     keywordIds: [],
     subscriptionStatus: "free",
     freeSearchesRemaining: 3,
@@ -563,12 +730,22 @@ function Navbar({ onProfileSave }) {
     currentPeriodEnd: null,
   });
   const [showChatModal, setShowChatModal] = useState(false);
+  const [chatMode, setChatMode] = useState("global");
+  const [activeGlobalChannelKey, setActiveGlobalChannelKey] = useState("international");
+  const [directChats, setDirectChats] = useState([]);
+  const [activeDirectChat, setActiveDirectChat] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatDraft, setChatDraft] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [chatNotice, setChatNotice] = useState("");
   const [unreadChatMessages, setUnreadChatMessages] = useState(0);
+  const [profilePreviewUser, setProfilePreviewUser] = useState(null);
+  const [profilePreviewLoading, setProfilePreviewLoading] = useState(false);
+  const [profilePreviewError, setProfilePreviewError] = useState("");
+  const [profilePreviewReturnToChat, setProfilePreviewReturnToChat] = useState(false);
+  const [profilePreviewShowSend, setProfilePreviewShowSend] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -593,7 +770,7 @@ function Navbar({ onProfileSave }) {
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification;
+  const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification || !!profilePreviewUser || profilePreviewLoading || !!profilePreviewError;
   const profileKeywordResultLimit = isMobileKeywordLimitView
     ? MOBILE_PROFILE_KEYWORD_RESULT_LIMIT
     : DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT;
@@ -614,13 +791,16 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (!session) {
       setSavedProfile({
+        id: null, username: "",
         firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
         location: "", countryCode: "", phoneNumber: "", showPhone: true,
         instagramUsername: "", showInstagram: true,
         tiktokUsername: "", showTiktok: true,
         snapchatUsername: "", showSnapchat: true,
         discordUsername: "", showDiscord: true,
-        profileImagePreview: null, answers: {}, selected: {}, skipped: {},
+        profileImagePreview: null, profileGalleryUrls: [], profileTheme: "violet",
+        answers: {}, selected: {}, skipped: {},
+        keywordIds: [],
         subscriptionStatus: "free",
         freeSearchesRemaining: 3,
         idType: 1,
@@ -628,9 +808,19 @@ function Navbar({ onProfileSave }) {
       setProfileLoaded(false);
       setSubscriptionDetails({ loading: false, error: "", currentPeriodEnd: null });
       setShowChatModal(false);
+      setChatMode("global");
+      setActiveGlobalChannelKey("international");
+      setDirectChats([]);
+      setActiveDirectChat(null);
       setChatMessages([]);
       setChatDraft("");
       setChatError("");
+      setChatNotice("");
+      setProfilePreviewUser(null);
+      setProfilePreviewLoading(false);
+      setProfilePreviewError("");
+      setProfilePreviewReturnToChat(false);
+      setProfilePreviewShowSend(true);
       setNotifications([]);
       setUnreadNotifications(0);
       setNotificationsError("");
@@ -645,6 +835,17 @@ function Navbar({ onProfileSave }) {
       });
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return undefined;
+
+    touchMyPresence().catch(() => {});
+    const intervalId = window.setInterval(() => {
+      touchMyPresence().catch(() => {});
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!isModalOpen) return;
@@ -865,30 +1066,21 @@ function Navbar({ onProfileSave }) {
         newAnswers.produceMusic = combineAnswers(newAnswers.produceMusic, newAnswers.playInstruments);
         newAnswers.goGym = combineAnswers(newAnswers.goGym, newAnswers.practiceSports, newAnswers.likeOutdoor);
         const newSkipped = data.skipped || {};
-        const showPhoneDefault = profile.phoneNumber ? profile.showPhone : true;
         const showInstagramDefault = profile.instagram ? profile.showInstagram : true;
         const showTiktokDefault = profile.tiktok ? profile.showTiktok : true;
         const showSnapchatDefault = profile.snapchat ? profile.showSnapchat : true;
         const showDiscordDefault = profile.discord ? profile.showDiscord : true;
 
         // Apply all state at once
+        setUsername(profile.username);
+        setUsernameStatus(profile.username ? "available" : "idle");
+        setUsernameMessage("");
         setFirstName(profile.firstName);
         setLastName(profile.lastName);
         setBirthDay(loadedDay);
         setBirthMonth(loadedMonth);
         setBirthYear(loadedYear);
         setLocation(profile.location);
-        {
-          const spaceIdx = (profile.phoneNumber || "").indexOf(" ");
-          if (spaceIdx > 0) {
-            setCountryCode(profile.phoneNumber.slice(0, spaceIdx));
-            setPhoneNumber(profile.phoneNumber.slice(spaceIdx + 1));
-          } else {
-            setCountryCode("");
-            setPhoneNumber(profile.phoneNumber || "");
-          }
-        }
-        setShowPhone(showPhoneDefault);
         setInstagramUsername(profile.instagram);
         setShowInstagram(showInstagramDefault);
         setTiktokUsername(profile.tiktok);
@@ -898,22 +1090,35 @@ function Navbar({ onProfileSave }) {
         setDiscordUsername(profile.discord);
         setShowDiscord(showDiscordDefault);
         setProfileImagePreview(profile.profileUrl);
+        setProfileGalleryItems((profile.profileGalleryUrls || []).slice(0, PROFILE_GALLERY_MAX_IMAGES).map((url) => ({
+          file: null,
+          preview: url,
+          url,
+        })));
+        setProfileGallerySizeError("");
+        setProfileTheme(profile.profileTheme || "violet");
         setAnswers(newAnswers);
         setSelected(newSelected);
         setSkipped(newSkipped);
 
         const hydratedProfile = {
+          id: profile.id,
+          username: profile.username,
           firstName: profile.firstName, lastName: profile.lastName,
           birthDay: loadedDay, birthMonth: loadedMonth, birthYear: loadedYear,
           location: profile.location,
-          countryCode: (profile.phoneNumber || "").indexOf(" ") > 0 ? profile.phoneNumber.slice(0, profile.phoneNumber.indexOf(" ")) : "",
-          phoneNumber: (profile.phoneNumber || "").indexOf(" ") > 0 ? profile.phoneNumber.slice(profile.phoneNumber.indexOf(" ") + 1) : (profile.phoneNumber || ""),
-          showPhone: showPhoneDefault,
+          countryCode: "",
+          phoneNumber: "",
+          showPhone: false,
           instagramUsername: profile.instagram, showInstagram: showInstagramDefault,
           tiktokUsername: profile.tiktok, showTiktok: showTiktokDefault,
           snapchatUsername: profile.snapchat, showSnapchat: showSnapchatDefault,
           discordUsername: profile.discord, showDiscord: showDiscordDefault,
           profileImagePreview: profile.profileUrl,
+          profileGalleryUrls: profile.profileGalleryUrls || [],
+          profileTheme: profile.profileTheme || "violet",
+          lastSeenAt: profile.lastSeenAt || null,
+          isOnline: true,
           answers: newAnswers, selected: newSelected, skipped: newSkipped,
           keywordIds,
           subscriptionStatus: profile.subscriptionStatus || "free",
@@ -963,6 +1168,7 @@ function Navbar({ onProfileSave }) {
 
   const isProfileComplete = useMemo(() => {
     const hasRequiredProfileInfo =
+      USERNAME_PATTERN.test(savedProfile.username || "") &&
       !!savedProfile.firstName?.trim() &&
       !!savedProfile.lastName?.trim() &&
       !!savedProfile.birthDay &&
@@ -970,13 +1176,6 @@ function Navbar({ onProfileSave }) {
       !!savedProfile.birthYear &&
       !!savedProfile.location?.trim();
     const hasRequiredGender = !!savedProfileGender;
-
-    const hasVisibleContact =
-      (!!savedProfile.phoneNumber?.trim() && savedProfile.showPhone) ||
-      (!!savedProfile.instagramUsername?.trim() && savedProfile.showInstagram) ||
-      (!!savedProfile.tiktokUsername?.trim() && savedProfile.showTiktok) ||
-      (!!savedProfile.snapchatUsername?.trim() && savedProfile.showSnapchat) ||
-      (!!savedProfile.discordUsername?.trim() && savedProfile.showDiscord);
 
     const answeredYesNo = yesNoKeys.filter((key) => savedProfile.answers?.[key] != null).length;
     const completedDirect = directKeys.filter(
@@ -990,7 +1189,7 @@ function Navbar({ onProfileSave }) {
     ).length;
     const completedAllQuestions = answeredYesNo + completedDirect === yesNoKeys.length + directKeys.length;
 
-    return hasRequiredProfileInfo && hasRequiredGender && hasVisibleContact && completedAllQuestions;
+    return hasRequiredProfileInfo && hasRequiredGender && completedAllQuestions;
   }, [savedProfile, savedProfileGender, savedProfileCountryNames, yesNoKeys, directKeys]);
 
   const mustCompleteProfile =
@@ -1187,21 +1386,131 @@ function Navbar({ onProfileSave }) {
     await supabase.auth.signOut();
   };
 
-  const loadGlobalChatMessages = useCallback(async ({ silent = false } = {}) => {
+  const currentProfilePreview = useMemo(() => {
+    if (!savedProfile?.username) return null;
+    const birthday = savedProfile.birthYear && savedProfile.birthMonth && savedProfile.birthDay
+      ? `${savedProfile.birthYear}-${String(savedProfile.birthMonth).padStart(2, "0")}-${String(savedProfile.birthDay).padStart(2, "0")}`
+      : null;
+
+    return normalizePublicProfile({
+      id: savedProfile.id,
+      username: savedProfile.username,
+      name: `${savedProfile.firstName || ""} ${savedProfile.lastName || ""}`.trim() || session?.user?.email,
+      birthday,
+      location: savedProfile.location,
+      contacts: {
+        instagram: { value: savedProfile.instagramUsername, show: savedProfile.showInstagram },
+        tiktok: { value: savedProfile.tiktokUsername, show: savedProfile.showTiktok },
+        snapchat: { value: savedProfile.snapchatUsername, show: savedProfile.showSnapchat },
+        discord: { value: savedProfile.discordUsername, show: savedProfile.showDiscord },
+      },
+      profilePicture: savedProfile.profileImagePreview,
+      profileGalleryUrls: savedProfile.profileGalleryUrls,
+      profileTheme: savedProfile.profileTheme,
+      isOnline: true,
+      keywordIds: savedProfile.keywordIds,
+    });
+  }, [savedProfile, session?.user?.email]);
+
+  const openProfilePreview = useCallback((profile, {
+    updateUrl = true,
+    returnToChat = false,
+    showSend = true,
+  } = {}) => {
+    const normalized = normalizePublicProfile(profile);
+    if (!normalized) return;
+
+    setProfilePreviewUser(normalized);
+    setProfilePreviewError("");
+    setProfilePreviewLoading(false);
+    setProfilePreviewReturnToChat(returnToChat);
+    setProfilePreviewShowSend(showSend);
+
+    if (updateUrl && normalized.username) {
+      const nextPath = `/${normalized.username}`;
+      if (routerLocation.pathname !== nextPath) {
+        navigate(nextPath, { replace: false });
+      }
+    }
+  }, [navigate, routerLocation.pathname]);
+
+  const closeProfilePreview = useCallback(() => {
+    const shouldReturnToChat = profilePreviewReturnToChat;
+    profileRouteRequestRef.current = "";
+    setProfilePreviewUser(null);
+    setProfilePreviewError("");
+    setProfilePreviewLoading(false);
+    setProfilePreviewReturnToChat(false);
+    setProfilePreviewShowSend(true);
+
+    if (getProfileUsernameFromPath(routerLocation.pathname)) {
+      navigate("/", { replace: false });
+    }
+
+    if (shouldReturnToChat) {
+      setShowChatModal(true);
+    }
+  }, [navigate, profilePreviewReturnToChat, routerLocation.pathname]);
+
+  const loadGlobalChatMessages = useCallback(async ({ silent = false, channelKey = activeGlobalChannelKey } = {}) => {
     if (!session?.user?.id) return;
 
     if (!silent) setChatLoading(true);
     setChatError("");
 
     try {
-      const messages = await listGlobalChatMessages();
+      const messages = await listGlobalChatMessages(channelKey);
       setChatMessages(messages);
     } catch (err) {
       setChatError(err.message || "Failed to load chat.");
     } finally {
       if (!silent) setChatLoading(false);
     }
-  }, [session?.user?.id]);
+  }, [activeGlobalChannelKey, session?.user?.id]);
+
+  const loadDirectChats = useCallback(async () => {
+    if (!session?.user?.id) {
+      setDirectChats([]);
+      return;
+    }
+
+    try {
+      const chats = await listMyDirectChats();
+      setDirectChats(chats);
+      if (activeDirectChat) {
+        const freshActive = chats.find((chat) => chat.otherUserId === activeDirectChat.otherUserId);
+        if (freshActive) setActiveDirectChat(freshActive);
+      }
+    } catch (err) {
+      console.warn("Failed to load direct chats:", err.message);
+    }
+  }, [activeDirectChat, session?.user?.id]);
+
+  const loadCurrentChatMessages = useCallback(async ({ silent = false } = {}) => {
+    if (chatMode === "direct") {
+      if (!activeDirectChat?.otherUserId) {
+        setChatMessages([]);
+        return;
+      }
+
+      if (!silent) setChatLoading(true);
+      setChatError("");
+
+      try {
+        const messages = await listDirectChatMessages(activeDirectChat.otherUserId);
+        setChatMessages(messages);
+        await markDirectChatMessagesRead(activeDirectChat.otherUserId);
+      } catch (err) {
+        setChatError(err.message || "Failed to load direct messages.");
+      } finally {
+        if (!silent) setChatLoading(false);
+      }
+      return;
+    }
+
+    await loadGlobalChatMessages({ silent, channelKey: activeGlobalChannelKey });
+    await markGlobalChatMessagesRead(activeGlobalChannelKey).catch(() => {});
+  }, [activeDirectChat, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
 
   const loadUnreadChatMessageCount = useCallback(async () => {
     if (!session?.user?.id) {
@@ -1210,29 +1519,100 @@ function Navbar({ onProfileSave }) {
     }
 
     try {
-      const count = await getUnreadGlobalChatMessageCount();
-      setUnreadChatMessages(count);
+      const [globalCount, directCount] = await Promise.all([
+        getUnreadGlobalChatMessageCount(),
+        getUnreadDirectMessageCount(),
+      ]);
+      setUnreadChatMessages(globalCount + directCount);
     } catch {
       // The badge is best-effort; chat itself remains usable if this fails.
     }
   }, [session?.user?.id]);
 
   const openGlobalChat = () => {
+    setChatMode("global");
+    setActiveGlobalChannelKey("international");
+    setActiveDirectChat(null);
     setShowChatModal(true);
     setChatError("");
+    setChatNotice("");
     setUnreadChatMessages(0);
   };
 
   const closeGlobalChat = () => {
     setShowChatModal(false);
     setChatDraft("");
+    setChatNotice("");
   };
 
-  const openChatAuthorInConsole = (message) => {
+  const openChatAuthorInConsole = async (message) => {
     if (!message?.userId) return;
     setShowChatModal(false);
     setChatDraft("");
-    navigate(`/?user=${encodeURIComponent(message.userId)}`);
+    setProfilePreviewLoading(true);
+    setProfilePreviewError("");
+    try {
+      const profile = await getPublicUserById(message.userId);
+      if (!profile) {
+        setProfilePreviewError("Profile not found.");
+        return;
+      }
+      openProfilePreview(profile, { returnToChat: true, showSend: true });
+    } catch (err) {
+      setProfilePreviewError(err.message || "Failed to load profile.");
+    } finally {
+      setProfilePreviewLoading(false);
+    }
+  };
+
+  const startDirectChat = useCallback((profile) => {
+    const normalized = normalizePublicProfile(profile);
+    const otherUserId = Number(normalized?.id);
+    if (!Number.isInteger(otherUserId) || otherUserId <= 0 || otherUserId === Number(savedProfile?.id)) return;
+
+    const existingChat = directChats.find((chat) => chat.otherUserId === otherUserId);
+    setActiveDirectChat(existingChat || {
+      conversationId: normalized.conversationId || null,
+      otherUserId,
+      username: normalized.username || "",
+      name: normalized.name,
+      email: normalized.email || "",
+      profilePicture: normalized.profilePicture,
+      profileTheme: normalized.profileTheme,
+      isOnline: normalized.isOnline,
+      totalMessages: 0,
+      hasConnectionStreak: false,
+    });
+    setChatMode("direct");
+    setShowChatModal(true);
+    setChatDraft("");
+    setChatError("");
+    setChatNotice("");
+    setProfilePreviewUser(null);
+    setProfilePreviewError("");
+    setProfilePreviewReturnToChat(false);
+
+    if (getProfileUsernameFromPath(routerLocation.pathname)) {
+      navigate("/", { replace: false });
+    }
+
+    loadDirectChats();
+  }, [directChats, loadDirectChats, navigate, routerLocation.pathname, savedProfile?.id]);
+
+  const openMyProfilePreview = () => {
+    if (!currentProfilePreview?.username) {
+      openEditProfile();
+      return;
+    }
+    openProfilePreview(currentProfilePreview, { showSend: false });
+  };
+
+  const selectGlobalChatChannel = (channelKey) => {
+    setChatMode("global");
+    setActiveGlobalChannelKey(channelKey);
+    setActiveDirectChat(null);
+    setChatDraft("");
+    setChatNotice("");
   };
 
   const handleChatSubmit = async (e) => {
@@ -1247,20 +1627,77 @@ function Navbar({ onProfileSave }) {
 
     setChatSending(true);
     setChatError("");
+    setChatNotice("");
 
     try {
-      const message = await sendGlobalChatMessage(body);
+      const message = chatMode === "direct" && activeDirectChat?.otherUserId
+        ? await sendDirectChatMessage(activeDirectChat.otherUserId, body)
+        : await sendGlobalChatMessage(body, activeGlobalChannelKey);
       setChatDraft("");
       if (message) {
         setChatMessages(prev => (
-          prev.some(existing => existing.id === message.id) ? prev : [...prev, message]
+          prev.some(existing => existing.id === message.id && existing.type === message.type) ? prev : [...prev, message]
         ));
       }
-      loadGlobalChatMessages({ silent: true });
+      loadCurrentChatMessages({ silent: true });
+      loadDirectChats();
     } catch (err) {
       setChatError(err.message || "Failed to send message.");
     } finally {
       setChatSending(false);
+    }
+  };
+
+  const handleConnectionStreak = async () => {
+    if (!activeDirectChat?.otherUserId || chatSending) return;
+    setChatSending(true);
+    setChatError("");
+    setChatNotice("");
+    try {
+      const message = await sendDirectChatMessage(activeDirectChat.otherUserId, "Connection Streak.");
+      if (message) {
+        setChatMessages(prev => (
+          prev.some(existing => existing.id === message.id && existing.type === message.type) ? prev : [...prev, message]
+        ));
+      }
+      setChatNotice("Connection Streak sent.");
+      loadCurrentChatMessages({ silent: true });
+      loadDirectChats();
+    } catch (err) {
+      setChatError(err.message || "Failed to send streak.");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleReportMessage = async (message) => {
+    if (!message) return;
+    const reason = window.prompt("Why are you reporting this message?") || "";
+    setChatNotice("");
+    setChatError("");
+    try {
+      await reportChatMessage(message, reason);
+      setChatNotice("Message reported.");
+    } catch (err) {
+      setChatError(err.message || "Failed to report message.");
+    }
+  };
+
+  const handleReportCurrentChat = async () => {
+    const reason = window.prompt("Why are you reporting this chat?") || "";
+    setChatNotice("");
+    setChatError("");
+    try {
+      await reportChat({
+        chatKind: chatMode,
+        channelKey: activeGlobalChannelKey,
+        otherUserId: activeDirectChat?.otherUserId,
+        conversationId: activeDirectChat?.conversationId,
+        reason,
+      });
+      setChatNotice("Chat reported.");
+    } catch (err) {
+      setChatError(err.message || "Failed to report chat.");
     }
   };
 
@@ -1447,15 +1884,15 @@ function Navbar({ onProfileSave }) {
   };
 
   const openEditProfile = () => {
+    setUsername(savedProfile.username || "");
+    setUsernameStatus(savedProfile.username ? "available" : "idle");
+    setUsernameMessage("");
     setFirstName(savedProfile.firstName);
     setLastName(savedProfile.lastName);
     setBirthDay(formatBirthDatePart(savedProfile.birthDay));
     setBirthMonth(formatBirthDatePart(savedProfile.birthMonth));
     setBirthYear(savedProfile.birthYear);
     setLocation(savedProfile.location);
-    setCountryCode(savedProfile.countryCode);
-    setPhoneNumber(savedProfile.phoneNumber);
-    setShowPhone(savedProfile.showPhone);
     setInstagramUsername(savedProfile.instagramUsername);
     setShowInstagram(savedProfile.showInstagram);
     setTiktokUsername(savedProfile.tiktokUsername);
@@ -1467,6 +1904,13 @@ function Navbar({ onProfileSave }) {
     setProfileImage(null);
     setProfileImagePreview(savedProfile.profileImagePreview);
     setProfileImageSizeError(false);
+    setProfileGalleryItems((savedProfile.profileGalleryUrls || []).slice(0, PROFILE_GALLERY_MAX_IMAGES).map((url) => ({
+      file: null,
+      preview: url,
+      url,
+    })));
+    setProfileGallerySizeError("");
+    setProfileTheme(savedProfile.profileTheme || "violet");
     setAnswers(savedProfile.answers);
     setSelected(savedProfile.selected);
     setSkipped(savedProfile.skipped);
@@ -1515,12 +1959,85 @@ function Navbar({ onProfileSave }) {
     setShowCancelSubModal(false);
     setShowAnalyticsModal(false);
     setShowEditModal(false);
-    setShowChatModal(false);
     setSelectedNotification(null);
     setEditStage(1);
     setValidated(false);
     setSearches({});
   }, [routerLocation.pathname]);
+
+  useEffect(() => {
+    const routeUsername = getProfileUsernameFromPath(routerLocation.pathname);
+    if (!routeUsername) {
+      profileRouteRequestRef.current = "";
+      return undefined;
+    }
+    if (profilePreviewLoading) return undefined;
+    if (profilePreviewUser?.username === routeUsername && !profilePreviewLoading) return undefined;
+    if (profileRouteRequestRef.current === routeUsername && profilePreviewError) return undefined;
+
+    let isMounted = true;
+    profileRouteRequestRef.current = routeUsername;
+    setProfilePreviewLoading(true);
+    setProfilePreviewError("");
+    setProfilePreviewReturnToChat(false);
+    setProfilePreviewShowSend(!!session?.user?.id);
+
+    getPublicUserByUsername(routeUsername)
+      .then((profile) => {
+        if (!isMounted) return;
+        if (!profile) {
+          setProfilePreviewUser(null);
+          setProfilePreviewError("Profile not found.");
+          return;
+        }
+        setProfilePreviewUser(normalizePublicProfile(profile));
+        if (profile.id) {
+          recordProfileView(profile.id).catch((err) => {
+            console.warn("Failed to record profile view:", err.message);
+          });
+        }
+      })
+      .catch((err) => {
+        if (isMounted) setProfilePreviewError(err.message || "Failed to load profile.");
+      })
+      .finally(() => {
+        if (isMounted) setProfilePreviewLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [profilePreviewError, profilePreviewLoading, profilePreviewUser?.username, routerLocation.pathname, session?.user?.id]);
+
+  useEffect(() => {
+    const handleOpenProfile = (event) => {
+      const detail = event.detail || {};
+      if (detail.user || detail.profile) {
+        openProfilePreview(detail.user || detail.profile, {
+          updateUrl: detail.updateUrl !== false,
+          returnToChat: !!detail.returnToChat,
+          showSend: detail.showSend !== false,
+        });
+        return;
+      }
+
+      if (detail.username) {
+        navigate(`/${normalizeUsername(detail.username)}`);
+      }
+    };
+
+    const handleStartDirectChat = (event) => {
+      startDirectChat(event.detail?.user || event.detail?.profile);
+    };
+
+    window.addEventListener("lfp:open-profile-preview", handleOpenProfile);
+    window.addEventListener("lfp:start-direct-chat", handleStartDirectChat);
+
+    return () => {
+      window.removeEventListener("lfp:open-profile-preview", handleOpenProfile);
+      window.removeEventListener("lfp:start-direct-chat", handleStartDirectChat);
+    };
+  }, [navigate, openProfilePreview, startDirectChat]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -1531,39 +2048,38 @@ function Navbar({ onProfileSave }) {
     let isMounted = true;
     loadUnreadChatMessageCount();
 
-    const channel = subscribeToGlobalChatMessages(() => {
+    const handleChatChange = () => {
       if (!isMounted) return;
       if (showChatModal) {
-        loadGlobalChatMessages({ silent: true });
-        Promise.resolve(markGlobalChatMessagesRead())
-          .then(() => setUnreadChatMessages(0))
+        loadCurrentChatMessages({ silent: true })
+          .then(() => loadUnreadChatMessageCount())
           .catch(() => { });
+        loadDirectChats();
       } else {
         loadUnreadChatMessageCount();
       }
-    });
+    };
+
+    const globalChannel = subscribeToGlobalChatMessages(handleChatChange);
+    const directChannel = subscribeToDirectChatMessages(handleChatChange);
 
     return () => {
       isMounted = false;
-      removeGlobalChatSubscription(channel);
+      removeGlobalChatSubscription(globalChannel);
+      removeGlobalChatSubscription(directChannel);
     };
-  }, [loadGlobalChatMessages, loadUnreadChatMessageCount, session?.user?.id, showChatModal]);
+  }, [loadCurrentChatMessages, loadDirectChats, loadUnreadChatMessageCount, session?.user?.id, showChatModal]);
 
   useEffect(() => {
     if (!showChatModal || !session?.user?.id) return undefined;
 
-    let isMounted = true;
-    loadGlobalChatMessages()
-      .then(() => markGlobalChatMessagesRead())
-      .then(() => {
-        if (isMounted) setUnreadChatMessages(0);
-      })
+    loadDirectChats();
+    loadCurrentChatMessages()
+      .then(() => loadUnreadChatMessageCount())
       .catch(() => { });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [loadGlobalChatMessages, session?.user?.id, showChatModal]);
+    return undefined;
+  }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, loadCurrentChatMessages, loadDirectChats, loadUnreadChatMessageCount, session?.user?.id, showChatModal]);
 
   useEffect(() => {
     if (!showChatModal || chatLoading) return undefined;
@@ -1917,26 +2433,50 @@ function Navbar({ onProfileSave }) {
     </div>
   );
 
-  const handleContinue = () => {
+  const handleUsernameChange = (value) => {
+    const nextUsername = String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 16);
+
+    setUsername(nextUsername);
+    setUsernameMessage("");
+    setUsernameStatus(nextUsername && nextUsername === savedProfile.username ? "available" : "idle");
+  };
+
+  const handleContinue = async () => {
     if (editStage === 1) {
       setValidated(true);
-      const hasContact = (phoneNumber.trim() && showPhone) ||
-        (instagramUsername.trim() && showInstagram) ||
-        (tiktokUsername.trim() && showTiktok) ||
-        (snapchatUsername.trim() && showSnapchat) ||
-        (discordUsername.trim() && showDiscord);
+      const normalizedUsername = normalizeUsername(username);
       const firstNameTypeError = firstName.trim() && /\d/.test(firstName);
       const lastNameTypeError = lastName.trim() && /\d/.test(lastName);
-      const countryCodeTypeError = countryCode && /[a-zA-Z]/.test(countryCode);
-      const phoneTypeError = phoneNumber && /[a-zA-Z]/.test(phoneNumber);
-      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear || !location.trim() || !hasContact || countryCodeTypeError || phoneTypeError) {
-        if (!hasContact) {
-          setTimeout(() => {
-            contactErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-          }, 0);
-        }
+      const usernameTypeError = !USERNAME_PATTERN.test(normalizedUsername);
+
+      setUsername(normalizedUsername);
+
+      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || usernameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear || !location.trim()) {
+        if (usernameTypeError) setUsernameMessage("Use 3 to 16 lowercase letters, numbers, or underscores.");
         return;
       }
+
+      if (normalizedUsername !== savedProfile.username || usernameStatus !== "available") {
+        setUsernameStatus("checking");
+        setUsernameMessage("");
+        try {
+          const available = await isUsernameAvailable(normalizedUsername, session?.user?.id);
+          if (!available) {
+            setUsernameStatus("taken");
+            setUsernameMessage("Username is already taken.");
+            return;
+          }
+          setUsernameStatus("available");
+        } catch (err) {
+          setUsernameStatus("error");
+          setUsernameMessage(err.message || "Could not verify username.");
+          return;
+        }
+      }
+
       setSelected(prev => {
         const next = { ...prev };
         if (firstStageCountryNames.length > 0) {
@@ -1968,13 +2508,15 @@ function Navbar({ onProfileSave }) {
       if (age < 16) {
         // Wipe all local profile state first so nothing is shown
         const blank = {
+          id: null, username: "",
           firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
           location: "", countryCode: "", phoneNumber: "", showPhone: true,
           instagramUsername: "", showInstagram: true,
           tiktokUsername: "", showTiktok: true,
           snapchatUsername: "", showSnapchat: true,
           discordUsername: "", showDiscord: true,
-          profileImagePreview: null, answers: {}, selected: {}, skipped: {},
+          profileImagePreview: null, profileGalleryUrls: [], profileTheme: "violet",
+          answers: {}, selected: {}, skipped: {},
           keywordIds: [],
           subscriptionStatus: "free", freeSearchesRemaining: 0, idType: 1,
         };
@@ -2022,6 +2564,27 @@ function Navbar({ onProfileSave }) {
       }
     }
 
+    let finalGalleryUrls = profileGalleryItems
+      .map((item) => item.url || item.preview)
+      .filter((url) => url && !url.startsWith("blob:"))
+      .slice(0, PROFILE_GALLERY_MAX_IMAGES);
+
+    if (session?.user && profileGalleryItems.some((item) => item.file)) {
+      try {
+        finalGalleryUrls = await Promise.all(
+          profileGalleryItems.slice(0, PROFILE_GALLERY_MAX_IMAGES).map(async (item, index) => {
+            if (item.file) return uploadProfileGalleryImage(session.user.id, item.file, index);
+            return item.url || item.preview || "";
+          })
+        );
+        finalGalleryUrls = finalGalleryUrls.filter(Boolean).slice(0, PROFILE_GALLERY_MAX_IMAGES);
+        setProfileGalleryItems(finalGalleryUrls.map((url) => ({ file: null, preview: url, url })));
+      } catch (err) {
+        console.error("Failed to upload profile gallery image:", err.message);
+        finalGalleryUrls = finalGalleryUrls.filter(Boolean);
+      }
+    }
+
     const selectorItems = {
       visualArt: visualArtItems, digitalArt: digitalArtItems,
       musicGenres: musicGenreItems, musicArtists: musicArtistItems,
@@ -2046,16 +2609,22 @@ function Navbar({ onProfileSave }) {
       });
 
     const profile = {
+      id: savedProfile.id,
+      username: normalizeUsername(username),
       firstName, lastName,
       birthDay: formatBirthDatePart(birthDay),
       birthMonth: formatBirthDatePart(birthMonth),
       birthYear,
-      location, countryCode, phoneNumber, showPhone,
+      location, countryCode: "", phoneNumber: "", showPhone: false,
       instagramUsername, showInstagram,
       tiktokUsername, showTiktok,
       snapchatUsername, showSnapchat,
       discordUsername, showDiscord,
       profileImagePreview: finalImageUrl ?? profileImagePreview,
+      profileGalleryUrls: finalGalleryUrls,
+      profileTheme,
+      isOnline: true,
+      lastSeenAt: new Date().toISOString(),
       answers: sanitizedAnswers,
       selected: sanitizedSelected,
       skipped: sanitizedSkipped,
@@ -2077,13 +2646,16 @@ function Navbar({ onProfileSave }) {
         await updateUserProfile(
           session.user.id,
           {
+            username: normalizeUsername(username),
             firstName, lastName, birthDay, birthMonth, birthYear,
-            location, countryCode, phoneNumber, showPhone,
+            location, countryCode: "", phoneNumber: "", showPhone: false,
             instagramUsername, showInstagram,
             tiktokUsername, showTiktok,
             snapchatUsername, showSnapchat,
             discordUsername, showDiscord,
             profileImageUrl: finalImageUrl,
+            profileGalleryUrls: finalGalleryUrls,
+            profileTheme,
             answers: sanitizedAnswers,
             skipped: sanitizedSkipped,
           },
@@ -2108,24 +2680,21 @@ function Navbar({ onProfileSave }) {
       firstStageCountryNames
     )).length;
   const totalQuestions = yesNoKeys.length + directKeys.length;
-  const hasContact = (phoneNumber.trim() && showPhone) ||
-    (instagramUsername.trim() && showInstagram) ||
-    (tiktokUsername.trim() && showTiktok) ||
-    (snapchatUsername.trim() && showSnapchat) ||
-    (discordUsername.trim() && showDiscord);
   const basicPlanPrice = useMemo(
     () => getBasicPlanPrice(savedProfile.location),
     [savedProfile.location]
   );
   const isAdminUser = isAdmin;
   const showPricingNav = (
+    showAllNavbarOptions || (
     session &&
     !isAdminUser &&
     !["active", "canceling"].includes(savedProfile.subscriptionStatus)
+    )
   );
-  const showAdminNav = session && isAdminUser && routerLocation.pathname !== "/admin";
-  const showChatNav = session && !isAdminUser;
-  const showNotificationsNav = session && !isAdminUser;
+  const showAdminNav = !!session && (showAllNavbarOptions || isAdminUser) && routerLocation.pathname !== "/admin";
+  const showChatNav = !!session && (showAllNavbarOptions || !isAdminUser);
+  const showNotificationsNav = !!session && (showAllNavbarOptions || !isAdminUser);
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
   const hasProAnalyticsAccess =
@@ -2200,6 +2769,20 @@ function Navbar({ onProfileSave }) {
       )}
     </div>
   );
+  const activeGlobalChannel = chatChannels.find((channel) => channel.key === activeGlobalChannelKey) || chatChannels[0];
+  const activeChatTitle = chatMode === "direct"
+    ? activeDirectChat?.name || "Direct Message"
+    : activeGlobalChannel?.title || "International";
+  const canUseConnectionStreak =
+    chatMode === "direct" &&
+    activeDirectChat?.otherUserId &&
+    (
+      activeDirectChat.hasConnectionStreak ||
+      (
+        chatMessages.length >= CONNECTION_STREAK_MESSAGE_COUNT &&
+        new Set(chatMessages.map((message) => message.userId)).size >= 2
+      )
+    );
 
   return (
     <>
@@ -2383,6 +2966,7 @@ function Navbar({ onProfileSave }) {
 
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
+                    <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openMyProfilePreview(); }}>Preview Profile</a></li>
                     {!isAdminUser && (
                       <>
                         <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openAnalytics(); }}>Analytics</a></li>
@@ -2440,143 +3024,309 @@ function Navbar({ onProfileSave }) {
         </div>
       </nav>
 
-      {/* Global Chat Modal */}
+      {/* Chat Modal */}
       {showChatModal && (
         <>
           <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="globalChatTitle">
-            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-              <div className="modal-content">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable global-chat-dialog">
+              <div className="modal-content global-chat-shell">
                 <div className="modal-header">
-                  <h5 className="modal-title" id="globalChatTitle">International Chat</h5>
+                  <div className="min-w-0">
+                    <h5 className="modal-title text-truncate" id="globalChatTitle">{activeChatTitle}</h5>
+                    {chatMode === "global" && activeGlobalChannel?.description && (
+                      <small className="text-muted d-block text-truncate">{activeGlobalChannel.description}</small>
+                    )}
+                    {chatMode === "direct" && activeDirectChat?.username && (
+                      <small className="text-muted d-block text-truncate">@{activeDirectChat.username}</small>
+                    )}
+                  </div>
+                  <div className="d-flex align-items-center gap-2 ms-auto">
+                    {canUseConnectionStreak && (
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={handleConnectionStreak}
+                        disabled={chatSending}
+                      >
+                        Connection Streak
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="profile-icon-button"
+                      onClick={handleReportCurrentChat}
+                      title="Report chat"
+                      aria-label="Report chat"
+                    >
+                      <i className="bi bi-flag"></i>
+                    </button>
+                  </div>
                   <button type="button" className="btn-close" onClick={closeGlobalChat} aria-label="Close"></button>
                 </div>
 
-                <div
-                  className="modal-body bg-light"
-                  ref={chatMessagesBodyRef}
-                  style={{ height: "320px", overflowY: "auto" }}
-                >
-                  {chatError && (
-                    <div className="alert alert-danger py-2" role="alert">
-                      {chatError}
+                <div className="global-chat-layout">
+                  <aside className="global-chat-sidebar">
+                    <div className="global-chat-sidebar-section">
+                      <div className="global-chat-sidebar-label">Global</div>
+                      {chatChannels.map((channel) => (
+                        <button
+                          key={channel.key}
+                          type="button"
+                          className={`global-chat-room-button${chatMode === "global" && activeGlobalChannelKey === channel.key ? " active" : ""}`}
+                          onClick={() => selectGlobalChatChannel(channel.key)}
+                        >
+                          <i className={`bi ${channel.icon}`}></i>
+                          <span className="min-w-0">
+                            <span className="d-block text-truncate">{channel.title}</span>
+                            <small className="d-block text-truncate">{channel.description}</small>
+                          </span>
+                        </button>
+                      ))}
                     </div>
-                  )}
 
-                  {!session ? (
-                    <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
-                      <i className="bi bi-person-lock d-block fs-1 mb-2"></i>
-                      Sign in to chat with everyone.
-                    </div>
-                  ) : chatLoading ? (
-                    <div className="d-flex justify-content-center align-items-center py-5">
-                      <div className="spinner-border spinner-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : chatMessages.length === 0 ? (
-                    <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
-                      <i className="bi bi-chat-square-dots d-block fs-1 mb-2"></i>
-                      No messages yet
-                    </div>
-                  ) : (
-                    <div className="d-flex flex-column gap-3">
-                      {chatMessages.map((message, index) => {
-                        const isOwnMessage = message.author?.email === session?.user?.email;
-                        const nextMessage = chatMessages[index + 1];
-                        const showMessageTime = !nextMessage || nextMessage.userId !== message.userId;
-                        return (
-                          <div
-                            key={message.id}
-                            className={`d-flex ${isOwnMessage ? "justify-content-end" : "justify-content-start gap-2 align-items-start"}`}
+                    <div className="global-chat-sidebar-section">
+                      <div className="global-chat-sidebar-label">Direct</div>
+                      {directChats.length === 0 ? (
+                        <small className="text-muted d-block px-2">No direct chats yet</small>
+                      ) : (
+                        directChats.map((chat) => (
+                          <button
+                            key={chat.otherUserId}
+                            type="button"
+                            className={`global-chat-room-button${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
+                            onClick={() => {
+                              setActiveDirectChat(chat);
+                              setChatMode("direct");
+                              setChatDraft("");
+                              setChatNotice("");
+                            }}
                           >
-                            {isOwnMessage ? (
-                              <div className="w-75 d-flex flex-column align-items-end">
-                                <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
-                                  {message.body}
-                                </div>
-                                {showMessageTime && (
-                                  <small className="text-muted mt-1 text-end">
-                                    {formatChatTimestamp(message.createdAt)}
-                                  </small>
+                            <span className="profile-preview-avatar-wrap global-chat-sidebar-avatar">
+                              <img src={chat.profilePicture || defaultProfile} alt="" />
+                              <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
+                            </span>
+                            <span className="min-w-0">
+                              <span className="d-block text-truncate">{chat.name}</span>
+                              <small className="d-block text-truncate">{chat.lastBody || "Start chatting"}</small>
+                            </span>
+                            {chat.unreadCount > 0 && (
+                              <span className="badge rounded-pill bg-danger ms-auto">{chat.unreadCount > 9 ? "9+" : chat.unreadCount}</span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </aside>
+
+                  <section className="global-chat-main">
+                    <div
+                      className="modal-body bg-light global-chat-messages"
+                      ref={chatMessagesBodyRef}
+                    >
+                      {chatError && (
+                        <div className="alert alert-danger py-2" role="alert">
+                          {chatError}
+                        </div>
+                      )}
+                      {chatNotice && (
+                        <div className="alert alert-success py-2" role="status">
+                          {chatNotice}
+                        </div>
+                      )}
+
+                      {!session ? (
+                        <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
+                          <i className="bi bi-person-lock d-block fs-1 mb-2"></i>
+                          Sign in to chat with everyone.
+                        </div>
+                      ) : chatMode === "direct" && !activeDirectChat ? (
+                        <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
+                          <i className="bi bi-chat-dots d-block fs-1 mb-2"></i>
+                          Choose someone to message
+                        </div>
+                      ) : chatLoading ? (
+                        <div className="d-flex justify-content-center align-items-center py-5">
+                          <div className="spinner-border spinner-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </div>
+                      ) : chatMessages.length === 0 ? (
+                        <div className="d-flex h-100 flex-column align-items-center justify-content-center text-center text-muted">
+                          <i className="bi bi-chat-square-dots d-block fs-1 mb-2"></i>
+                          No messages yet
+                        </div>
+                      ) : (
+                        <div className="d-flex flex-column gap-3">
+                          {chatMessages.map((message, index) => {
+                            const isOwnMessage = message.userId === savedProfile?.id || message.author?.email === session?.user?.email;
+                            const nextMessage = chatMessages[index + 1];
+                            const showMessageTime = !nextMessage || nextMessage.userId !== message.userId;
+                            return (
+                              <div
+                                key={`${message.type}-${message.id}`}
+                                className={`d-flex global-chat-message-row ${isOwnMessage ? "justify-content-end" : "justify-content-start gap-2 align-items-start"}`}
+                              >
+                                {isOwnMessage ? (
+                                  <div className="w-75 d-flex flex-column align-items-end">
+                                    <div className="d-flex align-items-start gap-2 justify-content-end">
+                                      <button
+                                        type="button"
+                                        className="global-chat-report-button"
+                                        onClick={() => handleReportMessage(message)}
+                                        title="Report message"
+                                        aria-label="Report message"
+                                      >
+                                        <i className="bi bi-flag"></i>
+                                      </button>
+                                      <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
+                                        {message.body}
+                                      </div>
+                                    </div>
+                                    {showMessageTime && (
+                                      <small className="text-muted mt-1 text-end">
+                                        {formatChatTimestamp(message.createdAt)}
+                                      </small>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="btn p-0 border-0 bg-transparent flex-shrink-0 global-chat-avatar-button"
+                                      onClick={() => openChatAuthorInConsole(message)}
+                                      aria-label={`Open ${getChatAuthorName(message)} profile`}
+                                    >
+                                      <span className="profile-preview-avatar-wrap global-chat-avatar-wrap">
+                                        <img
+                                          src={message.author?.profileUrl || defaultProfile}
+                                          alt={getChatAuthorName(message)}
+                                          width="28"
+                                          height="28"
+                                          className="rounded-circle global-chat-avatar"
+                                        />
+                                        <span className={`profile-presence-dot ${message.author?.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
+                                      </span>
+                                    </button>
+                                    <div className="w-75 d-flex flex-column align-items-start">
+                                      <button
+                                        type="button"
+                                        className="global-chat-author-button mb-1"
+                                        onClick={() => openChatAuthorInConsole(message)}
+                                      >
+                                        {getChatAuthorName(message)}
+                                      </button>
+                                      <div className="d-flex align-items-start gap-2">
+                                        <div className="rounded-3 p-2 text-break bg-white border">
+                                          {message.body}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="global-chat-report-button"
+                                          onClick={() => handleReportMessage(message)}
+                                          title="Report message"
+                                          aria-label="Report message"
+                                        >
+                                          <i className="bi bi-flag"></i>
+                                        </button>
+                                      </div>
+                                      {showMessageTime && (
+                                        <small className="text-muted mt-1">
+                                          {formatChatTimestamp(message.createdAt)}
+                                        </small>
+                                      )}
+                                    </div>
+                                  </>
                                 )}
                               </div>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn p-0 border-0 bg-transparent flex-shrink-0 global-chat-avatar-button"
-                                  onClick={() => openChatAuthorInConsole(message)}
-                                  aria-label={`Show ${getChatAuthorName(message)} in search`}
-                                >
-                                  <img
-                                    src={message.author?.profileUrl || defaultProfile}
-                                    alt={getChatAuthorName(message)}
-                                    width="28"
-                                    height="28"
-                                    className="rounded-circle global-chat-avatar"
-                                  />
-                                </button>
-                                <div className="w-75 d-flex flex-column align-items-start">
-                                  <button
-                                    type="button"
-                                    className="global-chat-author-button mb-1"
-                                    onClick={() => openChatAuthorInConsole(message)}
-                                  >
-                                    {getChatAuthorName(message)}
-                                  </button>
-                                  <div className="rounded-3 p-2 text-break bg-white border">
-                                    {message.body}
-                                  </div>
-                                  {showMessageTime && (
-                                    <small className="text-muted mt-1">
-                                      {formatChatTimestamp(message.createdAt)}
-                                    </small>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <form className="modal-footer" onSubmit={handleChatSubmit}>
+                      <div className="input-group">
+                        <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
+                        <input
+                          type="text"
+                          id="globalChatMessage"
+                          className="form-control"
+                          placeholder={
+                            !session
+                              ? "Sign in to send messages..."
+                              : chatMode === "direct"
+                                ? `Message ${activeDirectChat?.name || "this person"}...`
+                                : `Message ${activeGlobalChannel?.title || "everyone"}...`
+                          }
+                          value={chatDraft}
+                          maxLength={CHAT_MAX_MESSAGE_LENGTH}
+                          disabled={!session || (chatMode === "direct" && !activeDirectChat)}
+                          onChange={(e) => setChatDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleChatSubmit(e);
+                            }
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={!session || !chatDraft.trim() || chatSending || (chatMode === "direct" && !activeDirectChat)}
+                        >
+                          {chatSending ? (
+                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                          ) : (
+                            <>
+                              <i className="bi bi-send me-1"></i>
+                              Send
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
+
+      {profilePreviewUser && !profilePreviewLoading && !profilePreviewError && (
+        <ProfilePreviewModal
+          profile={profilePreviewUser}
+          keywordMap={profileKeywordMap}
+          onClose={closeProfilePreview}
+          onSendMessage={startDirectChat}
+          showSendMessage={profilePreviewShowSend && !!session}
+          isCurrentUser={Number(profilePreviewUser.id) === Number(savedProfile?.id)}
+        />
+      )}
+
+      {(profilePreviewLoading || profilePreviewError) && (
+        <>
+          <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="profilePreviewLoadingTitle">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title" id="profilePreviewLoadingTitle">Profile</h5>
+                  <button type="button" className="btn-close" onClick={closeProfilePreview} aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                  {profilePreviewLoading ? (
+                    <div className="d-flex justify-content-center align-items-center py-5">
+                      <div className="spinner-border spinner-primary" role="status">
+                        <span className="visually-hidden">Loading profile...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="alert alert-danger mb-0" role="alert">
+                      {profilePreviewError}
                     </div>
                   )}
                 </div>
-
-                <form className="modal-footer" onSubmit={handleChatSubmit}>
-                  <div className="input-group">
-                    <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
-                    <input
-                      type="text"
-                      id="globalChatMessage"
-                      className="form-control"
-                      placeholder={session ? "Message everyone..." : "Sign in to send messages..."}
-                      value={chatDraft}
-                      maxLength={CHAT_MAX_MESSAGE_LENGTH}
-                      disabled={!session}
-                      onChange={(e) => setChatDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleChatSubmit(e);
-                        }
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={!session || !chatDraft.trim() || chatSending}
-                    >
-                      {chatSending ? (
-                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      ) : (
-                        <>
-                          <i className="bi bi-send me-1"></i>
-                          Send
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
           </div>
@@ -2853,6 +3603,52 @@ function Navbar({ onProfileSave }) {
                       )}
                     </div>
 
+                    <div className="mb-3">
+                      <label className="form-label d-block text-center">
+                        Profile Images <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span>
+                      </label>
+                      <div className="profile-gallery-upload-grid">
+                        {Array.from({ length: PROFILE_GALLERY_MAX_IMAGES }, (_, index) => {
+                          const item = profileGalleryItems[index];
+                          return (
+                            <div className="profile-gallery-upload-slot" key={index}>
+                              {item?.preview ? (
+                                <>
+                                  <img src={item.preview} alt="" className="profile-gallery-upload-preview" />
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger profile-gallery-remove"
+                                    onClick={() => removeProfileGalleryImage(index)}
+                                  >
+                                    Remove
+                                  </button>
+                                </>
+                              ) : (
+                                <label htmlFor={`profileGalleryInput${index}`} className="profile-gallery-placeholder">
+                                  <i className="bi bi-image"></i>
+                                  <span>Show a project, hobby, or moment</span>
+                                  <small>Upload</small>
+                                </label>
+                              )}
+                              <input
+                                type="file"
+                                id={`profileGalleryInput${index}`}
+                                accept="image/*"
+                                className="d-none"
+                                onClick={e => { e.target.value = null; }}
+                                onChange={(e) => handleProfileGalleryImageChange(index, e)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {profileGallerySizeError && (
+                        <div className="text-danger mt-2 text-center" style={{ fontSize: "0.875em" }}>
+                          {profileGallerySizeError}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Name & Gender Row */}
                     <div className="row g-2 flex-nowrap">
                       <div className="col-4 mb-3">
@@ -2946,8 +3742,36 @@ function Navbar({ onProfileSave }) {
                         <div className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Please select your full date of birth.</div>
                       )}                  </div>
 
-                    {/* Location & Phone Number Row */}
+                    {/* Username & Location Row */}
                     <div className="row">
+                      <div className="col-12 col-md-6 mb-3">
+                        <label htmlFor="username" className="form-label">Username</label>
+                        <div className="input-group has-validation">
+                          <input
+                            type="text"
+                            className={`form-control${(validated && !USERNAME_PATTERN.test(normalizeUsername(username))) || usernameStatus === "taken" || usernameStatus === "error" ? " is-invalid" : ""}`}
+                            id="username"
+                            placeholder="username_123"
+                            value={username}
+                            minLength={3}
+                            maxLength={16}
+                            onChange={(e) => handleUsernameChange(e.target.value)}
+                            required
+                          />
+                          {usernameStatus === "checking" && (
+                            <span className="input-group-text bg-white">
+                              <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                            </span>
+                          )}
+                          <div className="invalid-feedback">
+                            {usernameMessage || "Use 3 to 16 letters, numbers, or underscores."}
+                          </div>
+                        </div>
+                        {usernameStatus === "available" && username && (
+                          <small className="text-success d-block mt-1">Username available.</small>
+                        )}
+                      </div>
+
                       <div className="col-12 col-md-6 mb-3">
                         <label htmlFor="location" className="form-label">Location</label>
                         <div className="input-group has-validation">
@@ -2975,37 +3799,6 @@ function Navbar({ onProfileSave }) {
                           <div className="invalid-feedback">Please enter your location.</div>
                         </div>
                       </div>
-
-                      <div className="col-12 col-md-6 mb-3">
-                        <label htmlFor="phoneNumber" className="form-label">Phone Number <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                        <div className="input-group">
-                          <input
-                            type="text"
-                            className={`form-control${countryCode && /[a-zA-Z]/.test(countryCode) ? " is-invalid" : ""}`}
-                            placeholder="+1"
-                            value={countryCode}
-                            onChange={(e) => setCountryCode(e.target.value)}
-                            style={{ maxWidth: "65px" }}
-                          />
-                          <input
-                            type="tel"
-                            className={`form-control${(validated && !hasContact) || (phoneNumber && /[a-zA-Z]/.test(phoneNumber)) ? " is-invalid" : ""}`}
-                            id="phoneNumber"
-                            placeholder="Phone number"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                          />
-                          <button type="button" className="btn btn-primary" onClick={() => setShowPhone(p => !p)} title={showPhone ? "Hide from profile" : "Show in profile"}>
-                            <i className={`bi bi-eye${showPhone ? "" : "-slash"}`}></i>
-                          </button>
-                        </div>
-                        {countryCode && /[a-zA-Z]/.test(countryCode) && (
-                          <div className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Country code should contain only + and digits.</div>
-                        )}
-                        {phoneNumber && /[a-zA-Z]/.test(phoneNumber) && (
-                          <div className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Phone number should contain only digits.</div>
-                        )}
-                      </div>
                     </div>
 
                     {/* Social Usernames - 2x2 grid */}
@@ -3016,7 +3809,7 @@ function Navbar({ onProfileSave }) {
                         <div className="input-group">
                           <input
                             type="text"
-                            className={`form-control${validated && !hasContact ? " is-invalid" : ""}`}
+                            className="form-control"
                             id="instagramUsername"
                             placeholder="Username123"
                             value={instagramUsername}
@@ -3034,7 +3827,7 @@ function Navbar({ onProfileSave }) {
                         <div className="input-group">
                           <input
                             type="text"
-                            className={`form-control${validated && !hasContact ? " is-invalid" : ""}`}
+                            className="form-control"
                             id="tiktokUsername"
                             placeholder="Username123"
                             value={tiktokUsername}
@@ -3052,7 +3845,7 @@ function Navbar({ onProfileSave }) {
                         <div className="input-group">
                           <input
                             type="text"
-                            className={`form-control${validated && !hasContact ? " is-invalid" : ""}`}
+                            className="form-control"
                             id="snapchatUsername"
                             placeholder="Username123"
                             value={snapchatUsername}
@@ -3070,7 +3863,7 @@ function Navbar({ onProfileSave }) {
                         <div className="input-group">
                           <input
                             type="text"
-                            className={`form-control${validated && !hasContact ? " is-invalid" : ""}`}
+                            className="form-control"
                             id="discordUsername"
                             placeholder="Username123"
                             value={discordUsername}
@@ -3082,9 +3875,23 @@ function Navbar({ onProfileSave }) {
                         </div>
                       </div>
                     </div>
-                    {validated && !hasContact && (
-                      <div ref={contactErrorRef} className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Please add and show at least one contact (phone number or username).</div>
-                    )}
+                    <div className="mb-3">
+                      <label className="form-label d-block">Profile Theme</label>
+                      <div className="profile-theme-picker">
+                        {PROFILE_THEME_OPTIONS.map((theme) => (
+                          <button
+                            key={theme.value}
+                            type="button"
+                            className={`profile-theme-option${profileTheme === theme.value ? " active" : ""}`}
+                            onClick={() => setProfileTheme(theme.value)}
+                            aria-pressed={profileTheme === theme.value}
+                          >
+                            <span className="profile-theme-swatch" style={{ backgroundColor: theme.color }}></span>
+                            <span>{theme.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
                   </form>
                 )}

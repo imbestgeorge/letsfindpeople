@@ -49,6 +49,11 @@ const PROFILE_PICTURE_MAX_SIZE = 3 * 1024 * 1024;
 const PROFILE_PICTURE_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const PROFILE_PICTURE_ALLOWED_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 const PROFILE_PICTURE_PUBLIC_PATH = "/storage/v1/object/public/profile-pictures/";
+export const USERNAME_PATTERN = /^[a-z0-9_]{3,16}$/;
+
+export function normalizeUsername(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
 function normalizeProfilePictureUrl(value) {
   const raw = String(value || "").trim();
@@ -63,6 +68,42 @@ function normalizeProfilePictureUrl(value) {
   } catch {
     return null;
   }
+}
+
+function normalizeProfileGalleryUrls(value) {
+  return (Array.isArray(value) ? value : [])
+    .map(normalizeProfilePictureUrl)
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function isOnlineFromLastSeen(value) {
+  const time = new Date(value || "").getTime();
+  return Number.isFinite(time) && Date.now() - time < 5 * 60 * 1000;
+}
+
+export async function isUsernameAvailable(username, currentSupabaseUid = null) {
+  const normalized = normalizeUsername(username);
+  if (!USERNAME_PATTERN.test(normalized)) return false;
+
+  let query = supabase
+    .from("users")
+    .select("id_user, supabase_uid")
+    .eq("username", normalized)
+    .eq("is_deleted", false)
+    .limit(1);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const match = data?.[0];
+  if (!match) return true;
+  return currentSupabaseUid ? match.supabase_uid === currentSupabaseUid : false;
+}
+
+export async function touchMyPresence() {
+  const { error } = await supabase.rpc("touch_my_presence");
+  if (error) throw new Error(error.message);
 }
 
 // ── ensureUser ────────────────────────────────────────────────────────────────
@@ -109,13 +150,14 @@ export async function getUserProfile(supabaseUid) {
   const { data: user, error: findErr } = await supabase
     .from("users")
     .select(
-      `id_user, first_name, last_name, date_of_birth, location,
+      `id_user, username, first_name, last_name, date_of_birth, location,
        phone_number, show_phone_number,
        instagram, show_instagram,
        tiktok, show_tiktok,
        snapchat, show_snapchat,
        discord, show_discord,
-       profile_url, is_deleted, is_banned, suspended_until, subscription_status, free_searches_remaining, free_searches_reset_at, id_type,
+       profile_url, profile_gallery_urls, profile_theme, last_seen_at,
+       is_deleted, is_banned, suspended_until, subscription_status, free_searches_remaining, free_searches_reset_at, id_type,
        ${YES_NO_COLS_SQL}, ${SKIP_COLS_SQL}`
     )
     .eq("supabase_uid", supabaseUid)
@@ -150,6 +192,8 @@ export async function getUserProfile(supabaseUid) {
 
   return {
     profile: {
+      id:                 user.id_user,
+      username:           user.username            || "",
       firstName:          user.first_name          || "",
       lastName:           user.last_name           || "",
       dateOfBirth:        user.date_of_birth       || null,
@@ -169,6 +213,11 @@ export async function getUserProfile(supabaseUid) {
       profileUrl: user.profile_url
         ? `${user.profile_url.split("?")[0]}?t=${Date.now()}`
         : null,
+      profileGalleryUrls: normalizeProfileGalleryUrls(user.profile_gallery_urls)
+        .map((url) => `${url}?t=${Date.now()}`),
+      profileTheme:       user.profile_theme || "violet",
+      lastSeenAt:         user.last_seen_at || null,
+      isOnline:           isOnlineFromLastSeen(user.last_seen_at),
       subscriptionStatus: user.subscription_status || "free",
       freeSearchesRemaining: user.free_searches_remaining ?? 3,
       freeSearchesResetAt: user.free_searches_reset_at || null,
@@ -191,12 +240,15 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
   const {
     firstName, lastName,
     birthDay, birthMonth, birthYear,
+    username,
     location, countryCode, phoneNumber, showPhone,
     instagramUsername, showInstagram,
     tiktokUsername,    showTiktok,
     snapchatUsername,  showSnapchat,
     discordUsername,   showDiscord,
     profileImageUrl,
+    profileGalleryUrls,
+    profileTheme,
     answers, skipped,
   } = profile;
 
@@ -222,6 +274,7 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
       : phoneNumber || null;
 
   const profileUpdates = {
+    username:          normalizeUsername(username),
     first_name:        firstName         || null,
     last_name:         lastName          || null,
     date_of_birth:     dateOfBirth,
@@ -237,6 +290,8 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
     discord:           discordUsername   || null,
     show_discord:      !!showDiscord,
     profile_url: normalizeProfilePictureUrl(profileImageUrl),
+    profile_gallery_urls: normalizeProfileGalleryUrls(profileGalleryUrls),
+    profile_theme: profileTheme || "violet",
   };
 
   // Map yes/no answers ("yes" → TRUE, "no" → FALSE, absent/null → NULL).
@@ -360,4 +415,36 @@ export async function uploadProfilePicture(supabaseUid, file) {
   // Return a cache-busted URL for immediate in-memory display so the browser
   // doesn't serve a stale cached copy right after an update.
   return `${cleanUrl}?t=${Date.now()}`;
+}
+
+export async function uploadProfileGalleryImage(supabaseUid, file, index) {
+  if (!file) throw new Error("Image is required.");
+  if (!/^[0-9a-f-]{36}$/i.test(String(supabaseUid || ""))) {
+    throw new Error("Invalid user.");
+  }
+  if (!Number.isInteger(index) || index < 0 || index > 2) {
+    throw new Error("Invalid gallery image position.");
+  }
+  if (!PROFILE_PICTURE_ALLOWED_TYPES.has(file.type)) {
+    throw new Error("Image must be a JPG, PNG, WEBP, or GIF image.");
+  }
+  if (file.size > PROFILE_PICTURE_MAX_SIZE) {
+    throw new Error("Image must be 3 MB or smaller.");
+  }
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  if (!PROFILE_PICTURE_ALLOWED_EXTS.has(ext)) throw new Error("Invalid image file type.");
+
+  const storagePath = `${supabaseUid}/gallery-${index + 1}.${ext}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from("profile-pictures")
+    .upload(storagePath, file, { upsert: true, contentType: file.type });
+  if (uploadErr) throw new Error(uploadErr.message);
+
+  const { data: urlData } = supabase.storage
+    .from("profile-pictures")
+    .getPublicUrl(storagePath);
+
+  return `${urlData.publicUrl}?t=${Date.now()}`;
 }

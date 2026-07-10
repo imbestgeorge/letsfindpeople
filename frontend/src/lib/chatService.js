@@ -2,11 +2,44 @@ import { supabase } from "./supabaseClient";
 
 export const CHAT_RETENTION_DAYS = 7;
 export const CHAT_MAX_MESSAGE_LENGTH = 500;
+export const CONNECTION_STREAK_MESSAGE_COUNT = 14;
+
+export const GLOBAL_CHAT_CHANNELS = [
+  {
+    key: "international",
+    title: "International",
+    icon: "bi-globe2",
+    description: "Everyone, everywhere",
+  },
+  {
+    key: "skills-money",
+    title: "Skills to Money",
+    icon: "bi-cash-coin",
+    description: "Network around skills and income ideas",
+  },
+  {
+    key: "icebreaker",
+    title: "Today's Icebreaker",
+    icon: "bi-lightning-charge",
+    description: "Keyword of the day",
+  },
+];
+
+export function getKeywordOfTheDay(keywords = []) {
+  const fallback = { id: 67, name: "Keyword #67" };
+  const list = (Array.isArray(keywords) ? keywords : []).filter((item) => item?.id);
+  if (list.length === 0) return fallback;
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % list.length;
+  return list[dayIndex] || list.find((item) => Number(item.id) === 67) || fallback;
+}
 
 function mapChatMessage(row) {
   return {
     id: row.id_chat_message,
+    type: "global",
     userId: row.id_user,
+    channelKey: row.channel_key || "international",
     body: row.body || "",
     createdAt: row.created_at,
     author: {
@@ -14,12 +47,56 @@ function mapChatMessage(row) {
       lastName: row.last_name || "",
       email: row.email || "",
       profileUrl: row.profile_url || null,
+      username: row.username || "",
+      isOnline: !!row.is_online,
     },
   };
 }
 
-export async function listGlobalChatMessages() {
-  const { data, error } = await supabase.rpc("list_global_chat_messages");
+function mapDirectMessage(row) {
+  return {
+    id: row.id_direct_message,
+    type: "direct",
+    conversationId: row.id_direct_conversation,
+    userId: row.id_sender,
+    body: row.body || "",
+    createdAt: row.created_at,
+    author: {
+      firstName: row.first_name || "",
+      lastName: row.last_name || "",
+      email: row.email || "",
+      profileUrl: row.profile_url || null,
+      username: row.username || "",
+      isOnline: !!row.is_online,
+    },
+  };
+}
+
+function mapDirectChat(row) {
+  const name = `${row.first_name || ""} ${row.last_name || ""}`.trim();
+
+  return {
+    conversationId: row.id_direct_conversation,
+    otherUserId: row.other_user_id,
+    username: row.username || "",
+    name: name || row.email || "Member",
+    email: row.email || "",
+    profilePicture: row.profile_url || null,
+    profileTheme: row.profile_theme || "violet",
+    lastSeenAt: row.last_seen_at || null,
+    isOnline: !!row.is_online,
+    lastBody: row.last_body || "",
+    lastMessageAt: row.last_message_at || null,
+    unreadCount: Number(row.unread_count || 0),
+    totalMessages: Number(row.total_messages || 0),
+    hasConnectionStreak: !!row.has_connection_streak,
+  };
+}
+
+export async function listGlobalChatMessages(channelKey = "international") {
+  const { data, error } = await supabase.rpc("list_global_chat_messages", {
+    p_channel_key: channelKey,
+  });
   if (error) throw new Error(error.message);
   return (data || []).map(mapChatMessage);
 }
@@ -30,12 +107,14 @@ export async function getUnreadGlobalChatMessageCount() {
   return Number(data || 0);
 }
 
-export async function markGlobalChatMessagesRead() {
-  const { error } = await supabase.rpc("mark_global_chat_messages_read");
+export async function markGlobalChatMessagesRead(channelKey = "international") {
+  const { error } = await supabase.rpc("mark_global_chat_messages_read", {
+    p_channel_key: channelKey,
+  });
   if (error) throw new Error(error.message);
 }
 
-export async function sendGlobalChatMessage(message) {
+export async function sendGlobalChatMessage(message, channelKey = "international") {
   const body = String(message || "").trim();
   if (!body) throw new Error("Message cannot be empty.");
   if (body.length > CHAT_MAX_MESSAGE_LENGTH) {
@@ -44,11 +123,89 @@ export async function sendGlobalChatMessage(message) {
 
   const { data, error } = await supabase.rpc("send_global_chat_message", {
     p_body: body,
+    p_channel_key: channelKey,
   });
   if (error) throw new Error(error.message);
 
   const row = Array.isArray(data) ? data[0] : data;
   return row ? mapChatMessage(row) : null;
+}
+
+export async function listMyDirectChats() {
+  const { data, error } = await supabase.rpc("list_my_direct_chats");
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapDirectChat);
+}
+
+export async function listDirectChatMessages(otherUserId) {
+  const { data, error } = await supabase.rpc("list_direct_chat_messages", {
+    p_other_user_id: Number(otherUserId),
+  });
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapDirectMessage);
+}
+
+export async function getUnreadDirectMessageCount() {
+  const { data, error } = await supabase.rpc("get_unread_direct_message_count");
+  if (error) throw new Error(error.message);
+  return Number(data || 0);
+}
+
+export async function markDirectChatMessagesRead(otherUserId) {
+  const { error } = await supabase.rpc("mark_direct_chat_messages_read", {
+    p_other_user_id: Number(otherUserId),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function sendDirectChatMessage(otherUserId, message) {
+  const body = String(message || "").trim();
+  if (!body) throw new Error("Message cannot be empty.");
+  if (body.length > CHAT_MAX_MESSAGE_LENGTH) {
+    throw new Error(`Message must be ${CHAT_MAX_MESSAGE_LENGTH} characters or fewer.`);
+  }
+
+  const { data, error } = await supabase.rpc("send_direct_chat_message", {
+    p_other_user_id: Number(otherUserId),
+    p_body: body,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? mapDirectMessage(row) : null;
+}
+
+export async function reportChatMessage(message, reason = "") {
+  if (!message?.id) throw new Error("Message is required.");
+
+  const isDirect = message.type === "direct";
+  const { data, error } = await supabase.rpc("create_chat_report", {
+    p_report_type: "message",
+    p_chat_kind: isDirect ? "direct" : "global",
+    p_reason: String(reason || "").trim() || null,
+    p_global_message_id: isDirect ? null : Number(message.id),
+    p_direct_message_id: isDirect ? Number(message.id) : null,
+    p_direct_conversation_id: isDirect ? Number(message.conversationId) : null,
+    p_global_channel_key: isDirect ? null : message.channelKey || "international",
+    p_reported_user_id: Number(message.userId) || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function reportChat({ chatKind, channelKey, otherUserId, conversationId, reason = "" }) {
+  const { data, error } = await supabase.rpc("create_chat_report", {
+    p_report_type: "chat",
+    p_chat_kind: chatKind,
+    p_reason: String(reason || "").trim() || null,
+    p_global_message_id: null,
+    p_direct_message_id: null,
+    p_direct_conversation_id: conversationId ? Number(conversationId) : null,
+    p_global_channel_key: chatKind === "global" ? channelKey || "international" : null,
+    p_reported_user_id: chatKind === "direct" ? Number(otherUserId) : null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export function subscribeToGlobalChatMessages(onChange) {
@@ -62,6 +219,17 @@ export function subscribeToGlobalChatMessages(onChange) {
     .on(
       "postgres_changes",
       { event: "DELETE", schema: "public", table: "global_chat_messages" },
+      onChange
+    )
+    .subscribe();
+}
+
+export function subscribeToDirectChatMessages(onChange) {
+  return supabase
+    .channel("direct-chat-messages")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "direct_chat_messages" },
       onChange
     )
     .subscribe();

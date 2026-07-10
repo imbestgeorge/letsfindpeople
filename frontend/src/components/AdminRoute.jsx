@@ -2,7 +2,7 @@ import { useAuth } from "../context/AuthContext";
 import ErrorPage from "../pages/ErrorPage";
 
 export default function AdminRoute({ children }) {
-  const { session, isLoading, isAdmin } = useAuth();
+  const { session, isLoading, isAdmin, showAllNavbarOptions } = useAuth();
 
   if (isLoading) {
     return (
@@ -15,7 +15,7 @@ export default function AdminRoute({ children }) {
   }
 
   if (!session) return <ErrorPage type="unauthorized" />;
-  if (!isAdmin) return <ErrorPage type="forbidden" />;
+  if (!isAdmin && !showAllNavbarOptions) return <ErrorPage type="forbidden" />;
 
   return children;
 }

@@ -111,10 +111,14 @@ function ScrollToTop() {
 
 function HeadManager() {
   const { pathname } = useLocation();
-  const meta = PAGE_META[pathname] || {
+  const isProfilePath = !PAGE_META[pathname] && pathname.split("/").filter(Boolean).length === 1;
+  const meta = PAGE_META[pathname] || (isProfilePath ? {
+    title: `${SITE_NAME} | Profile`,
+    description: "View a LetsFindPeople profile.",
+  } : {
     title: `${SITE_NAME} | Page Not Found`,
     description: "The page you are looking for could not be found on LetsFindPeople.",
-  };
+  });
   const pageUrl = new URL(pathname, SITE_URL).toString();
 
   useEffect(() => {
@@ -142,7 +146,7 @@ function SiteVisitTracker() {
 }
 
 function AuthRedirectHandler() {
-  const { session, isLoading, isAdmin, authBlockReason } = useAuth();
+  const { session, isLoading, isAdmin, authBlockReason, showAllNavbarOptions } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -164,15 +168,16 @@ function AuthRedirectHandler() {
 
     if (!session) return;
 
-    navigate(isAdmin ? "/admin" : "/", { replace: true });
-  }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session]);
+    navigate(isAdmin && !showAllNavbarOptions ? "/admin" : "/", { replace: true });
+  }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session, showAllNavbarOptions]);
 
   useEffect(() => {
+    if (showAllNavbarOptions) return;
     if (isLoading || !session || !isAdmin) return;
     if (location.pathname !== "/" && location.pathname !== "/console") return;
 
     navigate("/admin", { replace: true });
-  }, [isAdmin, isLoading, location.pathname, navigate, session]);
+  }, [isAdmin, isLoading, location.pathname, navigate, session, showAllNavbarOptions]);
 
   return null;
 }
@@ -207,6 +212,7 @@ function AppFrame({ savedProfile, setSavedProfile }) {
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/refunds" element={<Refunds />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/:profileUsername" element={<Console currentUser={savedProfile} />} />
           <Route path="*" element={<ErrorPage type="notFound" />} />
         </Routes>
       </main>
