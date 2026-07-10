@@ -34,6 +34,7 @@ const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 25;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
+const LOGIN_PROMPT_SEEN_KEY = "lfp-login-prompt-seen";
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -1672,6 +1673,25 @@ function Navbar({ onProfileSave }) {
   }, [routerLocation.pathname, routerLocation.search, navigate, session]);
 
   useEffect(() => {
+    if (authLoading || session) return;
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(routerLocation.search);
+    if (searchParams.get("auth") === "open" || searchParams.has("invite")) return;
+    if (window.localStorage.getItem(LOGIN_PROMPT_SEEN_KEY) === "true") return;
+
+    window.localStorage.setItem(LOGIN_PROMPT_SEEN_KEY, "true");
+    const openTimeoutId = window.setTimeout(() => {
+      if (!loginDropdownMenuRef.current?.classList.contains("show")) {
+        loginDropdownToggleRef.current?.click();
+      }
+      loginDropdownToggleRef.current?.blur();
+    }, 350);
+
+    return () => window.clearTimeout(openTimeoutId);
+  }, [authLoading, routerLocation.search, session]);
+
+  useEffect(() => {
     const inviteCode = getInviteCodeFromSearch(routerLocation.search);
     if (!inviteCode) return;
 
@@ -2148,37 +2168,58 @@ function Navbar({ onProfileSave }) {
       .filter(Boolean)
   );
   const renderAnalyticsViewersList = (isLocked = false) => (
-    <div
-      className={`analytics-viewers-list${isLocked ? " analytics-viewers-list--blurred" : ""}`}
-      aria-hidden={isLocked ? "true" : undefined}
-    >
-      {analytics.viewers.map((viewer, index) => {
-        const keywordLabels = getAnalyticsKeywordLabels(viewer);
+    <div className={isLocked ? "analytics-viewers-lockup" : undefined}>
+      <div
+        className={`analytics-viewers-list${isLocked ? " analytics-viewers-list--blurred" : ""}`}
+        aria-hidden={isLocked ? "true" : undefined}
+      >
+        {analytics.viewers.map((viewer, index) => {
+          const keywordLabels = getAnalyticsKeywordLabels(viewer);
 
-        return (
-          <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
-            <div className="analytics-viewer-row">
-              <div className="analytics-viewer-person">
-                <img
-                  src={viewer.viewerProfileUrl || defaultProfile}
-                  alt={viewer.viewerName}
-                  className="analytics-viewer-avatar"
-                />
-                <span className="analytics-viewer-name">{viewer.viewerName}</span>
-              </div>
-              {viewer.createdAt && (
-                <div className="analytics-viewer-time">
-                  {formatAnalyticsViewTime(viewer.createdAt)}
+          return (
+            <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
+              <div className="analytics-viewer-row">
+                <div className="analytics-viewer-person">
+                  <img
+                    src={viewer.viewerProfileUrl || defaultProfile}
+                    alt={viewer.viewerName}
+                    className="analytics-viewer-avatar"
+                  />
+                  <span className="analytics-viewer-name">{viewer.viewerName}</span>
                 </div>
-              )}
-              <div className="analytics-viewer-keywords">
-                {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
+                {viewer.createdAt && (
+                  <div className="analytics-viewer-time">
+                    {formatAnalyticsViewTime(viewer.createdAt)}
+                  </div>
+                )}
+                <div className="analytics-viewer-keywords">
+                  {keywordLabels.length > 0 ? keywordLabels.join(", ") : "Direct profile view"}
+                </div>
               </div>
+              {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
             </div>
-            {index < analytics.viewers.length - 1 && <hr className="analytics-viewer-divider" />}
+          );
+        })}
+      </div>
+      {isLocked && (
+        <div className="analytics-upgrade-overlay">
+          <div className="analytics-upgrade-message">
+            Upgrade to the{" "}
+            <a
+              href="#"
+              className="analytics-upgrade-link"
+              onClick={(event) => {
+                event.preventDefault();
+                setShowAnalyticsModal(false);
+                window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
+              }}
+            >
+              Pro Plan
+            </a>{" "}
+            to see who viewed your profile.
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 
@@ -2688,24 +2729,6 @@ function Navbar({ onProfileSave }) {
                       </div>
 
                       <hr className="my-3" />
-
-                      {!hasProAnalyticsAccess && (
-                        <div className="text-muted text-center py-3">
-                          Upgrade to the{" "}
-                          <a
-                            href="#"
-                            className="analytics-upgrade-link"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              setShowAnalyticsModal(false);
-                              window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
-                            }}
-                          >
-                            Pro Plan
-                          </a>{" "}
-                          to see who viewed your profile.
-                        </div>
-                      )}
 
                       {analytics.viewers.length === 0 ? (
                         <div className="text-muted text-center py-4">

@@ -198,6 +198,10 @@
   text-decoration: underline;
 }
 
+.analytics-viewers-lockup {
+  position: relative;
+}
+
 .analytics-viewers-list {
   max-height: 18rem;
   overflow-y: auto;
@@ -207,6 +211,31 @@
 .analytics-viewers-list--blurred {
   filter: blur(4px);
   user-select: none;
+}
+
+.analytics-upgrade-overlay {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: 1rem;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  top: 0;
+}
+
+.analytics-upgrade-message {
+  background: #ffffff;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(33, 37, 41, 0.12);
+  color: #6c757d;
+  max-width: 20rem;
+  padding: 0.9rem 1rem;
 }
 
 .analytics-viewer-row {
@@ -402,6 +431,26 @@
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
+}
+
+.navbar-login-dropdown {
+  transform-origin: top right;
+}
+
+.navbar-login-dropdown.show {
+  animation: loginDropdownPop 220ms ease-out;
+}
+
+@keyframes loginDropdownPop {
+  from {
+    clip-path: inset(0 0 18% 0 round 8px);
+    opacity: 0;
+  }
+
+  to {
+    clip-path: inset(0 0 0 0 round 8px);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 991.98px) {
