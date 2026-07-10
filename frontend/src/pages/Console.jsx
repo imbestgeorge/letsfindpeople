@@ -3,7 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import defaultProfile from "../assets/default-profile.jpg";
 import { useDbData } from "../context/DbDataContext";
 import { useAuth } from "../context/AuthContext";
-import { searchUsers, consumeSearchAllowance, requestKeyword, getUserCount, getPublicUserById } from "../lib/catalogService";
+import {
+  searchUsers,
+  consumeSearchAllowance,
+  requestKeyword,
+  getUserCount,
+  getPublicUserById,
+  userMatchesSearchFilters,
+} from "../lib/catalogService";
 import { recordProfileView, recordSearchAnalytics } from "../lib/analyticsService";
 import {
   getLatestEnabledDrawEventNotification,
@@ -12,7 +19,55 @@ import {
 } from "../lib/notificationService";
 
 const MAX_SEARCH_KEYWORDS = 12;
+const MIN_SEARCH_AGE = 16;
+const MAX_SEARCH_AGE = 64;
+const WORLD_COUNTRY_FILTER = "World";
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
+const SEX_FILTER_OPTIONS = [
+  { value: "Male", icon: "bi-gender-male" },
+  { value: "Female", icon: "bi-gender-female" },
+];
+const AGE_GROUP_OPTIONS = [
+  { value: "all", label: "👥 All Ages", min: MIN_SEARCH_AGE, max: MAX_SEARCH_AGE },
+  { value: "16-18", label: "🧒 16-18", min: 16, max: 18 },
+  { value: "18-24", label: "🧑 18-24", min: 18, max: 24 },
+  { value: "24-36", label: "👨 24-36", min: 24, max: 36 },
+  { value: "36+", label: "👴 36+", min: 36, max: MAX_SEARCH_AGE },
+];
+const ISO_COUNTRY_CODES = "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW".split(" ");
+const COUNTRY_CODE_ALIASES = {
+  bolivia: "BO",
+  "bosnia and herzegovina": "BA",
+  "brunei darussalam": "BN",
+  "cape verde": "CV",
+  "cote d'ivoire": "CI",
+  "cote divoire": "CI",
+  czechia: "CZ",
+  "democratic republic of the congo": "CD",
+  "east timor": "TL",
+  iran: "IR",
+  laos: "LA",
+  macau: "MO",
+  micronesia: "FM",
+  moldova: "MD",
+  palestine: "PS",
+  "republic of congo": "CG",
+  russia: "RU",
+  "saint barthelemy": "BL",
+  "saint martin": "MF",
+  "south korea": "KR",
+  "syria": "SY",
+  taiwan: "TW",
+  tanzania: "TZ",
+  turkey: "TR",
+  uk: "GB",
+  "united kingdom": "GB",
+  usa: "US",
+  "united states": "US",
+  "united states of america": "US",
+  venezuela: "VE",
+  vietnam: "VN",
+};
 const YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -50,6 +105,60 @@ const getAge = (birthday) => {
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age;
 };
+
+function normalizeCountryName(name) {
+  return String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+const countryCodeByName = (() => {
+  const map = new Map();
+  let regionNames = null;
+
+  try {
+    regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+  } catch {
+    regionNames = null;
+  }
+
+  if (regionNames) {
+    ISO_COUNTRY_CODES.forEach((code) => {
+      map.set(normalizeCountryName(regionNames.of(code)), code);
+    });
+  }
+
+  Object.entries(COUNTRY_CODE_ALIASES).forEach(([name, code]) => {
+    map.set(normalizeCountryName(name), code);
+  });
+
+  return map;
+})();
+
+function countryCodeToFlagEmoji(code) {
+  return String(code || "")
+    .toUpperCase()
+    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+}
+
+function getCountryFlagEmoji(countryName) {
+  const code = countryCodeByName.get(normalizeCountryName(countryName));
+  return code ? countryCodeToFlagEmoji(code) : "🏳️";
+}
+
+function makeCountryOption(name, item) {
+  return {
+    id: item?.id ?? null,
+    value: name,
+    label: name,
+    flag: name === WORLD_COUNTRY_FILTER ? "🌍" : getCountryFlagEmoji(name),
+  };
+}
 
 function getSelectedGender(selected) {
   return GENDER_KEYWORDS.find(name => (selected?.other || []).includes(name)) || "";
@@ -115,6 +224,12 @@ export default function Console({ currentUser }) {
 
   // State Management
   const [selectedKeywords, setSelectedKeywords] = useState([]);
+  const [selectedSexFilters, setSelectedSexFilters] = useState(() =>
+    SEX_FILTER_OPTIONS.map((option) => option.value)
+  );
+  const [selectedCountryFilter, setSelectedCountryFilter] = useState(WORLD_COUNTRY_FILTER);
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState("all");
+  const [ageRange, setAgeRange] = useState({ min: MIN_SEARCH_AGE, max: MAX_SEARCH_AGE });
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -127,6 +242,8 @@ export default function Console({ currentUser }) {
   const [keywordRequestStatus, setKeywordRequestStatus] = useState(null); // null | 'loading' | 'done' | 'error'
   const [userCount, setUserCount] = useState(null);
   const peopleContainerRef = useRef(null);
+  const keywordScrollAreaRef = useRef(null);
+  const firstUnselectedKeywordRef = useRef(null);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 576px)").matches : false
   );
@@ -153,6 +270,19 @@ export default function Console({ currentUser }) {
     () => dbData?.categories?.[7]?.subcategories?.[0]?.items ?? [],
     [dbData]
   );
+  const countryOptions = useMemo(() => {
+    const userCountryNames = new Set(getMatchingCountryNames(currentUser?.location, countryItems));
+    const countries = [...countryItems]
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const userCountries = countries.filter((item) => userCountryNames.has(item.name));
+    const otherCountries = countries.filter((item) => !userCountryNames.has(item.name));
+
+    return [
+      makeCountryOption(WORLD_COUNTRY_FILTER),
+      ...userCountries.map((item) => makeCountryOption(item.name, item)),
+      ...otherCountries.map((item) => makeCountryOption(item.name, item)),
+    ];
+  }, [countryItems, currentUser?.location]);
   const currentUserGender = getSelectedGender(currentUser?.selected);
   const currentUserCountryNames = useMemo(
     () => getMatchingCountryNames(currentUser?.location, countryItems),
@@ -380,6 +510,22 @@ export default function Console({ currentUser }) {
     return map;
   }, [dbData]);
 
+  const activeSearchFilters = useMemo(() => {
+    const selectedCountry = countryOptions.find((option) => option.value === selectedCountryFilter);
+    const sexKeywordIds = selectedSexFilters
+      .map((sex) => nameToIdMap[sex])
+      .filter((id) => id != null);
+
+    return {
+      sexes: selectedSexFilters,
+      sexKeywordIds,
+      countryName: selectedCountryFilter === WORLD_COUNTRY_FILTER ? "" : selectedCountryFilter,
+      countryKeywordId: selectedCountry?.id ?? nameToIdMap[selectedCountryFilter] ?? null,
+      minAge: ageRange.min,
+      maxAge: ageRange.max,
+    };
+  }, [ageRange.max, ageRange.min, countryOptions, nameToIdMap, selectedCountryFilter, selectedSexFilters]);
+
   // Convert savedProfile from Navbar into a user object compatible with the list
   const currentUserFormatted = useMemo(() => {
     if (!currentUser?.firstName) return null;
@@ -466,7 +612,7 @@ export default function Console({ currentUser }) {
         }
       }
 
-      const { users } = await searchUsers(selectedKeywords);
+      const { users } = await searchUsers(selectedKeywords, activeSearchFilters);
       recordSearchAnalytics(
         selectedKeywords,
         users.map((user) => user.id)
@@ -484,7 +630,11 @@ export default function Console({ currentUser }) {
       const currentUserMatchCount = currentUserFormatted
         ? countMatchingKeywords(currentUserFormatted.keywordIds, selectedKeywords)
         : 0;
-      if (currentUserFormatted && currentUserMatchCount > 0) {
+      if (
+        currentUserFormatted &&
+        currentUserMatchCount > 0 &&
+        userMatchesSearchFilters(currentUserFormatted, activeSearchFilters)
+      ) {
         results.push({ ...currentUserFormatted, matchCount: currentUserMatchCount });
       }
       setSearchResults(results.sort((a, b) => (b.matchCount || 0) - (a.matchCount || 0)));
@@ -533,12 +683,33 @@ export default function Console({ currentUser }) {
   // Filter keywords based on debounced search term
   const filteredKeywords = useMemo(() => {
     if (!debouncedSearchTerm.trim()) return allKeywords;
+    const selectedKeywordIds = new Set(selectedKeywords);
+    const normalizedSearchTerm = debouncedSearchTerm.toLowerCase();
+
     return allKeywords.filter((item) =>
-      item.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      selectedKeywordIds.has(item.id) ||
+      item.name.toLowerCase().includes(normalizedSearchTerm)
     );
-  }, [debouncedSearchTerm, allKeywords]);
+  }, [debouncedSearchTerm, allKeywords, selectedKeywords]);
 
   const deferredFilteredKeywords = useDeferredValue(filteredKeywords);
+
+  useEffect(() => {
+    if (!debouncedSearchTerm.trim() || selectedKeywords.length === 0) return undefined;
+
+    const scrollArea = keywordScrollAreaRef.current;
+    const firstUnselectedKeyword = firstUnselectedKeywordRef.current;
+    if (!scrollArea || !firstUnselectedKeyword) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollArea.scrollTo({
+        top: Math.max(0, firstUnselectedKeyword.offsetTop - scrollArea.offsetTop),
+        behavior: "smooth",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [debouncedSearchTerm, deferredFilteredKeywords, selectedKeywords.length]);
 
   // Keyword Selection
   const toggleKeyword = (id) => {
@@ -547,12 +718,31 @@ export default function Console({ currentUser }) {
     );
   };
 
+  const toggleSexFilter = (sex) => {
+    setSelectedSexFilters((prev) =>
+      prev.includes(sex)
+        ? prev.filter((item) => item !== sex)
+        : [...prev, sex]
+    );
+  };
+
+  const handleAgeGroupChange = (value) => {
+    const option = AGE_GROUP_OPTIONS.find((item) => item.value === value) || AGE_GROUP_OPTIONS[0];
+
+    setSelectedAgeGroup(option.value);
+    setAgeRange({ min: option.min, max: option.max });
+  };
+
   // Clear isResetting only once deferredFilteredKeywords has caught up to allKeywords
   useEffect(() => {
     if (isResetting && deferredFilteredKeywords === allKeywords) {
       setIsResetting(false);
     }
   }, [isResetting, deferredFilteredKeywords, allKeywords]);
+
+  const selectedCountryOption =
+    countryOptions.find((option) => option.value === selectedCountryFilter) ||
+    countryOptions[0];
 
   // Render UI
   return (
@@ -588,84 +778,148 @@ export default function Console({ currentUser }) {
         </small>
       </div>
 
-      {/* Keywords Container */}
-      <div className="border rounded-4 p-3 unselected-keywords-container">
-        <div className="modal-scroll-area d-flex flex-wrap gap-2">
-          {catalogLoading || isLoading ? (
-            <div className="d-flex justify-content-center align-items-center w-100" style={{ minHeight: "200px" }}>
-              <div className="spinner-border spinner-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+      <div className="console-search-grid">
+        {/* Keywords Container */}
+        <div className="border rounded-4 p-3 unselected-keywords-container">
+          <div className="modal-scroll-area d-flex flex-wrap gap-2" ref={keywordScrollAreaRef}>
+            {catalogLoading || isLoading ? (
+              <div className="d-flex justify-content-center align-items-center w-100" style={{ minHeight: "200px" }}>
+                <div className="spinner-border spinner-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
               </div>
-            </div>
-          ) : deferredFilteredKeywords.length > 0 ? (
-            <>
-              {(() => {
-                const selected = deferredFilteredKeywords.filter((item) => selectedKeywords.includes(item.id));
-                const unselected = deferredFilteredKeywords.filter((item) => !selectedKeywords.includes(item.id));
-                const visibleUnselected = unselected.slice(0, Math.max(0, 100 - selected.length));
-                return (
-                  <>
-                    {selected.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className="btn btn-category modal-keyword-card"
-                        onClick={() => toggleKeyword(item.id)}
-                      >
-                        <small className="d-block text-start opacity-75">{item.subcategory}</small>
-                        <div className="d-flex align-items-center gap-2">
-                          <span>{item.name}</span>
-                          <i className="bi bi-dash-square"></i>
-                        </div>
-                      </button>
-                    ))}
-                    {visibleUnselected.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className="btn btn-category-outline modal-keyword-card"
-                        onClick={() => toggleKeyword(item.id)}
-                      >
-                        <small className="d-block text-start opacity-75">{item.subcategory}</small>
-                        <div className="d-flex align-items-center gap-2">
-                          <span>{item.name}</span>
-                          <i className="bi bi-plus-square"></i>
-                        </div>
-                      </button>
-                    ))}
-                  </>
-                );
-              })()}
-            </>
-          ) : (
-            <span className="text-muted w-100 text-center">
-              No results found.{' '}
-              {keywordRequestStatus === 'done' ? (
-                <span className="text-success">Keyword requested!</span>
-              ) : keywordRequestStatus === 'error' ? (
-                <span className="text-danger">Failed to request keyword.</span>
-              ) : (
-                <a
-                  href="#"
-                  style={{ textDecoration: 'underline', color: '#6D28D9' }}
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    if (keywordRequestStatus === 'loading') return;
-                    setKeywordRequestStatus('loading');
-                    try {
-                      await requestKeyword(debouncedSearchTerm.trim());
-                      setKeywordRequestStatus('done');
-                    } catch {
-                      setKeywordRequestStatus('error');
-                    }
-                  }}
-                >
-                  {keywordRequestStatus === 'loading' ? 'Requesting...' : 'Click me to request keyword'}
-                </a>
-              )}
-            </span>
-          )}
+            ) : deferredFilteredKeywords.length > 0 ? (
+              <>
+                {(() => {
+                  const selected = deferredFilteredKeywords.filter((item) => selectedKeywords.includes(item.id));
+                  const unselected = deferredFilteredKeywords.filter((item) => !selectedKeywords.includes(item.id));
+                  const visibleUnselected = unselected.slice(0, Math.max(0, 100 - selected.length));
+                  return (
+                    <>
+                      {selected.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className="btn btn-category modal-keyword-card"
+                          onClick={() => toggleKeyword(item.id)}
+                        >
+                          <small className="d-block text-start opacity-75">{item.subcategory}</small>
+                          <div className="d-flex align-items-center gap-2">
+                            <span>{item.name}</span>
+                            <i className="bi bi-dash-square"></i>
+                          </div>
+                        </button>
+                      ))}
+                      {visibleUnselected.map((item, index) => (
+                        <button
+                          key={item.id}
+                          ref={index === 0 ? firstUnselectedKeywordRef : null}
+                          type="button"
+                          className="btn btn-category-outline modal-keyword-card"
+                          onClick={() => toggleKeyword(item.id)}
+                        >
+                          <small className="d-block text-start opacity-75">{item.subcategory}</small>
+                          <div className="d-flex align-items-center gap-2">
+                            <span>{item.name}</span>
+                            <i className="bi bi-plus-square"></i>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  );
+                })()}
+              </>
+            ) : (
+              <span className="text-muted w-100 text-center">
+                No results found.{' '}
+                {keywordRequestStatus === 'done' ? (
+                  <span className="text-success">Keyword requested!</span>
+                ) : keywordRequestStatus === 'error' ? (
+                  <span className="text-danger">Failed to request keyword.</span>
+                ) : (
+                  <a
+                    href="#"
+                    style={{ textDecoration: 'underline', color: '#6D28D9' }}
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      if (keywordRequestStatus === 'loading') return;
+                      setKeywordRequestStatus('loading');
+                      try {
+                        await requestKeyword(debouncedSearchTerm.trim());
+                        setKeywordRequestStatus('done');
+                      } catch {
+                        setKeywordRequestStatus('error');
+                      }
+                    }}
+                  >
+                    {keywordRequestStatus === 'loading' ? 'Requesting...' : 'Click me to request keyword'}
+                  </a>
+                )}
+              </span>
+            )}
+          </div>
         </div>
+
+        <aside className="console-filter-panel" aria-label="Search filters">
+          <div className="console-sex-filter" aria-label="Sex">
+            {SEX_FILTER_OPTIONS.map((option) => {
+              const isChecked = selectedSexFilters.includes(option.value);
+
+              return (
+                <label
+                  key={option.value}
+                  className="console-filter-check"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleSexFilter(option.value)}
+                  />
+                  <i className={`bi ${option.icon}`} aria-hidden="true"></i>
+                  <span>{option.value}</span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="console-country-filter">
+            <label htmlFor="console-country-filter" className="visually-hidden">
+              Country
+            </label>
+            <select
+              id="console-country-filter"
+              className="form-select console-country-select"
+              value={selectedCountryFilter}
+              aria-label={`Country: ${selectedCountryOption?.label || WORLD_COUNTRY_FILTER}`}
+              onChange={(event) => setSelectedCountryFilter(event.target.value)}
+            >
+              {countryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.flag} {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="console-age-filter">
+            <label className="visually-hidden" htmlFor="console-age-group-filter">
+              Age group
+            </label>
+            <select
+              id="console-age-group-filter"
+              className="form-select console-age-select"
+              value={selectedAgeGroup}
+              aria-label="Age group"
+              onChange={(event) => handleAgeGroupChange(event.target.value)}
+            >
+              {AGE_GROUP_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </aside>
       </div>
 
       {/* Search Button */}

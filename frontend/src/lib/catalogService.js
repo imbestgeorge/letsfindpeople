@@ -54,6 +54,88 @@ function isMissingSearchLogDetailsRpcError(error) {
     message.includes("schema cache");
 }
 
+function calculateAge(birthday) {
+  if (!birthday) return null;
+
+  const birth = new Date(birthday);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+
+  return age;
+}
+
+function normalizeLocationPart(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function locationMatchesCountry(location, countryName) {
+  const normalizedCountry = normalizeLocationPart(countryName);
+  if (!normalizedCountry) return true;
+
+  return String(location || "")
+    .split(",")
+    .map(normalizeLocationPart)
+    .some((part) => part === normalizedCountry);
+}
+
+export function userMatchesSearchFilters(user, filters = {}) {
+  const keywordIds = new Set((user?.keywordIds || []).map(Number));
+  const hasSexFilter = Array.isArray(filters.sexes);
+  const selectedSexes = hasSexFilter ? filters.sexes : [];
+
+  if (hasSexFilter && selectedSexes.length === 0) return false;
+
+  const sexKeywordIds = (filters.sexKeywordIds || [])
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  if (
+    hasSexFilter &&
+    sexKeywordIds.length > 0 &&
+    !sexKeywordIds.some((id) => keywordIds.has(id))
+  ) {
+    return false;
+  }
+
+  const countryName = String(filters.countryName || "").trim();
+  const countryKeywordId = Number(filters.countryKeywordId);
+
+  if (countryName) {
+    const hasCountryKeyword =
+      Number.isInteger(countryKeywordId) &&
+      countryKeywordId > 0 &&
+      keywordIds.has(countryKeywordId);
+
+    if (!hasCountryKeyword && !locationMatchesCountry(user?.location, countryName)) {
+      return false;
+    }
+  }
+
+  const age = user?.age ?? calculateAge(user?.birthday);
+  const minAge = Number(filters.minAge);
+  const maxAge = Number(filters.maxAge);
+
+  if (Number.isFinite(minAge) && (age == null || age < minAge)) return false;
+  if (Number.isFinite(maxAge) && (age == null || age > maxAge)) return false;
+
+  return true;
+}
+
+export function filterUsersBySearchFilters(users, filters = {}) {
+  return (users || []).filter((user) => userMatchesSearchFilters(user, filters));
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 function mapPublicUser(u) {
@@ -167,10 +249,10 @@ export async function getCatalog() {
  * Delegates to the search_users_by_keywords Postgres RPC which runs as
  * SECURITY DEFINER and ranks results by keyword overlap server-side.
  * @param {number[]} keywordIds
- * @param {string} [reason]
+ * @param {object} [filters]
  * @returns {Promise<{ users: object[] }>}
  */
-export async function searchUsers(keywordIds) {
+export async function searchUsers(keywordIds, filters = {}) {
   const ids = [...new Set(keywordIds.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
   if (ids.length === 0) throw new Error("keywordIds must contain valid integers.");
 
@@ -196,7 +278,7 @@ export async function searchUsers(keywordIds) {
 
   const users = (data || []).map(mapPublicUser);
 
-  return { users };
+  return { users: filterUsersBySearchFilters(users, filters) };
 }
 
 export async function getPublicUserById(userId) {

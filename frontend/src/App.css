@@ -550,6 +550,87 @@ html, body {
   overflow-x: hidden;
 }
 
+.console-search-grid {
+  --console-filter-panel-width: calc(8ch + 3.7rem);
+  align-items: stretch;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) var(--console-filter-panel-width);
+}
+
+.console-search-grid .unselected-keywords-container {
+  min-width: 0;
+}
+
+.console-filter-panel {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 0.55rem;
+  max-width: var(--console-filter-panel-width);
+  min-width: var(--console-filter-panel-width);
+  width: var(--console-filter-panel-width);
+}
+
+.console-sex-filter {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.console-filter-check {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0.4rem 0.55rem;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.console-filter-check input {
+  accent-color: #6D28D9;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.console-filter-check .bi {
+  color: #6D28D9;
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.console-filter-check span {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.console-country-select {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.console-age-filter {
+  min-width: 0;
+}
+
+.console-age-select {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
 .console-selected-count {
   flex: 0 0 auto;
   white-space: nowrap;
