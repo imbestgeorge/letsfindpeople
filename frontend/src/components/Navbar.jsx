@@ -34,7 +34,6 @@ const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 25;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
-const LOGIN_PROMPT_SEEN_KEY = "lfp-login-prompt-seen";
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -1673,25 +1672,6 @@ function Navbar({ onProfileSave }) {
   }, [routerLocation.pathname, routerLocation.search, navigate, session]);
 
   useEffect(() => {
-    if (authLoading || session) return;
-    if (typeof window === "undefined") return;
-
-    const searchParams = new URLSearchParams(routerLocation.search);
-    if (searchParams.get("auth") === "open" || searchParams.has("invite")) return;
-    if (window.localStorage.getItem(LOGIN_PROMPT_SEEN_KEY) === "true") return;
-
-    window.localStorage.setItem(LOGIN_PROMPT_SEEN_KEY, "true");
-    const openTimeoutId = window.setTimeout(() => {
-      if (!loginDropdownMenuRef.current?.classList.contains("show")) {
-        loginDropdownToggleRef.current?.click();
-      }
-      loginDropdownToggleRef.current?.blur();
-    }, 350);
-
-    return () => window.clearTimeout(openTimeoutId);
-  }, [authLoading, routerLocation.search, session]);
-
-  useEffect(() => {
     const inviteCode = getInviteCodeFromSearch(routerLocation.search);
     if (!inviteCode) return;
 
@@ -2203,21 +2183,19 @@ function Navbar({ onProfileSave }) {
       </div>
       {isLocked && (
         <div className="analytics-upgrade-overlay">
-          <div className="analytics-upgrade-message">
-            Upgrade to the{" "}
-            <a
-              href="#"
-              className="analytics-upgrade-link"
-              onClick={(event) => {
-                event.preventDefault();
-                setShowAnalyticsModal(false);
-                window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
-              }}
-            >
-              Pro Plan
-            </a>{" "}
-            to see who viewed your profile.
-          </div>
+          Upgrade to the{" "}
+          <a
+            href="#"
+            className="analytics-upgrade-link"
+            onClick={(event) => {
+              event.preventDefault();
+              setShowAnalyticsModal(false);
+              window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
+            }}
+          >
+            Pro Plan
+          </a>{" "}
+          to see who viewed your profile.
         </div>
       )}
     </div>
