@@ -553,7 +553,6 @@ export default function Console({ currentUser }) {
         discord:   { value: currentUser.discordUsername,   show: currentUser.showDiscord },
       },
       profilePicture: currentUser.profileImagePreview,
-      profileGalleryUrls: currentUser.profileGalleryUrls || [],
       isOnline: true,
       keywordIds,
     };

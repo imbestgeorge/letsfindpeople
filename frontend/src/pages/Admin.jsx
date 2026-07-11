@@ -240,9 +240,6 @@ function Admin() {
   const [emailCtaUrl, setEmailCtaUrl] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailError, setEmailError] = useState('');
-  const [chatReports, setChatReports] = useState([]);
-  const [chatReportsLoading, setChatReportsLoading] = useState(false);
-  const [chatReportsError, setChatReportsError] = useState(null);
 
   const createCharts = useCallback(() => {
     Object.values(chartInstancesRef.current).forEach((chart) => {
@@ -856,36 +853,6 @@ function Admin() {
     }
   }, []);
 
-  const fetchChatReports = useCallback(async () => {
-    setChatReportsLoading(true);
-    setChatReportsError(null);
-
-    try {
-      const { data, error } = await supabase.rpc('list_admin_chat_reports', {
-        p_limit: 50,
-        p_offset: 0,
-      });
-      if (error) throw new Error(error.message);
-      setChatReports((data || []).map((report) => ({
-        id: report.id_chat_report,
-        type: report.report_type,
-        chatKind: report.chat_kind,
-        status: report.status,
-        reason: report.reason || '',
-        createdAt: report.created_at,
-        reporterEmail: report.reporter_email || '-',
-        reportedEmail: report.reported_email || '-',
-        messageBody: report.message_body || '',
-        channelKey: report.global_channel_key || '',
-        directConversationId: report.id_direct_conversation || null,
-      })));
-    } catch (err) {
-      setChatReportsError(err.message);
-    } finally {
-      setChatReportsLoading(false);
-    }
-  }, []);
-
   // Fetch statistics whenever the Statistics tab is active or year changes
   useEffect(() => {
     if (page === 0) {
@@ -938,12 +905,6 @@ function Admin() {
       fetchDrawEvents();
     }
   }, [page, fetchDrawEvents]);
-
-  useEffect(() => {
-    if (page === 6) {
-      fetchChatReports();
-    }
-  }, [page, fetchChatReports]);
 
   // Fetch keywords whenever the Keywords tab is active or keyword page/search changes
   useEffect(() => {
@@ -1532,30 +1493,11 @@ function Admin() {
     }
   };
 
-  const handleResolveChatReport = async (id, status) => {
-    try {
-      const { error } = await supabase.rpc('resolve_chat_report', {
-        p_report_id: id,
-        p_status: status,
-      });
-      if (error) throw new Error(error.message);
-      Promise.resolve(supabase.rpc('write_log', {
-        p_action: status === 'dismissed' ? 'ADMIN_DISMISS_CHAT_REPORT' : 'ADMIN_REVIEW_CHAT_REPORT',
-        p_status: 'Success',
-        p_metadata: { chatReportId: id, status },
-      })).catch(() => {});
-      fetchChatReports();
-    } catch (err) {
-      alert('Failed to update report: ' + err.message);
-    }
-  };
-
   const adminNavItems = [
     { id: 0, label: 'Dashboard' },
     { id: 1, label: 'Users' },
     { id: 2, label: 'Keywords' },
     { id: 5, label: 'Notifications' },
-    { id: 6, label: 'Reports' },
     { id: 4, label: 'Requests' },
     { id: 3, label: 'Logs' },
   ];
@@ -1966,92 +1908,6 @@ function Admin() {
                           disabled={event.isDisabled}
                         >
                           {event.isDisabled ? 'Disabled' : 'Disable'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          )}
-        </>
-      )}
-
-      {/* Reports Tab */}
-      {page === 6 && (
-        <>
-          {chatReportsLoading ? (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
-              <div className="spinner-border spinner-primary" role="status">
-                <span className="visually-hidden">Loading reports...</span>
-              </div>
-            </div>
-          ) : chatReportsError ? (
-            <div className="alert alert-danger">Failed to load reports: {chatReportsError}</div>
-          ) : (
-          <div className="table-responsive">
-            <table className="table table-striped align-middle text-center">
-              <thead>
-                <tr>
-                  <th scope="col">Report</th>
-                  <th scope="col">Reporter</th>
-                  <th scope="col">Reported</th>
-                  <th scope="col">Details</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" colSpan={2}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chatReports.length === 0 ? (
-                  <tr><td colSpan={7} className="text-muted">No chat reports found.</td></tr>
-                ) : (
-                  chatReports.map((report) => (
-                    <tr key={report.id}>
-                      <td>
-                        <span className="text-capitalize">{report.type}</span>
-                        <small className="d-block text-muted text-capitalize">{report.chatKind}</small>
-                      </td>
-                      <td>{report.reporterEmail}</td>
-                      <td>{report.reportedEmail}</td>
-                      <td className="text-start" style={{ minWidth: 260 }}>
-                        {report.messageBody && (
-                          <div className="text-truncate" title={report.messageBody}>
-                            Message: {report.messageBody}
-                          </div>
-                        )}
-                        {report.channelKey && (
-                          <small className="text-muted d-block">Channel: {report.channelKey}</small>
-                        )}
-                        {report.directConversationId && (
-                          <small className="text-muted d-block">Conversation #{report.directConversationId}</small>
-                        )}
-                        {report.reason && (
-                          <small className="d-block">Reason: {report.reason}</small>
-                        )}
-                        <small className="text-muted d-block">
-                          {new Date(report.createdAt).toLocaleString('en-GB')}
-                        </small>
-                      </td>
-                      <td className="text-capitalize">{report.status}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          disabled={report.status !== 'open'}
-                          onClick={() => handleResolveChatReport(report.id, 'reviewed')}
-                        >
-                          Reviewed
-                        </button>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          disabled={report.status !== 'open'}
-                          onClick={() => handleResolveChatReport(report.id, 'dismissed')}
-                        >
-                          Dismiss
                         </button>
                       </td>
                     </tr>

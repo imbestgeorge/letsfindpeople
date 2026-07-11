@@ -13,9 +13,9 @@ export const GLOBAL_CHAT_CHANNELS = [
   },
   {
     key: "skills-money",
-    title: "Skills to Money",
+    title: "Make Money",
     icon: "bi-cash-coin",
-    description: "Discuss income ideas.",
+    description: "Discuss income ideas",
   },
 ];
 
@@ -154,39 +154,6 @@ export async function sendDirectChatMessage(otherUserId, message) {
 
   const row = Array.isArray(data) ? data[0] : data;
   return row ? mapDirectMessage(row) : null;
-}
-
-export async function reportChatMessage(message, reason = "") {
-  if (!message?.id) throw new Error("Message is required.");
-
-  const isDirect = message.type === "direct";
-  const { data, error } = await supabase.rpc("create_chat_report", {
-    p_report_type: "message",
-    p_chat_kind: isDirect ? "direct" : "global",
-    p_reason: String(reason || "").trim() || null,
-    p_global_message_id: isDirect ? null : Number(message.id),
-    p_direct_message_id: isDirect ? Number(message.id) : null,
-    p_direct_conversation_id: isDirect ? Number(message.conversationId) : null,
-    p_global_channel_key: isDirect ? null : message.channelKey || "international",
-    p_reported_user_id: Number(message.userId) || null,
-  });
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-export async function reportChat({ chatKind, channelKey, otherUserId, conversationId, reason = "" }) {
-  const { data, error } = await supabase.rpc("create_chat_report", {
-    p_report_type: "chat",
-    p_chat_kind: chatKind,
-    p_reason: String(reason || "").trim() || null,
-    p_global_message_id: null,
-    p_direct_message_id: null,
-    p_direct_conversation_id: conversationId ? Number(conversationId) : null,
-    p_global_channel_key: chatKind === "global" ? channelKey || "international" : null,
-    p_reported_user_id: chatKind === "direct" ? Number(otherUserId) : null,
-  });
-  if (error) throw new Error(error.message);
-  return data;
 }
 
 export function subscribeToGlobalChatMessages(onChange) {

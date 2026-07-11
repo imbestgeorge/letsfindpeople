@@ -11,7 +11,6 @@ import {
   getUserProfile,
   sendProfileCompletedEmail,
   touchMyPresence,
-  uploadProfileGalleryImage,
   uploadProfilePicture,
 } from "../lib/userService";
 import { requestKeyword } from "../lib/catalogService";
@@ -26,8 +25,6 @@ import {
   listMyDirectChats,
   markDirectChatMessagesRead,
   markGlobalChatMessagesRead,
-  reportChat,
-  reportChatMessage,
   removeGlobalChatSubscription,
   sendDirectChatMessage,
   sendGlobalChatMessage,
@@ -52,7 +49,6 @@ const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
-const PROFILE_GALLERY_MAX_IMAGES = 3;
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -477,8 +473,6 @@ function Navbar({ onProfileSave }) {
   const [_profileImage, setProfileImage] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState(null);
   const [profileImageSizeError, setProfileImageSizeError] = useState(false);
-  const [profileGalleryItems, setProfileGalleryItems] = useState([]);
-  const [profileGallerySizeError, setProfileGallerySizeError] = useState("");
 
   const resizeProfileImage = (file) => new Promise((resolve, reject) => {
     const imageUrl = URL.createObjectURL(file);
@@ -560,38 +554,6 @@ function Navbar({ onProfileSave }) {
     setProfileImageSizeError(false);
   };
 
-  const handleProfileGalleryImageChange = (index, e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/") || file.size > 3 * 1024 * 1024) {
-      setProfileGallerySizeError("Each image must be a JPG, PNG, WEBP, or GIF under 3 MB.");
-      return;
-    }
-
-    setProfileGallerySizeError("");
-    setProfileGalleryItems((prev) => {
-      const next = [...prev];
-      const existing = next[index];
-      if (existing?.preview?.startsWith("blob:")) URL.revokeObjectURL(existing.preview);
-      next[index] = {
-        file,
-        preview: URL.createObjectURL(file),
-        url: "",
-      };
-      return next.slice(0, PROFILE_GALLERY_MAX_IMAGES);
-    });
-  };
-
-  const removeProfileGalleryImage = (index) => {
-    setProfileGalleryItems((prev) => {
-      const existing = prev[index];
-      if (existing?.preview?.startsWith("blob:")) URL.revokeObjectURL(existing.preview);
-      return prev.filter((_, itemIndex) => itemIndex !== index);
-    });
-    setProfileGallerySizeError("");
-  };
-
   const [savedProfile, setSavedProfile] = useState({
     id: null,
     firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
@@ -600,7 +562,7 @@ function Navbar({ onProfileSave }) {
     tiktokUsername: "", showTiktok: true,
     snapchatUsername: "", showSnapchat: true,
     discordUsername: "", showDiscord: true,
-    profileImagePreview: null, profileGalleryUrls: [],
+    profileImagePreview: null,
     answers: {}, selected: {}, skipped: {},
     keywordIds: [],
     subscriptionStatus: "free",
@@ -678,7 +640,7 @@ function Navbar({ onProfileSave }) {
         tiktokUsername: "", showTiktok: true,
         snapchatUsername: "", showSnapchat: true,
         discordUsername: "", showDiscord: true,
-        profileImagePreview: null, profileGalleryUrls: [],
+        profileImagePreview: null,
         answers: {}, selected: {}, skipped: {},
         keywordIds: [],
         subscriptionStatus: "free",
@@ -962,12 +924,6 @@ function Navbar({ onProfileSave }) {
         setDiscordUsername(profile.discord);
         setShowDiscord(showDiscordDefault);
         setProfileImagePreview(profile.profileUrl);
-        setProfileGalleryItems((profile.profileGalleryUrls || []).slice(0, PROFILE_GALLERY_MAX_IMAGES).map((url) => ({
-          file: null,
-          preview: url,
-          url,
-        })));
-        setProfileGallerySizeError("");
         setAnswers(newAnswers);
         setSelected(newSelected);
         setSkipped(newSkipped);
@@ -985,7 +941,6 @@ function Navbar({ onProfileSave }) {
           snapchatUsername: profile.snapchat, showSnapchat: showSnapchatDefault,
           discordUsername: profile.discord, showDiscord: showDiscordDefault,
           profileImagePreview: profile.profileUrl,
-          profileGalleryUrls: profile.profileGalleryUrls || [],
           lastSeenAt: profile.lastSeenAt || null,
           isOnline: true,
           answers: newAnswers, selected: newSelected, skipped: newSkipped,
@@ -1158,13 +1113,13 @@ function Navbar({ onProfileSave }) {
           const country = data.address.country || "";
           setLocation(city && country ? `${city}, ${country}` : city || country);
         } catch {
-          alert("Could not determine your location. Please enter it manually.");
+          alert("Could not determine your location. Please try the GPS button again.");
         } finally {
           setLocatingUser(false);
         }
       },
       () => {
-        alert("Location permission denied. Please enter your location manually.");
+        alert("Location permission denied. Enable location access and try again.");
         setLocatingUser(false);
       }
     );
@@ -1445,37 +1400,6 @@ function Navbar({ onProfileSave }) {
     }
   };
 
-  const handleReportMessage = async (message) => {
-    if (!message) return;
-    const reason = window.prompt("Why are you reporting this message?") || "";
-    setChatNotice("");
-    setChatError("");
-    try {
-      await reportChatMessage(message, reason);
-      setChatNotice("Message reported.");
-    } catch (err) {
-      setChatError(err.message || "Failed to report message.");
-    }
-  };
-
-  const handleReportCurrentChat = async () => {
-    const reason = window.prompt("Why are you reporting this chat?") || "";
-    setChatNotice("");
-    setChatError("");
-    try {
-      await reportChat({
-        chatKind: chatMode,
-        channelKey: activeGlobalChannelKey,
-        otherUserId: activeDirectChat?.otherUserId,
-        conversationId: activeDirectChat?.conversationId,
-        reason,
-      });
-      setChatNotice("Chat reported.");
-    } catch (err) {
-      setChatError(err.message || "Failed to report chat.");
-    }
-  };
-
   const loadNotifications = useCallback(async ({ silent = false } = {}) => {
     if (authLoading) return;
 
@@ -1676,12 +1600,6 @@ function Navbar({ onProfileSave }) {
     setProfileImage(null);
     setProfileImagePreview(savedProfile.profileImagePreview);
     setProfileImageSizeError(false);
-    setProfileGalleryItems((savedProfile.profileGalleryUrls || []).slice(0, PROFILE_GALLERY_MAX_IMAGES).map((url) => ({
-      file: null,
-      preview: url,
-      url,
-    })));
-    setProfileGallerySizeError("");
     setAnswers(savedProfile.answers);
     setSelected(savedProfile.selected);
     setSkipped(savedProfile.skipped);
@@ -2190,7 +2108,7 @@ function Navbar({ onProfileSave }) {
           tiktokUsername: "", showTiktok: true,
           snapchatUsername: "", showSnapchat: true,
           discordUsername: "", showDiscord: true,
-          profileImagePreview: null, profileGalleryUrls: [],
+          profileImagePreview: null,
           answers: {}, selected: {}, skipped: {},
           keywordIds: [],
           subscriptionStatus: "free", freeSearchesRemaining: 0, idType: 1,
@@ -2239,27 +2157,6 @@ function Navbar({ onProfileSave }) {
       }
     }
 
-    let finalGalleryUrls = profileGalleryItems
-      .map((item) => item.url || item.preview)
-      .filter((url) => url && !url.startsWith("blob:"))
-      .slice(0, PROFILE_GALLERY_MAX_IMAGES);
-
-    if (session?.user && profileGalleryItems.some((item) => item.file)) {
-      try {
-        finalGalleryUrls = await Promise.all(
-          profileGalleryItems.slice(0, PROFILE_GALLERY_MAX_IMAGES).map(async (item, index) => {
-            if (item.file) return uploadProfileGalleryImage(session.user.id, item.file, index);
-            return item.url || item.preview || "";
-          })
-        );
-        finalGalleryUrls = finalGalleryUrls.filter(Boolean).slice(0, PROFILE_GALLERY_MAX_IMAGES);
-        setProfileGalleryItems(finalGalleryUrls.map((url) => ({ file: null, preview: url, url })));
-      } catch (err) {
-        console.error("Failed to upload profile gallery image:", err.message);
-        finalGalleryUrls = finalGalleryUrls.filter(Boolean);
-      }
-    }
-
     const selectorItems = {
       visualArt: visualArtItems, digitalArt: digitalArtItems,
       musicGenres: musicGenreItems, musicArtists: musicArtistItems,
@@ -2295,7 +2192,6 @@ function Navbar({ onProfileSave }) {
       snapchatUsername, showSnapchat,
       discordUsername, showDiscord,
       profileImagePreview: finalImageUrl ?? profileImagePreview,
-      profileGalleryUrls: finalGalleryUrls,
       isOnline: true,
       lastSeenAt: new Date().toISOString(),
       answers: sanitizedAnswers,
@@ -2326,7 +2222,6 @@ function Navbar({ onProfileSave }) {
             snapchatUsername, showSnapchat,
             discordUsername, showDiscord,
             profileImageUrl: finalImageUrl,
-            profileGalleryUrls: finalGalleryUrls,
             answers: sanitizedAnswers,
             skipped: sanitizedSkipped,
           },
@@ -2715,15 +2610,6 @@ function Navbar({ onProfileSave }) {
                         Connection Streak
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="global-chat-report-chat-button"
-                      onClick={handleReportCurrentChat}
-                      title="Report chat"
-                      aria-label="Report chat"
-                    >
-                      <i className="bi bi-flag"></i>
-                    </button>
                   </div>
                   <button type="button" className="btn-close" onClick={closeGlobalChat} aria-label="Close"></button>
                 </div>
@@ -2832,19 +2718,8 @@ function Navbar({ onProfileSave }) {
                               >
                                 {isOwnMessage ? (
                                   <div className="w-75 d-flex flex-column align-items-end">
-                                    <div className="d-flex align-items-start gap-2 justify-content-end">
-                                      <button
-                                        type="button"
-                                        className="global-chat-report-button"
-                                        onClick={() => handleReportMessage(message)}
-                                        title="Report message"
-                                        aria-label="Report message"
-                                      >
-                                        <i className="bi bi-flag"></i>
-                                      </button>
-                                      <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
-                                        {message.body}
-                                      </div>
+                                    <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
+                                      {message.body}
                                     </div>
                                     {showMessageTime && (
                                       <small className="text-muted mt-1 text-end">
@@ -2879,19 +2754,8 @@ function Navbar({ onProfileSave }) {
                                       >
                                         {getChatAuthorName(message)}
                                       </button>
-                                      <div className="d-flex align-items-start gap-2">
-                                        <div className="rounded-3 p-2 text-break bg-white border">
-                                          {message.body}
-                                        </div>
-                                        <button
-                                          type="button"
-                                          className="global-chat-report-button"
-                                          onClick={() => handleReportMessage(message)}
-                                          title="Report message"
-                                          aria-label="Report message"
-                                        >
-                                          <i className="bi bi-flag"></i>
-                                        </button>
+                                      <div className="rounded-3 p-2 text-break bg-white border">
+                                        {message.body}
                                       </div>
                                       {showMessageTime && (
                                         <small className="text-muted mt-1">
@@ -3227,51 +3091,6 @@ function Navbar({ onProfileSave }) {
                       )}
                     </div>
 
-                    <div className="mb-3">
-                      <label className="form-label d-block text-center">
-                        Profile Images <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span>
-                      </label>
-                      <div className="profile-gallery-upload-grid">
-                        {Array.from({ length: PROFILE_GALLERY_MAX_IMAGES }, (_, index) => {
-                          const item = profileGalleryItems[index];
-                          return (
-                            <div className="profile-gallery-upload-slot" key={index}>
-                              {item?.preview ? (
-                                <>
-                                  <img src={item.preview} alt="" className="profile-gallery-upload-preview" />
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-outline-danger profile-gallery-remove"
-                                    onClick={() => removeProfileGalleryImage(index)}
-                                  >
-                                    Remove
-                                  </button>
-                                </>
-                              ) : (
-                                <label htmlFor={`profileGalleryInput${index}`} className="profile-gallery-placeholder">
-                                  <i className="bi bi-image"></i>
-                                  <small>Upload</small>
-                                </label>
-                              )}
-                              <input
-                                type="file"
-                                id={`profileGalleryInput${index}`}
-                                accept="image/*"
-                                className="d-none"
-                                onClick={e => { e.target.value = null; }}
-                                onChange={(e) => handleProfileGalleryImageChange(index, e)}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {profileGallerySizeError && (
-                        <div className="text-danger mt-2 text-center" style={{ fontSize: "0.875em" }}>
-                          {profileGallerySizeError}
-                        </div>
-                      )}
-                    </div>
-
                     {/* Name & Gender Row */}
                     <div className="row g-2 flex-nowrap">
                       <div className="col-4 mb-3">
@@ -3376,7 +3195,7 @@ function Navbar({ onProfileSave }) {
                             id="location"
                             placeholder="City, Country"
                             value={location}
-                            onChange={(e) => setLocation(e.target.value)}
+                            readOnly
                           />
                           <button
                             type="button"

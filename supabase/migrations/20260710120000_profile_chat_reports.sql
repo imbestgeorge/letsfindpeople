@@ -1,9 +1,11 @@
--- Profile gallery images, chat channels, direct messages, chat reports,
--- and lightweight presence.
+-- Chat channels, direct messages, and lightweight presence.
 
 drop function if exists public.get_public_user_profile_by_username(text);
 drop function if exists public.get_public_user_profile(integer);
 drop function if exists public.search_users_by_keywords(integer[]);
+drop function if exists public.create_chat_report(text, text, text, bigint, bigint, bigint, text, integer);
+drop function if exists public.list_admin_chat_reports(integer, integer);
+drop function if exists public.resolve_chat_report(bigint, text);
 drop function if exists public.send_global_chat_message(text);
 drop function if exists public.send_global_chat_message(text, text);
 drop function if exists public.list_global_chat_messages();
@@ -20,16 +22,14 @@ alter table public.users
   drop constraint if exists users_profile_gallery_array_chk;
 
 alter table public.users
-  add column if not exists profile_gallery_urls jsonb not null default '[]'::jsonb,
   add column if not exists last_seen_at timestamptz;
 
 alter table public.users
   drop column if exists username,
-  drop column if exists profile_theme;
+  drop column if exists profile_theme,
+  drop column if exists profile_gallery_urls;
 
-alter table public.users
-  add constraint users_profile_gallery_array_chk
-  check (jsonb_typeof(profile_gallery_urls) = 'array') not valid;
+drop table if exists public.chat_reports cascade;
 
 create index if not exists users_last_seen_at_idx
   on public.users (last_seen_at desc);
@@ -58,7 +58,6 @@ set search_path = public
 as $$
 declare
   v_user_id integer;
-  v_gallery jsonb;
 begin
   select id_user into v_user_id
   from public.users
@@ -69,19 +68,6 @@ begin
   if v_user_id is null then
     raise exception 'User not found.';
   end if;
-
-  v_gallery := case
-    when jsonb_typeof(p_profile->'profile_gallery_urls') = 'array'
-      then (select coalesce(jsonb_agg(value), '[]'::jsonb)
-            from (
-              select value
-              from jsonb_array_elements(p_profile->'profile_gallery_urls') with ordinality as items(value, ordinality)
-              where jsonb_typeof(value) = 'string'
-              order by ordinality
-              limit 3
-            ) as limited_gallery)
-    else '[]'::jsonb
-  end;
 
   update public.users
   set
@@ -100,7 +86,6 @@ begin
     discord = nullif(p_profile->>'discord', ''),
     show_discord = coalesce((p_profile->>'show_discord')::boolean, true),
     profile_url = nullif(p_profile->>'profile_url', ''),
-    profile_gallery_urls = v_gallery,
     last_seen_at = now(),
     q_visual_art = case when p_profile ? 'q_visual_art' then (p_profile->>'q_visual_art')::boolean else q_visual_art end,
     q_digital_art = case when p_profile ? 'q_digital_art' then (p_profile->>'q_digital_art')::boolean else q_digital_art end,
@@ -168,7 +153,6 @@ returns table (
   discord text,
   show_discord boolean,
   profile_url text,
-  profile_gallery_urls jsonb,
   last_seen_at timestamptz,
   is_online boolean,
   all_keyword_ids integer[],
@@ -196,7 +180,6 @@ as $$
     u.discord,
     coalesce(u.show_discord, true),
     u.profile_url,
-    coalesce(u.profile_gallery_urls, '[]'::jsonb),
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false) as is_online,
     coalesce(array_agg(distinct uk.id_keyword) filter (where uk.id_keyword is not null), '{}')::integer[],
@@ -231,7 +214,6 @@ returns table (
   discord text,
   show_discord boolean,
   profile_url text,
-  profile_gallery_urls jsonb,
   last_seen_at timestamptz,
   is_online boolean,
   all_keyword_ids integer[],
@@ -275,7 +257,6 @@ as $$
     u.discord,
     coalesce(u.show_discord, true),
     u.profile_url,
-    coalesce(u.profile_gallery_urls, '[]'::jsonb),
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false),
     coalesce(ak.all_keyword_ids, '{}')::integer[],
@@ -339,26 +320,6 @@ create table if not exists public.direct_chat_reads (
   last_read_at timestamptz not null default now(),
   primary key (id_direct_conversation, id_user)
 );
-
-create table if not exists public.chat_reports (
-  id_chat_report bigserial primary key,
-  report_type text not null check (report_type in ('message', 'chat')),
-  chat_kind text not null check (chat_kind in ('global', 'direct')),
-  id_reporter integer not null references public.users(id_user) on delete cascade,
-  id_reported_user integer references public.users(id_user) on delete set null,
-  id_global_chat_message bigint references public.global_chat_messages(id_chat_message) on delete set null,
-  id_direct_chat_message bigint references public.direct_chat_messages(id_direct_message) on delete set null,
-  id_direct_conversation bigint references public.direct_conversations(id_direct_conversation) on delete set null,
-  global_channel_key text,
-  reason text,
-  status text not null default 'open' check (status in ('open', 'reviewed', 'dismissed')),
-  created_at timestamptz not null default now(),
-  reviewed_at timestamptz,
-  reviewed_by integer references public.users(id_user) on delete set null
-);
-
-create index if not exists chat_reports_status_created_idx
-  on public.chat_reports (status, created_at desc);
 
 create or replace function public.current_app_user_id()
 returns integer
@@ -783,148 +744,4 @@ as $$
   where m.id_sender <> me.id_user
     and coalesce(m.is_deleted, false) = false
     and m.created_at > coalesce(r.last_read_at, 'epoch'::timestamptz);
-$$;
-
-create or replace function public.create_chat_report(
-  p_report_type text,
-  p_chat_kind text,
-  p_reason text default null,
-  p_global_message_id bigint default null,
-  p_direct_message_id bigint default null,
-  p_direct_conversation_id bigint default null,
-  p_global_channel_key text default null,
-  p_reported_user_id integer default null
-)
-returns bigint
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_reporter_id integer := public.current_app_user_id();
-  v_report_id bigint;
-  v_reported_user_id integer := p_reported_user_id;
-  v_direct_conversation_id bigint := p_direct_conversation_id;
-begin
-  if v_reporter_id is null then
-    raise exception 'Sign in to report chat.';
-  end if;
-  if p_report_type not in ('message', 'chat') or p_chat_kind not in ('global', 'direct') then
-    raise exception 'Invalid report type.';
-  end if;
-
-  if p_global_message_id is not null and v_reported_user_id is null then
-    select id_user into v_reported_user_id
-    from public.global_chat_messages
-    where id_chat_message = p_global_message_id;
-  end if;
-
-  if p_direct_message_id is not null then
-    select id_sender, id_direct_conversation
-    into v_reported_user_id, v_direct_conversation_id
-    from public.direct_chat_messages
-    where id_direct_message = p_direct_message_id;
-  end if;
-
-  if p_chat_kind = 'direct' and v_direct_conversation_id is null and v_reported_user_id is not null then
-    v_direct_conversation_id := public.ensure_direct_conversation(v_reported_user_id);
-  end if;
-
-  insert into public.chat_reports (
-    report_type,
-    chat_kind,
-    id_reporter,
-    id_reported_user,
-    id_global_chat_message,
-    id_direct_chat_message,
-    id_direct_conversation,
-    global_channel_key,
-    reason
-  )
-  values (
-    p_report_type,
-    p_chat_kind,
-    v_reporter_id,
-    nullif(v_reported_user_id, v_reporter_id),
-    p_global_message_id,
-    p_direct_message_id,
-    v_direct_conversation_id,
-    nullif(trim(p_global_channel_key), ''),
-    nullif(trim(p_reason), '')
-  )
-  returning id_chat_report into v_report_id;
-
-  return v_report_id;
-end;
-$$;
-
-create or replace function public.list_admin_chat_reports(p_limit integer default 50, p_offset integer default 0)
-returns table (
-  id_chat_report bigint,
-  report_type text,
-  chat_kind text,
-  status text,
-  reason text,
-  created_at timestamptz,
-  reporter_email text,
-  reported_email text,
-  message_body text,
-  global_channel_key text,
-  id_direct_conversation bigint
-)
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if not public.is_current_app_admin() then
-    raise exception 'Admin access required.';
-  end if;
-
-  return query
-  select
-    r.id_chat_report,
-    r.report_type,
-    r.chat_kind,
-    r.status,
-    r.reason,
-    r.created_at,
-    reporter.email as reporter_email,
-    reported.email as reported_email,
-    coalesce(gm.body, dm.body) as message_body,
-    r.global_channel_key,
-    r.id_direct_conversation
-  from public.chat_reports r
-  join public.users reporter on reporter.id_user = r.id_reporter
-  left join public.users reported on reported.id_user = r.id_reported_user
-  left join public.global_chat_messages gm on gm.id_chat_message = r.id_global_chat_message
-  left join public.direct_chat_messages dm on dm.id_direct_message = r.id_direct_chat_message
-  order by r.created_at desc
-  limit greatest(1, least(coalesce(p_limit, 50), 100))
-  offset greatest(0, coalesce(p_offset, 0));
-end;
-$$;
-
-create or replace function public.resolve_chat_report(p_report_id bigint, p_status text)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_reviewer_id integer := public.current_app_user_id();
-begin
-  if not public.is_current_app_admin() then
-    raise exception 'Admin access required.';
-  end if;
-  if p_status not in ('reviewed', 'dismissed') then
-    raise exception 'Invalid report status.';
-  end if;
-
-  update public.chat_reports
-  set status = p_status,
-      reviewed_at = now(),
-      reviewed_by = v_reviewer_id
-  where id_chat_report = p_report_id;
-end;
 $$;

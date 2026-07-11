@@ -378,44 +378,6 @@
   overflow-y: auto;
 }
 
-.global-chat-report-chat-button {
-  align-items: center;
-  background: #6D28D9;
-  border: 1px solid #6D28D9;
-  border-radius: 8px;
-  color: #ffffff;
-  display: inline-flex;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
-}
-
-.global-chat-report-chat-button:hover,
-.global-chat-report-chat-button:focus {
-  background: #5b21b6;
-  border-color: #5b21b6;
-  color: #ffffff;
-  outline: 0;
-}
-
-.global-chat-report-button {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  color: #94a3b8;
-  display: inline-flex;
-  height: 28px;
-  justify-content: center;
-  padding: 0;
-  width: 28px;
-}
-
-.global-chat-report-button:hover,
-.global-chat-report-button:focus {
-  color: #dc2626;
-  outline: 0;
-}
-
 .global-chat-avatar {
   display: block;
   width: 28px;
@@ -477,60 +439,6 @@
 
 .profile-presence-dot--offline {
   background: #94a3b8;
-}
-
-.profile-gallery-upload-grid {
-  display: grid;
-  gap: 0.65rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.profile-gallery-upload-slot {
-  min-width: 0;
-  position: relative;
-}
-
-.profile-gallery-placeholder,
-.profile-gallery-upload-preview {
-  aspect-ratio: 4 / 3;
-  border-radius: 8px;
-  width: 100%;
-}
-
-.profile-gallery-placeholder {
-  align-items: center;
-  border: 2px dashed #adb5bd;
-  color: #adb5bd;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  justify-content: center;
-  padding: 0.65rem;
-  text-align: center;
-}
-
-.profile-gallery-placeholder i {
-  color: inherit;
-  font-size: 1.3rem;
-}
-
-.profile-gallery-placeholder small {
-  color: inherit;
-  font-size: 0.7rem;
-  font-weight: 400;
-}
-
-.profile-gallery-upload-preview {
-  border: 1px solid #dee2e6;
-  object-fit: cover;
-}
-
-.profile-gallery-remove {
-  bottom: 0.4rem;
-  left: 50%;
-  position: absolute;
-  transform: translateX(-50%);
 }
 
 .navbar-login-heading {
@@ -700,11 +608,15 @@
 
   .global-chat-sidebar {
     border-right: 0;
-    overflow: visible;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: hidden;
   }
 
   .global-chat-sidebar-section {
     max-height: 150px;
+    min-width: 0;
     overflow-y: auto;
     scrollbar-width: thin;
   }

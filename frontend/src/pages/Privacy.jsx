@@ -37,8 +37,8 @@ export default function Privacy() {
             ones you choose to add.
           </li>
           <li>
-            <strong>Location data:</strong> city and country you provide or
-            detect via your browser&apos;s geolocation API. Browser location is
+            <strong>Location data:</strong> city and country detected via your
+            browser&apos;s geolocation API. Browser location is
             requested only when you choose the automatic location option and
             grant your browser&apos;s location permission.
           </li>
@@ -108,8 +108,8 @@ export default function Privacy() {
         </p>
         <p>
           You can change these profile visibility permissions at any time from
-          your profile settings. If you deny browser location permission, you can
-          still enter your location manually.
+          your profile settings. If you deny browser location permission, your
+          location will stay blank until you grant access and use the GPS button.
         </p>
         <p>
           Messages sent in the international chat are visible to signed-in users

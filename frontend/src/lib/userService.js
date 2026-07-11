@@ -65,13 +65,6 @@ function normalizeProfilePictureUrl(value) {
   }
 }
 
-function normalizeProfileGalleryUrls(value) {
-  return (Array.isArray(value) ? value : [])
-    .map(normalizeProfilePictureUrl)
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
 function isOnlineFromLastSeen(value) {
   const time = new Date(value || "").getTime();
   return Number.isFinite(time) && Date.now() - time < 5 * 60 * 1000;
@@ -132,7 +125,7 @@ export async function getUserProfile(supabaseUid) {
        tiktok, show_tiktok,
        snapchat, show_snapchat,
        discord, show_discord,
-       profile_url, profile_gallery_urls, last_seen_at,
+       profile_url, last_seen_at,
        is_deleted, is_banned, suspended_until, subscription_status, free_searches_remaining, free_searches_reset_at, id_type,
        ${YES_NO_COLS_SQL}, ${SKIP_COLS_SQL}`
     )
@@ -188,8 +181,6 @@ export async function getUserProfile(supabaseUid) {
       profileUrl: user.profile_url
         ? `${user.profile_url.split("?")[0]}?t=${Date.now()}`
         : null,
-      profileGalleryUrls: normalizeProfileGalleryUrls(user.profile_gallery_urls)
-        .map((url) => `${url}?t=${Date.now()}`),
       lastSeenAt:         user.last_seen_at || null,
       isOnline:           isOnlineFromLastSeen(user.last_seen_at),
       subscriptionStatus: user.subscription_status || "free",
@@ -220,7 +211,6 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
     snapchatUsername,  showSnapchat,
     discordUsername,   showDiscord,
     profileImageUrl,
-    profileGalleryUrls,
     answers, skipped,
   } = profile;
 
@@ -261,7 +251,6 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
     discord:           discordUsername   || null,
     show_discord:      !!showDiscord,
     profile_url: normalizeProfilePictureUrl(profileImageUrl),
-    profile_gallery_urls: normalizeProfileGalleryUrls(profileGalleryUrls),
   };
 
   // Map yes/no answers ("yes" → TRUE, "no" → FALSE, absent/null → NULL).
@@ -385,36 +374,4 @@ export async function uploadProfilePicture(supabaseUid, file) {
   // Return a cache-busted URL for immediate in-memory display so the browser
   // doesn't serve a stale cached copy right after an update.
   return `${cleanUrl}?t=${Date.now()}`;
-}
-
-export async function uploadProfileGalleryImage(supabaseUid, file, index) {
-  if (!file) throw new Error("Image is required.");
-  if (!/^[0-9a-f-]{36}$/i.test(String(supabaseUid || ""))) {
-    throw new Error("Invalid user.");
-  }
-  if (!Number.isInteger(index) || index < 0 || index > 2) {
-    throw new Error("Invalid gallery image position.");
-  }
-  if (!PROFILE_PICTURE_ALLOWED_TYPES.has(file.type)) {
-    throw new Error("Image must be a JPG, PNG, WEBP, or GIF image.");
-  }
-  if (file.size > PROFILE_PICTURE_MAX_SIZE) {
-    throw new Error("Image must be 3 MB or smaller.");
-  }
-
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  if (!PROFILE_PICTURE_ALLOWED_EXTS.has(ext)) throw new Error("Invalid image file type.");
-
-  const storagePath = `${supabaseUid}/gallery-${index + 1}.${ext}`;
-
-  const { error: uploadErr } = await supabase.storage
-    .from("profile-pictures")
-    .upload(storagePath, file, { upsert: true, contentType: file.type });
-  if (uploadErr) throw new Error(uploadErr.message);
-
-  const { data: urlData } = supabase.storage
-    .from("profile-pictures")
-    .getPublicUrl(storagePath);
-
-  return `${urlData.publicUrl}?t=${Date.now()}`;
 }

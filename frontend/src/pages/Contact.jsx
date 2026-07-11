@@ -43,7 +43,6 @@ export default function Contact() {
             Subscription and billing enquiries (note: we do not issue refunds --
             see our Refunds Policy).
           </li>
-          <li>Reporting abusive users or policy violations.</li>
           <li>Data deletion or privacy requests (GDPR).</li>
           <li>General feedback and suggestions.</li>
         </ul>
