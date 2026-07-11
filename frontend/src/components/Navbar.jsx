@@ -2545,7 +2545,7 @@ function Navbar({ onProfileSave }) {
               )}
 
               {showDiceNav && (
-                <div className="nav-item">
+                <div className="nav-item navbar-icon-nav-item">
                   <button
                     type="button"
                     className="navbar-chat-button position-relative"
@@ -2565,7 +2565,7 @@ function Navbar({ onProfileSave }) {
               )}
 
               {showChatNav && (
-                <div className="nav-item">
+                <div className="nav-item navbar-icon-nav-item">
                   <button
                     type="button"
                     className="navbar-chat-button position-relative"
@@ -2585,7 +2585,7 @@ function Navbar({ onProfileSave }) {
               )}
 
               {showNotificationsNav && (
-                <div className="dropdown nav-item" ref={notificationsDropdownRef}>
+                <div className="dropdown nav-item navbar-icon-nav-item" ref={notificationsDropdownRef}>
                   <button
                     type="button"
                     className="navbar-chat-button position-relative"
