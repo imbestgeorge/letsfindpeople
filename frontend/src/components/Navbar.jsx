@@ -588,6 +588,7 @@ function Navbar({ onProfileSave }) {
   const [chatError, setChatError] = useState("");
   const [chatNotice, setChatNotice] = useState("");
   const [unreadChatMessages, setUnreadChatMessages] = useState(0);
+  const [globalChatUnreadCounts, setGlobalChatUnreadCounts] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -658,6 +659,7 @@ function Navbar({ onProfileSave }) {
       setChatDraft("");
       setChatError("");
       setChatNotice("");
+      setGlobalChatUnreadCounts({});
       setNotifications([]);
       setUnreadNotifications(0);
       setNotificationsError("");
@@ -1271,19 +1273,26 @@ function Navbar({ onProfileSave }) {
   const loadUnreadChatMessageCount = useCallback(async () => {
     if (!session?.user?.id) {
       setUnreadChatMessages(0);
+      setGlobalChatUnreadCounts({});
       return;
     }
 
     try {
-      const [globalCount, directCount] = await Promise.all([
-        getUnreadGlobalChatMessageCount(),
+      const [globalEntries, directCount] = await Promise.all([
+        Promise.all(chatChannels.map(async (channel) => [
+          channel.key,
+          await getUnreadGlobalChatMessageCount(channel.key),
+        ])),
         getUnreadDirectMessageCount(),
       ]);
-      setUnreadChatMessages(globalCount + directCount);
+      const globalCounts = Object.fromEntries(globalEntries);
+      const globalTotal = Object.values(globalCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+      setGlobalChatUnreadCounts(globalCounts);
+      setUnreadChatMessages(globalTotal + directCount);
     } catch {
       // The badge is best-effort; chat itself remains usable if this fails.
     }
-  }, [session?.user?.id]);
+  }, [chatChannels, session?.user?.id]);
 
   const openGlobalChat = () => {
     setChatMode("global");
@@ -1292,7 +1301,6 @@ function Navbar({ onProfileSave }) {
     setShowChatModal(true);
     setChatError("");
     setChatNotice("");
-    setUnreadChatMessages(0);
   };
 
   const closeGlobalChat = () => {
@@ -1669,6 +1677,7 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (!session?.user?.id) {
       setUnreadChatMessages(0);
+      setGlobalChatUnreadCounts({});
       return undefined;
     }
 
@@ -1702,7 +1711,10 @@ function Navbar({ onProfileSave }) {
 
     loadDirectChats();
     loadCurrentChatMessages()
-      .then(() => loadUnreadChatMessageCount())
+      .then(() => {
+        loadUnreadChatMessageCount();
+        loadDirectChats();
+      })
       .catch(() => { });
 
     return undefined;
@@ -2314,6 +2326,12 @@ function Navbar({ onProfileSave }) {
   const activeChatTitle = chatMode === "direct"
     ? activeDirectChat?.name || "Direct Message"
     : activeGlobalChannel?.title || "International";
+  const directChatMenuItems = useMemo(() => {
+    if (!activeDirectChat?.otherUserId) return directChats;
+    if (directChats.some((chat) => chat.otherUserId === activeDirectChat.otherUserId)) return directChats;
+    return [activeDirectChat, ...directChats];
+  }, [activeDirectChat, directChats]);
+  const getChatMenuBadgeLabel = (count) => (Number(count) > 99 ? "99+" : String(Number(count) || 0));
   const canUseConnectionStreak =
     chatMode === "direct" &&
     activeDirectChat?.otherUserId &&
@@ -2593,28 +2611,34 @@ function Navbar({ onProfileSave }) {
                   <aside className="global-chat-sidebar">
                     <div className="global-chat-sidebar-section">
                       <div className="global-chat-sidebar-label">Global</div>
-                      {chatChannels.map((channel) => (
-                        <button
-                          key={channel.key}
-                          type="button"
-                          className={`global-chat-room-button${chatMode === "global" && activeGlobalChannelKey === channel.key ? " active" : ""}`}
-                          onClick={() => selectGlobalChatChannel(channel.key)}
-                        >
-                          <i className={`bi ${channel.icon}`}></i>
-                          <span className="min-w-0">
-                            <span className="d-block text-truncate">{channel.title}</span>
-                            <small className="d-block text-truncate">{channel.description}</small>
-                          </span>
-                        </button>
-                      ))}
+                      {chatChannels.map((channel) => {
+                        const unreadCount = Number(globalChatUnreadCounts[channel.key] || 0);
+                        return (
+                          <button
+                            key={channel.key}
+                            type="button"
+                            className={`global-chat-room-button${chatMode === "global" && activeGlobalChannelKey === channel.key ? " active" : ""}`}
+                            onClick={() => selectGlobalChatChannel(channel.key)}
+                          >
+                            <i className={`bi ${channel.icon}`}></i>
+                            <span className="min-w-0">
+                              <span className="d-block text-truncate">{channel.title}</span>
+                              <small className="d-block text-truncate">{channel.description}</small>
+                            </span>
+                            {unreadCount > 0 && (
+                              <span className="badge rounded-pill bg-danger ms-auto">{getChatMenuBadgeLabel(unreadCount)}</span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     <div className="global-chat-sidebar-section">
                       <div className="global-chat-sidebar-label">Direct</div>
-                      {directChats.length === 0 ? (
+                      {directChatMenuItems.length === 0 ? (
                         <small className="text-muted d-block px-2">No direct chats yet</small>
                       ) : (
-                        directChats.map((chat) => (
+                        directChatMenuItems.map((chat) => (
                           <button
                             key={chat.otherUserId}
                             type="button"
@@ -2635,7 +2659,7 @@ function Navbar({ onProfileSave }) {
                               <small className="d-block text-truncate">{chat.lastBody || "Start chatting"}</small>
                             </span>
                             {chat.unreadCount > 0 && (
-                              <span className="badge rounded-pill bg-danger ms-auto">{chat.unreadCount > 9 ? "9+" : chat.unreadCount}</span>
+                              <span className="badge rounded-pill bg-danger ms-auto">{getChatMenuBadgeLabel(chat.unreadCount)}</span>
                             )}
                           </button>
                         ))
@@ -2681,15 +2705,21 @@ function Navbar({ onProfileSave }) {
                           No messages yet
                         </div>
                       ) : (
-                        <div className="d-flex flex-column gap-3">
+                        <div className="global-chat-message-list">
                           {chatMessages.map((message, index) => {
                             const isOwnMessage = message.userId === savedProfile?.id || message.author?.email === session?.user?.email;
+                            const previousMessage = chatMessages[index - 1];
+                            const previousIsOwnMessage = previousMessage && (
+                              previousMessage.userId === savedProfile?.id ||
+                              previousMessage.author?.email === session?.user?.email
+                            );
+                            const compactOwnMessage = isOwnMessage && previousIsOwnMessage && previousMessage.userId === message.userId;
                             const nextMessage = chatMessages[index + 1];
                             const showMessageTime = !nextMessage || nextMessage.userId !== message.userId;
                             return (
                               <div
                                 key={`${message.type}-${message.id}`}
-                                className={`d-flex global-chat-message-row ${isOwnMessage ? "justify-content-end" : "justify-content-start gap-2 align-items-start"}`}
+                                className={`d-flex global-chat-message-row${compactOwnMessage ? " global-chat-message-row--compact" : ""} ${isOwnMessage ? "justify-content-end" : "justify-content-start gap-2 align-items-start"}`}
                               >
                                 {isOwnMessage ? (
                                   <div className="w-75 d-flex flex-column align-items-end">
@@ -2754,13 +2784,7 @@ function Navbar({ onProfileSave }) {
                           type="text"
                           id="globalChatMessage"
                           className="form-control"
-                          placeholder={
-                            !session
-                              ? "Sign in to send messages..."
-                              : chatMode === "direct"
-                                ? `Message ${activeDirectChat?.name || "this person"}...`
-                                : `Message ${activeGlobalChannel?.title || "everyone"}...`
-                          }
+                          placeholder="Message"
                           value={chatDraft}
                           maxLength={CHAT_MAX_MESSAGE_LENGTH}
                           disabled={!session || (chatMode === "direct" && !activeDirectChat)}
@@ -2774,7 +2798,7 @@ function Navbar({ onProfileSave }) {
                         />
                         <button
                           type="submit"
-                          className="btn btn-primary"
+                          className="btn btn-primary global-chat-send-button"
                           disabled={!session || !chatDraft.trim() || chatSending || (chatMode === "direct" && !activeDirectChat)}
                         >
                           {chatSending ? (

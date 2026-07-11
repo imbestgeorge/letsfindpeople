@@ -82,8 +82,10 @@ export async function listGlobalChatMessages(channelKey = "international") {
   return (data || []).map(mapChatMessage);
 }
 
-export async function getUnreadGlobalChatMessageCount() {
-  const { data, error } = await supabase.rpc("get_unread_global_chat_message_count");
+export async function getUnreadGlobalChatMessageCount(channelKey = "international") {
+  const { data, error } = await supabase.rpc("get_unread_global_chat_message_count", {
+    p_channel_key: channelKey,
+  });
   if (error) throw new Error(error.message);
   return Number(data || 0);
 }

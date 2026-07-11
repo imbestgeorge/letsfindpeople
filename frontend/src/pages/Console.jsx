@@ -1137,7 +1137,7 @@ export default function Console({ currentUser }) {
                       <div className="d-flex gap-2 mt-3">
                         <button
                           type="button"
-                          className="btn btn-primary btn-sm flex-fill"
+                          className="btn btn-primary flex-fill py-2 fw-semibold"
                           onClick={() => startDirectChat(person)}
                           disabled={person.isCurrentUser}
                         >

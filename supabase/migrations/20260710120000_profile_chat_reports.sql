@@ -516,9 +516,9 @@ begin
   values (v_one, v_two)
   on conflict do nothing;
 
-  select id_direct_conversation into v_conversation_id
-  from public.direct_conversations
-  where user_one_id = v_one and user_two_id = v_two;
+  select c.id_direct_conversation into v_conversation_id
+  from public.direct_conversations c
+  where c.user_one_id = v_one and c.user_two_id = v_two;
 
   return v_conversation_id;
 end;
@@ -681,7 +681,7 @@ begin
 
   update public.direct_conversations
   set updated_at = now()
-  where id_direct_conversation = v_conversation_id;
+  where direct_conversations.id_direct_conversation = v_conversation_id;
 
   insert into public.direct_chat_reads (id_direct_conversation, id_user, last_read_at)
   values (v_conversation_id, v_user_id, now())
