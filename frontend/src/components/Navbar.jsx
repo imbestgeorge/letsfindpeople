@@ -1751,39 +1751,11 @@ function Navbar({ onProfileSave }) {
 
     if (!showCancelSubModal || !session?.user?.id || !hasSubscription) return;
 
-    let isMounted = true;
-    setSubscriptionDetails(prev => ({ ...prev, loading: true, error: "" }));
-
-    supabase.functions
-      .invoke("stripe-get-subscription", { body: {} })
-      .then(async ({ data, error }) => {
-        if (!isMounted) return;
-        if (error || data?.error) {
-          setSubscriptionDetails({
-            loading: false,
-            error: await getFunctionErrorMessage(error, data, "Failed to load subscription date."),
-            currentPeriodEnd: null,
-          });
-          return;
-        }
-        setSubscriptionDetails({
-          loading: false,
-          error: "",
-          currentPeriodEnd: data?.currentPeriodEnd ?? null,
-        });
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setSubscriptionDetails({
-          loading: false,
-          error: err.message || "Failed to load subscription date.",
-          currentPeriodEnd: null,
-        });
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    setSubscriptionDetails({
+      loading: false,
+      error: "Payment date unavailable",
+      currentPeriodEnd: null,
+    });
   }, [showCancelSubModal, session?.user?.id, savedProfile.subscriptionStatus]);
 
   useEffect(() => {
@@ -2202,12 +2174,6 @@ function Navbar({ onProfileSave }) {
       freeSearchesRemaining: savedProfile.freeSearchesRemaining,
       idType: savedProfile.idType,
     };
-    setAnswers(sanitizedAnswers);
-    setSelected(sanitizedSelected);
-    setSkipped(sanitizedSkipped);
-    setSavedProfile(profile);
-    if (onProfileSave) onProfileSave(profile);
-    closeEditModal({ force: true });
 
     // Persist to DB if logged in
     if (session?.user) {
@@ -2232,8 +2198,17 @@ function Navbar({ onProfileSave }) {
         });
       } catch (err) {
         console.error("Failed to save profile to DB:", err.message);
+        alert(`Failed to save profile: ${err.message}`);
+        return;
       }
     }
+
+    setAnswers(sanitizedAnswers);
+    setSelected(sanitizedSelected);
+    setSkipped(sanitizedSkipped);
+    setSavedProfile(profile);
+    if (onProfileSave) onProfileSave(profile);
+    closeEditModal({ force: true });
   };
 
   // Progress counter

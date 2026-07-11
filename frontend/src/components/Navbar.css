@@ -199,7 +199,7 @@
 }
 
 .analytics-viewers-list {
-  max-height: 18rem;
+  max-height: 9.6rem;
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -600,6 +600,19 @@
   .navbar-dropdown-panel {
     width: min(320px, calc(100vw - 1rem));
     min-width: 0;
+  }
+
+  .global-chat-dialog {
+    height: auto;
+    margin: 0.5rem auto;
+    max-height: calc(100vh - 1rem);
+    max-width: calc(100vw - 1rem);
+    width: auto;
+  }
+
+  .global-chat-shell {
+    height: auto;
+    max-height: calc(100vh - 1rem);
   }
 
   .global-chat-layout {

@@ -214,15 +214,6 @@ export async function updateUserProfile(supabaseUid, profile, keywordIds) {
     answers, skipped,
   } = profile;
 
-  // Resolve the integer id_user from the Supabase UID.
-  const { data: user, error: findErr } = await supabase
-    .from("users")
-    .select("id_user")
-    .eq("supabase_uid", supabaseUid)
-    .maybeSingle();
-  if (findErr) throw new Error(findErr.message);
-  if (!user)   throw new Error("User not found.");
-
   // Build date_of_birth string.
   const dateOfBirth =
     birthYear && birthMonth && birthDay

@@ -745,3 +745,19 @@ as $$
     and coalesce(m.is_deleted, false) = false
     and m.created_at > coalesce(r.last_read_at, 'epoch'::timestamptz);
 $$;
+
+grant execute on function public.touch_my_presence() to authenticated;
+grant execute on function public.update_my_profile(jsonb, integer[]) to authenticated;
+grant execute on function public.get_public_user_profile(integer) to anon, authenticated;
+grant execute on function public.search_users_by_keywords(integer[]) to authenticated;
+grant execute on function public.list_global_chat_messages(text) to authenticated;
+grant execute on function public.send_global_chat_message(text, text) to authenticated;
+grant execute on function public.mark_global_chat_messages_read(text) to authenticated;
+grant execute on function public.get_unread_global_chat_message_count(text) to authenticated;
+grant execute on function public.list_my_direct_chats() to authenticated;
+grant execute on function public.list_direct_chat_messages(integer) to authenticated;
+grant execute on function public.send_direct_chat_message(integer, text) to authenticated;
+grant execute on function public.mark_direct_chat_messages_read(integer) to authenticated;
+grant execute on function public.get_unread_direct_message_count() to authenticated;
+
+notify pgrst, 'reload schema';
