@@ -8,8 +8,6 @@ import { RESEND_BATCH_LIMIT, sendBatchEmails } from "../_shared/resend.ts";
 
 const USERS_PAGE_SIZE = 1000;
 const SUBJECT_MAX_LENGTH = 120;
-const PREVIEW_MAX_LENGTH = 180;
-const HEADING_MAX_LENGTH = 120;
 const BODY_MAX_LENGTH = 5000;
 const CTA_LABEL_MAX_LENGTH = 40;
 const CTA_URL_MAX_LENGTH = 2048;
@@ -118,20 +116,14 @@ Deno.serve(async (req: Request) => {
   }
 
   const subject = cleanString(body.subject);
-  const preview = cleanString(body.preview);
-  const heading = cleanString(body.heading);
   const messageBody = cleanString(body.body);
   const ctaLabel = cleanString(body.ctaLabel ?? body.cta_label);
   const ctaUrl = cleanString(body.ctaUrl ?? body.cta_url);
   const requestId = getRequestId(body.requestId ?? body.request_id);
 
   if (!subject) return json(req, { error: "Subject is required" }, 400);
-  if (!preview) return json(req, { error: "Preview is required" }, 400);
-  if (!heading) return json(req, { error: "Heading is required" }, 400);
   if (!messageBody) return json(req, { error: "Message is required" }, 400);
   if (subject.length > SUBJECT_MAX_LENGTH) return json(req, { error: "Subject is too long" }, 400);
-  if (preview.length > PREVIEW_MAX_LENGTH) return json(req, { error: "Preview is too long" }, 400);
-  if (heading.length > HEADING_MAX_LENGTH) return json(req, { error: "Heading is too long" }, 400);
   if (messageBody.length > BODY_MAX_LENGTH) return json(req, { error: "Message is too long" }, 400);
   if (ctaLabel.length > CTA_LABEL_MAX_LENGTH) return json(req, { error: "Button label is too long" }, 400);
   if (ctaUrl.length > CTA_URL_MAX_LENGTH) return json(req, { error: "Button URL is too long" }, 400);
@@ -159,8 +151,6 @@ Deno.serve(async (req: Request) => {
     const recipients = await loadRecipients(supabase);
     const template = buildAdminBulkEmail({
       subject,
-      preview,
-      heading,
       body: messageBody,
       ctaLabel: ctaLabel || undefined,
       ctaUrl: ctaUrl || undefined,

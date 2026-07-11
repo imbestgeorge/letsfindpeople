@@ -252,8 +252,7 @@ returns table (
   last_body text,
   last_message_at timestamptz,
   unread_count integer,
-  total_messages integer,
-  has_connection_streak boolean
+  total_messages integer
 )
 language sql
 security definer
@@ -275,7 +274,6 @@ as $$
     select
       c.id_direct_conversation,
       count(m.*)::integer as total_messages,
-      count(distinct m.id_sender)::integer as distinct_senders,
       max(m.created_at) as last_message_at,
       (array_agg(m.body order by m.created_at desc))[1] as last_body,
       count(m.*) filter (
@@ -304,8 +302,7 @@ as $$
     ms.last_body::text,
     ms.last_message_at,
     coalesce(ms.unread_count, 0),
-    coalesce(ms.total_messages, 0),
-    coalesce(ms.total_messages, 0) >= 14 and coalesce(ms.distinct_senders, 0) >= 2
+    coalesce(ms.total_messages, 0)
   from conversations c
   join public.users u on u.id_user = c.other_id
   left join message_stats ms on ms.id_direct_conversation = c.id_direct_conversation

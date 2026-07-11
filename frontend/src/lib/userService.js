@@ -116,6 +116,8 @@ export async function sendProfileCompletedEmail() {
  * @param {string} supabaseUid
  */
 export async function getUserProfile(supabaseUid) {
+  await supabase.rpc("expire_my_dice_pro_grant").catch(() => {});
+
   const { data: user, error: findErr } = await supabase
     .from("users")
     .select(

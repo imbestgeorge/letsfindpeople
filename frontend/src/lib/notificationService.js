@@ -4,8 +4,6 @@ export const NOTIFICATION_TITLE_MAX_LENGTH = 120;
 export const NOTIFICATION_BODY_MAX_LENGTH = 2000;
 export const NOTIFICATION_COVER_MAX_SIZE = 3 * 1024 * 1024;
 export const BULK_EMAIL_SUBJECT_MAX_LENGTH = 120;
-export const BULK_EMAIL_PREVIEW_MAX_LENGTH = 180;
-export const BULK_EMAIL_HEADING_MAX_LENGTH = 120;
 export const BULK_EMAIL_BODY_MAX_LENGTH = 5000;
 export const BULK_EMAIL_CTA_LABEL_MAX_LENGTH = 40;
 export const BULK_EMAIL_CTA_URL_MAX_LENGTH = 2048;
@@ -207,12 +205,16 @@ function getRequestId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function mapAdminDrawEvent(row) {
+export function mapAdminNotification(row) {
   if (!row) return null;
+  const type = row.notification_type || "general";
+  const drawEventId = row.draw_event_id == null ? null : Number(row.draw_event_id);
+  const notificationId = row.id_notification == null ? null : Number(row.id_notification);
 
   return {
-    id: Number(row.id_draw_event),
-    notificationId: row.id_notification == null ? null : Number(row.id_notification),
+    id: notificationId,
+    notificationId,
+    drawEventId,
     title: row.title || "",
     body: row.body || "",
     coverUrl: row.cover_url || "",
@@ -220,10 +222,14 @@ export function mapAdminDrawEvent(row) {
     isDisabled: !!row.is_disabled,
     disabledAt: row.disabled_at || null,
     deliveryScope: row.delivery_scope || SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS,
+    type,
+    isDrawEvent: type === "draw_event" && Number.isFinite(drawEventId),
     emailSentAt: row.email_sent_at || null,
     emailRecipientCount: Number(row.email_recipient_count || 0),
   };
 }
+
+export const mapAdminDrawEvent = mapAdminNotification;
 
 function isMissingDeliveryScopeRpcError(error) {
   const message = [
@@ -283,20 +289,20 @@ export async function createSiteNotification({
   return row ? mapNotification(row) : null;
 }
 
-export async function editDrawEvent({
-  drawEventId,
+export async function editSiteNotification({
+  notificationId,
   title,
   body,
   coverUrl,
   deliveryScope = SITE_NOTIFICATION_DELIVERY_SCOPES.CURRENT_USERS,
 }) {
-  const id = Number(drawEventId);
+  const id = Number(notificationId);
   const trimmedTitle = String(title || "").trim();
   const trimmedBody = String(body || "").trim();
   const trimmedCoverUrl = String(coverUrl || "").trim();
   const normalizedDeliveryScope = getDeliveryScope(deliveryScope);
 
-  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid draw event.");
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid notification.");
   if (!trimmedTitle) throw new Error("Title is required.");
   if (!trimmedBody) throw new Error("Description is required.");
   if (trimmedTitle.length > NOTIFICATION_TITLE_MAX_LENGTH) {
@@ -306,8 +312,8 @@ export async function editDrawEvent({
     throw new Error(`Description must be ${NOTIFICATION_BODY_MAX_LENGTH} characters or fewer.`);
   }
 
-  const { data, error } = await supabase.rpc("edit_draw_event", {
-    p_draw_event_id: id,
+  const { data, error } = await supabase.rpc("edit_site_notification", {
+    p_notification_id: id,
     p_title: trimmedTitle,
     p_body: trimmedBody,
     p_cover_url: trimmedCoverUrl || null,
@@ -316,7 +322,14 @@ export async function editDrawEvent({
   if (error) throw new Error(error.message);
 
   const row = Array.isArray(data) ? data[0] : data;
-  return mapAdminDrawEvent(row);
+  return mapAdminNotification(row);
+}
+
+export async function editDrawEvent(options) {
+  return editSiteNotification({
+    ...options,
+    notificationId: options?.notificationId ?? options?.drawEventId,
+  });
 }
 
 export async function sendDrawEventEmail(drawEventId) {
@@ -333,31 +346,19 @@ export async function sendDrawEventEmail(drawEventId) {
 
 export async function sendBulkUserEmail({
   subject,
-  preview,
-  heading,
   body,
   ctaLabel = "",
   ctaUrl = "",
 }) {
   const trimmedSubject = String(subject || "").trim();
-  const trimmedPreview = String(preview || "").trim();
-  const trimmedHeading = String(heading || "").trim();
   const trimmedBody = String(body || "").trim();
   const trimmedCtaLabel = String(ctaLabel || "").trim();
   const trimmedCtaUrl = String(ctaUrl || "").trim();
 
   if (!trimmedSubject) throw new Error("Subject is required.");
-  if (!trimmedPreview) throw new Error("Preview is required.");
-  if (!trimmedHeading) throw new Error("Heading is required.");
   if (!trimmedBody) throw new Error("Message is required.");
   if (trimmedSubject.length > BULK_EMAIL_SUBJECT_MAX_LENGTH) {
     throw new Error(`Subject must be ${BULK_EMAIL_SUBJECT_MAX_LENGTH} characters or fewer.`);
-  }
-  if (trimmedPreview.length > BULK_EMAIL_PREVIEW_MAX_LENGTH) {
-    throw new Error(`Preview must be ${BULK_EMAIL_PREVIEW_MAX_LENGTH} characters or fewer.`);
-  }
-  if (trimmedHeading.length > BULK_EMAIL_HEADING_MAX_LENGTH) {
-    throw new Error(`Heading must be ${BULK_EMAIL_HEADING_MAX_LENGTH} characters or fewer.`);
   }
   if (trimmedBody.length > BULK_EMAIL_BODY_MAX_LENGTH) {
     throw new Error(`Message must be ${BULK_EMAIL_BODY_MAX_LENGTH} characters or fewer.`);
@@ -375,8 +376,6 @@ export async function sendBulkUserEmail({
   const { data, error } = await supabase.functions.invoke("send-bulk-email", {
     body: {
       subject: trimmedSubject,
-      preview: trimmedPreview,
-      heading: trimmedHeading,
       body: trimmedBody,
       ctaLabel: trimmedCtaLabel || null,
       ctaUrl: trimmedCtaUrl || null,

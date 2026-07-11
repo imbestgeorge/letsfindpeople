@@ -59,9 +59,14 @@ function truncateSubject(value: string) {
   return value.length > 120 ? `${value.slice(0, 117).trim()}...` : value;
 }
 
+function makePreview(value: unknown) {
+  const text = splitParagraphs(value).join(" ").replace(/\s+/g, " ").trim();
+  if (!text) return BRAND_NAME;
+  return text.length > 180 ? `${text.slice(0, 177).trim()}...` : text;
+}
+
 function buildLayout({
   subject,
-  preview,
   heading,
   body,
   ctaLabel,
@@ -69,7 +74,6 @@ function buildLayout({
   coverUrl,
 }: {
   subject: string;
-  preview: string;
   heading: string;
   body: string;
   ctaLabel?: string;
@@ -77,12 +81,14 @@ function buildLayout({
   coverUrl?: string;
 }): EmailTemplate {
   const logoUrl = getLogoUrl();
-  const safeHeading = escapeHtml(heading);
-  const safePreview = escapeHtml(preview);
+  const displayBody = [String(heading || "").trim(), String(body || "").trim()]
+    .filter(Boolean)
+    .join("\n\n");
+  const safePreview = escapeHtml(makePreview(displayBody));
   const safeCtaLabel = escapeHtml(ctaLabel || "");
   const safeCtaUrl = escapeHtml(ctaUrl || "");
   const safeCoverUrl = escapeHtml(coverUrl || "");
-  const bodyHtml = paragraphsHtml(body);
+  const bodyHtml = paragraphsHtml(displayBody);
   const ctaHtml = ctaLabel && ctaUrl
     ? `
       <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:24px 0 4px;">
@@ -98,7 +104,7 @@ function buildLayout({
     ? `<img src="${safeCoverUrl}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;margin:0 0 22px;border-radius:8px;" />`
     : "";
 
-  const textParts = [heading, "", body];
+  const textParts = [displayBody];
   if (ctaLabel && ctaUrl) textParts.push("", `${ctaLabel}: ${ctaUrl}`);
 
   return {
@@ -125,7 +131,6 @@ function buildLayout({
             <tr>
               <td style="padding:32px 28px 30px;">
                 ${coverHtml}
-                <h1 style="margin:0 0 16px;font-size:22px;line-height:1.25;color:${TEXT_COLOR};font-weight:800;">${safeHeading}</h1>
                 ${bodyHtml}
                 ${ctaHtml}
                 <p style="margin:26px 0 0;font-size:13px;line-height:1.5;color:${MUTED_COLOR};">You are receiving this because you use ${BRAND_NAME}.</p>
@@ -146,7 +151,6 @@ export function buildSignupEmail({ displayName }: { displayName?: string }): Ema
 
   return buildLayout({
     subject: `Welcome to ${BRAND_NAME}!`,
-    preview: "Set up your profile so you can start searching.",
     heading: `Welcome, ${name}!`,
     body: "Thanks for joining LetsFindPeople. Your account is ready. Set up your profile so you can start searching.",
     ctaLabel: "Set Up Profile",
@@ -160,7 +164,6 @@ export function buildProfileCompletedEmail({ displayName }: { displayName?: stri
 
   return buildLayout({
     subject: "Your profile is live!",
-    preview: "You can now start searching by interests.",
     heading: "Your Profile Is Set Up",
     body: `Nice work, ${name}. Your profile is complete. You can now start searching.`,
     ctaLabel: "Start Searching",
@@ -181,7 +184,6 @@ export function buildDrawEventStartedEmail({
 
   return buildLayout({
     subject: `New giveaway: ${safeTitle}`,
-    preview: "A new giveaway just started. Open the site's notifications to join.",
     heading: safeTitle,
     body: String(body || "A new giveaway just started. Open the site's notifications to join. Prizes range from money to premium subscriptions like Crunchyroll Mega Fan, ChatGPT Plus, NordVPN Premium, and much more!"),
     ctaLabel: "Join Giveaway",
@@ -192,27 +194,20 @@ export function buildDrawEventStartedEmail({
 
 export function buildAdminBulkEmail({
   subject,
-  preview,
-  heading,
   body,
   ctaLabel,
   ctaUrl,
 }: {
   subject: string;
-  preview: string;
-  heading: string;
   body: string;
   ctaLabel?: string;
   ctaUrl?: string;
 }): EmailTemplate {
   const safeSubject = String(subject || BRAND_NAME).trim() || BRAND_NAME;
-  const safePreview = String(preview || "").trim() || safeSubject;
-  const safeHeading = String(heading || "").trim() || safeSubject;
 
   return buildLayout({
     subject: safeSubject,
-    preview: safePreview,
-    heading: safeHeading,
+    heading: "",
     body: String(body || ""),
     ctaLabel,
     ctaUrl,

@@ -5,12 +5,10 @@ import {
   BULK_EMAIL_BODY_MAX_LENGTH,
   BULK_EMAIL_CTA_LABEL_MAX_LENGTH,
   BULK_EMAIL_CTA_URL_MAX_LENGTH,
-  BULK_EMAIL_HEADING_MAX_LENGTH,
-  BULK_EMAIL_PREVIEW_MAX_LENGTH,
   BULK_EMAIL_SUBJECT_MAX_LENGTH,
   createSiteNotification,
-  editDrawEvent,
-  mapAdminDrawEvent,
+  editSiteNotification,
+  mapAdminNotification,
   NOTIFICATION_BODY_MAX_LENGTH,
   NOTIFICATION_TITLE_MAX_LENGTH,
   sendDrawEventEmail,
@@ -215,7 +213,7 @@ function Admin() {
   const [eventSending, setEventSending] = useState(false);
   const [eventError, setEventError] = useState('');
 
-  // Draw event notifications state
+  // Admin notifications state
   const [drawEvents, setDrawEvents] = useState([]);
   const [drawEventsLoading, setDrawEventsLoading] = useState(false);
   const [drawEventsError, setDrawEventsError] = useState(null);
@@ -230,11 +228,14 @@ function Admin() {
   const [editDrawEventSaving, setEditDrawEventSaving] = useState(false);
   const [editDrawEventError, setEditDrawEventError] = useState('');
 
+  // Crunchyroll lifetime winners state
+  const [crunchyrollWinners, setCrunchyrollWinners] = useState([]);
+  const [crunchyrollWinnersLoading, setCrunchyrollWinnersLoading] = useState(false);
+  const [crunchyrollWinnersError, setCrunchyrollWinnersError] = useState(null);
+
   // Bulk email state
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
-  const [emailPreview, setEmailPreview] = useState('');
-  const [emailHeading, setEmailHeading] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [emailCtaLabel, setEmailCtaLabel] = useState('');
   const [emailCtaUrl, setEmailCtaUrl] = useState('');
@@ -843,13 +844,31 @@ function Admin() {
     setDrawEventsLoading(true);
     setDrawEventsError(null);
     try {
-      const { data, error } = await supabase.rpc('list_admin_draw_events');
+      const { data, error } = await supabase.rpc('list_admin_notifications');
       if (error) throw new Error(error.message);
-      setDrawEvents((data || []).map(mapAdminDrawEvent).filter(Boolean));
+      setDrawEvents((data || []).map(mapAdminNotification).filter(Boolean));
     } catch (err) {
       setDrawEventsError(err.message);
     } finally {
       setDrawEventsLoading(false);
+    }
+  }, []);
+
+  const fetchCrunchyrollWinners = useCallback(async () => {
+    setCrunchyrollWinnersLoading(true);
+    setCrunchyrollWinnersError(null);
+    try {
+      const { data, error } = await supabase.rpc('list_admin_crunchyroll_winners');
+      if (error) throw new Error(error.message);
+      setCrunchyrollWinners((data || []).map((row) => ({
+        id: Number(row.id_user),
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || '-',
+        email: row.email || '-',
+      })));
+    } catch (err) {
+      setCrunchyrollWinnersError(err.message);
+    } finally {
+      setCrunchyrollWinnersLoading(false);
     }
   }, []);
 
@@ -899,12 +918,18 @@ function Admin() {
     }
   }, [page, currentRequestPage, fetchRequestedKeywords]);
 
-  // Fetch draw events whenever the Notifications tab is active
+  // Fetch notifications whenever the Notifications tab is active
   useEffect(() => {
     if (page === 5) {
       fetchDrawEvents();
     }
   }, [page, fetchDrawEvents]);
+
+  useEffect(() => {
+    if (page === 6) {
+      fetchCrunchyrollWinners();
+    }
+  }, [page, fetchCrunchyrollWinners]);
 
   // Fetch keywords whenever the Keywords tab is active or keyword page/search changes
   useEffect(() => {
@@ -1121,8 +1146,6 @@ function Admin() {
 
   const openEmailModal = () => {
     setEmailSubject('');
-    setEmailPreview('');
-    setEmailHeading('');
     setEmailBody('');
     setEmailCtaLabel('');
     setEmailCtaUrl('');
@@ -1134,8 +1157,6 @@ function Admin() {
     if (emailSending && !force) return;
     setShowEmailModal(false);
     setEmailSubject('');
-    setEmailPreview('');
-    setEmailHeading('');
     setEmailBody('');
     setEmailCtaLabel('');
     setEmailCtaUrl('');
@@ -1145,15 +1166,11 @@ function Admin() {
   const handleSendEmail = async (e) => {
     e?.preventDefault();
     const trimmedSubject = emailSubject.trim();
-    const trimmedPreview = emailPreview.trim();
-    const trimmedHeading = emailHeading.trim();
     const trimmedBody = emailBody.trim();
     const trimmedCtaLabel = emailCtaLabel.trim();
     const trimmedCtaUrl = emailCtaUrl.trim();
 
     if (!trimmedSubject) { setEmailError('Subject is required.'); return; }
-    if (!trimmedPreview) { setEmailError('Preview is required.'); return; }
-    if (!trimmedHeading) { setEmailError('Heading is required.'); return; }
     if (!trimmedBody) { setEmailError('Message is required.'); return; }
     if ((trimmedCtaLabel && !trimmedCtaUrl) || (!trimmedCtaLabel && trimmedCtaUrl)) {
       setEmailError('Button label and URL must be filled together.');
@@ -1167,8 +1184,6 @@ function Admin() {
     try {
       const result = await sendBulkUserEmail({
         subject: trimmedSubject,
-        preview: trimmedPreview,
-        heading: trimmedHeading,
         body: trimmedBody,
         ctaLabel: trimmedCtaLabel,
         ctaUrl: trimmedCtaUrl,
@@ -1179,8 +1194,6 @@ function Admin() {
         p_reason: trimmedSubject,
         p_metadata: {
           subject: trimmedSubject,
-          preview: trimmedPreview,
-          heading: trimmedHeading,
           recipientCount: result?.recipientCount ?? null,
           hasCta: !!trimmedCtaUrl,
         },
@@ -1255,8 +1268,8 @@ function Admin() {
       const coverUrl = editDrawEventCoverFile
         ? await uploadNotificationCover(editDrawEventCoverFile)
         : editDrawEventCoverUrl;
-      const updatedEvent = await editDrawEvent({
-        drawEventId: editingDrawEvent.id,
+      const updatedEvent = await editSiteNotification({
+        notificationId: editingDrawEvent.id,
         title: trimmedTitle,
         body: trimmedBody,
         coverUrl,
@@ -1268,11 +1281,12 @@ function Admin() {
         )));
       }
       Promise.resolve(supabase.rpc('write_log', {
-        p_action: 'ADMIN_EDIT_DRAW_EVENT',
+        p_action: 'ADMIN_EDIT_NOTIFICATION',
         p_status: 'Success',
         p_reason: trimmedTitle,
         p_metadata: {
-          drawEventId: editingDrawEvent.id,
+          notificationId: editingDrawEvent.id,
+          drawEventId: editingDrawEvent.drawEventId,
           oldTitle: editingDrawEvent.title,
           newTitle: trimmedTitle,
           deliveryScope: editDrawEventDeliveryScope,
@@ -1281,7 +1295,7 @@ function Admin() {
       closeEditDrawEventModal({ force: true });
       fetchDrawEvents();
     } catch (err) {
-      setEditDrawEventError(err.message || 'Failed to save draw event.');
+      setEditDrawEventError(err.message || 'Failed to save notification.');
     } finally {
       setEditDrawEventSaving(false);
     }
@@ -1328,7 +1342,7 @@ function Admin() {
           deliveryScope: eventDeliveryScope,
         },
       })).catch(() => {});
-      if (eventIsDrawEvent) fetchDrawEvents();
+      fetchDrawEvents();
       closeEventModal({ force: true });
     } catch (err) {
       setEventError(err.message || 'Failed to send notification.');
@@ -1338,19 +1352,19 @@ function Admin() {
   };
 
   const handleDisableDrawEvent = async (event) => {
-    if (!event || event.isDisabled) return;
+    if (!event || !event.isDrawEvent || event.isDisabled) return;
     if (!window.confirm('Disable this draw event? Existing users will see that the event ended.')) return;
 
     try {
       const { error } = await supabase.rpc('disable_draw_event', {
-        p_draw_event_id: event.id,
+        p_draw_event_id: event.drawEventId,
       });
       if (error) throw new Error(error.message);
       Promise.resolve(supabase.rpc('write_log', {
         p_action: 'ADMIN_DISABLE_DRAW_EVENT',
         p_status: 'Success',
         p_reason: `${event.title}`,
-        p_metadata: { drawEventId: event.id, title: event.title },
+        p_metadata: { notificationId: event.id, drawEventId: event.drawEventId, title: event.title },
       })).catch(() => {});
       fetchDrawEvents();
     } catch (err) {
@@ -1498,6 +1512,7 @@ function Admin() {
     { id: 1, label: 'Users' },
     { id: 2, label: 'Keywords' },
     { id: 5, label: 'Notifications' },
+    { id: 6, label: 'Crunchyroll Winners' },
     { id: 4, label: 'Requests' },
     { id: 3, label: 'Logs' },
   ];
@@ -1868,29 +1883,31 @@ function Admin() {
           {drawEventsLoading ? (
             <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
               <div className="spinner-border spinner-primary" role="status">
-                <span className="visually-hidden">Loading draw events...</span>
+                <span className="visually-hidden">Loading notifications...</span>
               </div>
             </div>
           ) : drawEventsError ? (
-            <div className="alert alert-danger">Failed to load draw events: {drawEventsError}</div>
+            <div className="alert alert-danger">Failed to load notifications: {drawEventsError}</div>
           ) : (
           <div className="table-responsive">
             <table className="table table-striped align-middle text-center admin-notifications-table">
               <thead>
                 <tr>
-                  <th scope="col">Draw Events</th>
+                  <th scope="col">Notifications</th>
+                  <th scope="col">Type</th>
                   <th scope="col" colSpan={2}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {drawEvents.length === 0 ? (
-                  <tr><td colSpan={3} className="text-muted">No draw events found.</td></tr>
+                  <tr><td colSpan={4} className="text-muted">No notifications found.</td></tr>
                 ) : (
                   drawEvents.map((event) => (
                     <tr key={event.id}>
                       <td>
                         {event.title}
                       </td>
+                      <td>{event.isDrawEvent ? 'Draw event' : 'Notification'}</td>
                       <td>
                         <button
                           type="button"
@@ -1901,14 +1918,18 @@ function Admin() {
                         </button>
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDisableDrawEvent(event)}
-                          disabled={event.isDisabled}
-                        >
-                          {event.isDisabled ? 'Disabled' : 'Disable'}
-                        </button>
+                        {event.isDrawEvent ? (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDisableDrawEvent(event)}
+                            disabled={event.isDisabled}
+                          >
+                            {event.isDisabled ? 'Disabled' : 'Disable'}
+                          </button>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -1916,6 +1937,44 @@ function Admin() {
               </tbody>
             </table>
           </div>
+          )}
+        </>
+      )}
+
+      {/* Crunchyroll Winners Tab */}
+      {page === 6 && (
+        <>
+          {crunchyrollWinnersLoading ? (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+              <div className="spinner-border spinner-primary" role="status">
+                <span className="visually-hidden">Loading Crunchyroll winners...</span>
+              </div>
+            </div>
+          ) : crunchyrollWinnersError ? (
+            <div className="alert alert-danger">Failed to load Crunchyroll winners: {crunchyrollWinnersError}</div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped align-middle text-center">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {crunchyrollWinners.length === 0 ? (
+                    <tr><td colSpan={2} className="text-muted">No winners yet.</td></tr>
+                  ) : (
+                    crunchyrollWinners.map((winner) => (
+                      <tr key={winner.id}>
+                        <td>{winner.name}</td>
+                        <td>{winner.email}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}
@@ -2250,36 +2309,6 @@ function Admin() {
                   </div>
 
                   <div className="mb-3">
-                    <label htmlFor="emailPreview" className="form-label">Preview</label>
-                    <input
-                      id="emailPreview"
-                      type="text"
-                      className="form-control"
-                      placeholder="Enter email preview"
-                      value={emailPreview}
-                      maxLength={BULK_EMAIL_PREVIEW_MAX_LENGTH}
-                      onChange={(e) => setEmailPreview(e.target.value)}
-                      disabled={emailSending}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label htmlFor="emailHeading" className="form-label">Heading</label>
-                    <input
-                      id="emailHeading"
-                      type="text"
-                      className="form-control"
-                      placeholder="Enter email heading"
-                      value={emailHeading}
-                      maxLength={BULK_EMAIL_HEADING_MAX_LENGTH}
-                      onChange={(e) => setEmailHeading(e.target.value)}
-                      disabled={emailSending}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
                     <label htmlFor="emailBody" className="form-label">Message</label>
                     <textarea
                       id="emailBody"
@@ -2335,7 +2364,7 @@ function Admin() {
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={emailSending || !emailSubject.trim() || !emailPreview.trim() || !emailHeading.trim() || !emailBody.trim()}
+                    disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
                   >
                     {emailSending ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -2350,14 +2379,14 @@ function Admin() {
         </div>
       )}
 
-      {/* Edit Draw Event Modal */}
+      {/* Edit Notification Modal */}
       {showEditDrawEventModal && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <form onSubmit={handleSaveDrawEvent}>
                 <div className="modal-header">
-                  <h5 className="modal-title">Edit Draw Event</h5>
+                  <h5 className="modal-title">Edit Notification</h5>
                   <button type="button" className="btn-close" onClick={() => closeEditDrawEventModal()} disabled={editDrawEventSaving}></button>
                 </div>
                 <div className="modal-body">

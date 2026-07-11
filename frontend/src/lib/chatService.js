@@ -2,7 +2,6 @@ import { supabase } from "./supabaseClient";
 
 export const CHAT_RETENTION_DAYS = 7;
 export const CHAT_MAX_MESSAGE_LENGTH = 500;
-export const CONNECTION_STREAK_MESSAGE_COUNT = 14;
 
 export const GLOBAL_CHAT_CHANNELS = [
   {
@@ -73,7 +72,6 @@ function mapDirectChat(row) {
     lastMessageAt: row.last_message_at || null,
     unreadCount: Number(row.unread_count || 0),
     totalMessages: Number(row.total_messages || 0),
-    hasConnectionStreak: !!row.has_connection_streak,
   };
 }
 

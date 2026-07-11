@@ -16,7 +16,6 @@ import {
 import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
-  CONNECTION_STREAK_MESSAGE_COUNT,
   GLOBAL_CHAT_CHANNELS,
   getUnreadGlobalChatMessageCount,
   getUnreadDirectMessageCount,
@@ -33,6 +32,7 @@ import {
 } from "../lib/chatService";
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
 import { getMyProfileAnalytics } from "../lib/analyticsService";
+import { getMyDiceGameStatus, playDailyDiceGame } from "../lib/diceService";
 import {
   getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
@@ -176,6 +176,12 @@ function getChatAuthorName(message) {
 function getChatAuthorDisplayName(message) {
   const name = getChatAuthorName(message);
   return isProSubscriptionStatus(message.author?.subscriptionStatus) ? `${name} (Pro)` : name;
+}
+
+function formatDirectChatPreview(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.length > 13 ? `${text.slice(0, 13)}...` : text;
 }
 
 function formatNotificationTimestamp(value) {
@@ -338,6 +344,7 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownRef = useRef(null);
   const notificationsDropdownMenuRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
+  const unreadChatRequestIdRef = useRef(0);
   const inviteAuthOpenedRef = useRef("");
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
@@ -596,6 +603,11 @@ function Navbar({ onProfileSave }) {
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState("");
   const [chatNotice, setChatNotice] = useState("");
+  const [showDiceModal, setShowDiceModal] = useState(false);
+  const [diceStatus, setDiceStatus] = useState(null);
+  const [diceLoading, setDiceLoading] = useState(false);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceError, setDiceError] = useState("");
   const [unreadChatMessages, setUnreadChatMessages] = useState(0);
   const [globalChatUnreadCounts, setGlobalChatUnreadCounts] = useState({});
   const [notifications, setNotifications] = useState([]);
@@ -1281,7 +1293,11 @@ function Navbar({ onProfileSave }) {
   }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
 
   const loadUnreadChatMessageCount = useCallback(async () => {
+    const requestId = unreadChatRequestIdRef.current + 1;
+    unreadChatRequestIdRef.current = requestId;
+
     if (!session?.user?.id) {
+      if (requestId !== unreadChatRequestIdRef.current) return;
       setUnreadChatMessages(0);
       setGlobalChatUnreadCounts({});
       return;
@@ -1297,6 +1313,7 @@ function Navbar({ onProfileSave }) {
       ]);
       const globalCounts = Object.fromEntries(globalEntries);
       const globalTotal = Object.values(globalCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+      if (requestId !== unreadChatRequestIdRef.current) return;
       setGlobalChatUnreadCounts(globalCounts);
       setUnreadChatMessages(globalTotal + directCount);
     } catch {
@@ -1317,6 +1334,61 @@ function Navbar({ onProfileSave }) {
     setShowChatModal(false);
     setChatDraft("");
     setChatNotice("");
+  };
+
+  const applyDiceProfileReward = (status) => {
+    if (!status) return;
+
+    setSavedProfile(prev => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        freeSearchesRemaining: status.freeSearchesRemaining,
+      };
+
+      if (status.rewardType === "pro_month" || status.diceProExpiresAt) {
+        next.subscriptionStatus = "active";
+      }
+
+      if (onProfileSave) onProfileSave(next);
+      return next;
+    });
+  };
+
+  const openDiceModal = async () => {
+    setShowDiceModal(true);
+    setDiceError("");
+    setDiceLoading(true);
+    try {
+      const status = await getMyDiceGameStatus();
+      setDiceStatus(status);
+      applyDiceProfileReward(status);
+    } catch (err) {
+      setDiceError(err.message || "Failed to load dice game.");
+    } finally {
+      setDiceLoading(false);
+    }
+  };
+
+  const closeDiceModal = () => {
+    if (diceRolling) return;
+    setShowDiceModal(false);
+    setDiceError("");
+  };
+
+  const handlePlayDice = async () => {
+    if (diceRolling) return;
+    setDiceRolling(true);
+    setDiceError("");
+    try {
+      const status = await playDailyDiceGame();
+      setDiceStatus(status);
+      applyDiceProfileReward(status);
+    } catch (err) {
+      setDiceError(err.message || "Failed to throw dice.");
+    } finally {
+      setDiceRolling(false);
+    }
   };
 
   const openChatAuthorInConsole = (message) => {
@@ -1345,11 +1417,11 @@ function Navbar({ onProfileSave }) {
       subscriptionStatus: profile?.subscriptionStatus || "free",
       isOnline: !!profile?.isOnline,
       totalMessages: 0,
-      hasConnectionStreak: false,
     });
     setChatMode("direct");
     setShowChatModal(true);
     setChatDraft("");
+    setChatMessages([]);
     setChatLoading(true);
     setChatError("");
     setChatNotice("");
@@ -1408,28 +1480,6 @@ function Navbar({ onProfileSave }) {
       loadDirectChats();
     } catch (err) {
       setChatError(err.message || "Failed to send message.");
-    } finally {
-      setChatSending(false);
-    }
-  };
-
-  const handleConnectionStreak = async () => {
-    if (!activeDirectChat?.otherUserId || chatSending) return;
-    setChatSending(true);
-    setChatError("");
-    setChatNotice("");
-    try {
-      const message = await sendDirectChatMessage(activeDirectChat.otherUserId, "Connection Streak.");
-      if (message) {
-        setChatMessages(prev => (
-          prev.some(existing => existing.id === message.id && existing.type === message.type) ? prev : [...prev, message]
-        ));
-      }
-      setChatNotice("Connection Streak sent.");
-      loadCurrentChatMessages({ silent: true });
-      loadDirectChats();
-    } catch (err) {
-      setChatError(err.message || "Failed to send streak.");
     } finally {
       setChatSending(false);
     }
@@ -1713,14 +1763,13 @@ function Navbar({ onProfileSave }) {
 
     const handleChatChange = () => {
       if (!isMounted) return;
-      if (showChatModal) {
-        loadCurrentChatMessages({ silent: true })
-          .then(() => loadUnreadChatMessageCount())
-          .catch(() => { });
-        loadDirectChats();
-      } else {
-        loadUnreadChatMessageCount();
-      }
+      (async () => {
+        if (showChatModal) {
+          await loadCurrentChatMessages({ silent: true }).catch(() => {});
+        }
+        await loadDirectChats().catch(() => {});
+        await loadUnreadChatMessageCount().catch(() => {});
+      })();
     };
 
     const globalChannel = subscribeToGlobalChatMessages(handleChatChange);
@@ -2271,6 +2320,7 @@ function Navbar({ onProfileSave }) {
     !["active", "canceling"].includes(savedProfile.subscriptionStatus)
   );
   const showAdminNav = !!session && isAdminUser && routerLocation.pathname !== "/admin";
+  const showDiceNav = !!session && !isAdminUser;
   const showChatNav = !!session && !isAdminUser;
   const showNotificationsNav = !!session && !isAdminUser;
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
@@ -2358,16 +2408,6 @@ function Navbar({ onProfileSave }) {
     return [activeDirectChat, ...directChats];
   }, [activeDirectChat, directChats]);
   const getChatMenuBadgeLabel = (count) => (Number(count) > 99 ? "99+" : String(Number(count) || 0));
-  const canUseConnectionStreak =
-    chatMode === "direct" &&
-    activeDirectChat?.otherUserId &&
-    (
-      activeDirectChat.hasConnectionStreak ||
-      (
-        chatMessages.length >= CONNECTION_STREAK_MESSAGE_COUNT &&
-        new Set(chatMessages.map((message) => message.userId)).size >= 2
-      )
-    );
 
   return (
     <>
@@ -2384,6 +2424,20 @@ function Navbar({ onProfileSave }) {
                 <Link className="nav-link" to="/admin">
                   Admin
                 </Link>
+              )}
+
+              {showDiceNav && (
+                <div className="nav-item">
+                  <button
+                    type="button"
+                    className="navbar-chat-button"
+                    onClick={openDiceModal}
+                    title="Daily dice"
+                    aria-label="Open daily dice game"
+                  >
+                    <i className="bi bi-dice-6"></i>
+                  </button>
+                </div>
               )}
 
               {showChatNav && (
@@ -2610,6 +2664,92 @@ function Navbar({ onProfileSave }) {
         </div>
       </nav>
 
+      {/* Daily Dice Modal */}
+      {showDiceModal && (
+        <>
+          <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="dailyDiceTitle">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title" id="dailyDiceTitle">Daily Dice</h5>
+                  <button type="button" className="btn-close" onClick={closeDiceModal} disabled={diceRolling} aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                  {diceError && (
+                    <div className="alert alert-danger py-2" role="alert">
+                      {diceError}
+                    </div>
+                  )}
+
+                  {diceLoading ? (
+                    <div className="d-flex justify-content-center align-items-center py-5">
+                      <div className="spinner-border spinner-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="daily-dice-board">
+                        {(diceStatus?.diceValues?.length ? diceStatus.diceValues : [1, 2, 3, 4, 5, 6]).map((value, index) => (
+                          <div
+                            key={`${value}-${index}`}
+                            className={`daily-dice-die${diceRolling ? " daily-dice-die--rolling" : ""}${value === 6 ? " daily-dice-die--six" : ""}`}
+                          >
+                            {value}
+                          </div>
+                        ))}
+                      </div>
+
+                      {diceStatus?.rewardLabel && (
+                        <div className="text-center mt-3">
+                          <div className="fw-semibold">{diceStatus.rewardLabel}</div>
+                          <small className="text-muted">
+                            {diceStatus.canPlayAgain
+                              ? "You rolled one 6, so throw again."
+                              : diceStatus.alreadyPlayed
+                                ? "Come back tomorrow to play again."
+                                : "Reward applied."}
+                          </small>
+                        </div>
+                      )}
+
+                      <div className="daily-dice-rewards mt-4">
+                        <div>1 six: play again</div>
+                        <div>2 sixes: 2 free searches</div>
+                        <div>3 sixes: 4 free searches</div>
+                        <div>4 sixes: 16 free searches</div>
+                        <div>5 sixes: Pro Plan for one month</div>
+                        <div>6 sixes: Crunchyroll Mega Fan Lifetime</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={closeDiceModal} disabled={diceRolling}>
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    className="btn console-orange-action-button"
+                    onClick={handlePlayDice}
+                    disabled={diceLoading || diceRolling || (!!diceStatus && !diceStatus.canPlay && !diceStatus.canPlayAgain)}
+                  >
+                    {diceRolling ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : diceStatus?.canPlayAgain ? (
+                      "Throw Again"
+                    ) : (
+                      "Throw Dice"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
+
       {/* Chat Modal */}
       {showChatModal && (
         <>
@@ -2620,18 +2760,7 @@ function Navbar({ onProfileSave }) {
                   <div className="min-w-0">
                     <h5 className="modal-title text-truncate" id="globalChatTitle">{activeChatTitle}</h5>
                   </div>
-                  <div className="d-flex align-items-center gap-2 ms-auto">
-                    {canUseConnectionStreak && (
-                      <button
-                        type="button"
-                        className="btn btn-outline-primary btn-sm"
-                        onClick={handleConnectionStreak}
-                        disabled={chatSending}
-                      >
-                        Connection Streak
-                      </button>
-                    )}
-                  </div>
+                  <div className="d-flex align-items-center gap-2 ms-auto"></div>
                   <button type="button" className="btn-close" onClick={closeGlobalChat} aria-label="Close"></button>
                 </div>
 
@@ -2662,7 +2791,7 @@ function Navbar({ onProfileSave }) {
                     </div>
 
                     <div className="global-chat-sidebar-section global-chat-sidebar-section--direct">
-                      <div className="global-chat-sidebar-label">Direct DM</div>
+                      <div className="global-chat-sidebar-label">Direct</div>
                       {directChatMenuItems.length === 0 ? (
                         <small className="global-chat-empty-direct text-muted">No direct chats yet</small>
                       ) : (
@@ -2673,23 +2802,24 @@ function Navbar({ onProfileSave }) {
                             <button
                               key={chat.otherUserId}
                               type="button"
-                              className={`global-chat-room-button${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
-                              onClick={() => {
-                                setActiveDirectChat(chat);
-                                setChatMode("direct");
-                                setChatDraft("");
-                                setChatLoading(true);
-                                setChatNotice("");
-                              }}
-                            >
+                            className={`global-chat-room-button${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
+                            onClick={() => {
+                              setActiveDirectChat(chat);
+                              setChatMode("direct");
+                              setChatDraft("");
+                              setChatMessages([]);
+                              setChatLoading(true);
+                              setChatNotice("");
+                            }}
+                          >
                               <span className={`profile-avatar-wrap global-chat-sidebar-avatar${isChatUserPro ? " profile-avatar-wrap--pro" : ""}`}>
                                 <img src={chat.profilePicture || defaultProfile} alt="" />
                                 <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
                               </span>
-                              <span className="min-w-0">
+                              <span className="global-chat-room-copy">
                                 <span className={`d-block text-truncate${isChatUserPro ? " pro-name-effect" : ""}`}>{chat.name}</span>
-                                {chat.lastBody && (
-                                  <small className="d-block text-truncate">{chat.lastBody}</small>
+                                {formatDirectChatPreview(chat.lastBody) && (
+                                  <small className="global-chat-preview d-block text-truncate">{formatDirectChatPreview(chat.lastBody)}</small>
                                 )}
                               </span>
                               {chat.unreadCount > 0 && (
