@@ -392,6 +392,18 @@
 .global-chat-room-copy {
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+}
+
+.global-chat-direct-name {
+  display: block;
+  line-height: 1.2;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: normal !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
 }
 
 .global-chat-empty-direct {
