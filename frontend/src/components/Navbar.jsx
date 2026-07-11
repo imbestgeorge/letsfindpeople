@@ -2860,10 +2860,6 @@ function Navbar({ onProfileSave }) {
                   >
                     {diceRolling ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    ) : diceStatus?.canPlayAgain ? (
-                      "Throw Again"
-                    ) : diceStatus?.alreadyPlayed ? (
-                      "Come Back Tomorrow"
                     ) : (
                       "Throw Dice"
                     )}
@@ -2928,7 +2924,7 @@ function Navbar({ onProfileSave }) {
                             <button
                               key={chat.otherUserId}
                               type="button"
-                            className={`global-chat-room-button${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
+                            className={`global-chat-room-button global-chat-room-button--direct${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
                             onClick={() => {
                               setActiveDirectChat(chat);
                               setChatMode("direct");
@@ -2949,7 +2945,7 @@ function Navbar({ onProfileSave }) {
                                 )}
                               </span>
                               {chat.unreadCount > 0 && (
-                                <span className="badge rounded-pill bg-danger ms-auto">{getChatMenuBadgeLabel(chat.unreadCount)}</span>
+                                <span className="badge rounded-pill bg-danger global-chat-room-badge global-chat-room-badge--direct">{getChatMenuBadgeLabel(chat.unreadCount)}</span>
                               )}
                             </button>
                           );

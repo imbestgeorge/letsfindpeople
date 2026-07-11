@@ -339,8 +339,13 @@
   gap: 0.65rem;
   min-height: 50px;
   padding: 0.55rem 0.6rem;
+  position: relative;
   text-align: left;
   width: 100%;
+}
+
+.global-chat-room-button--direct {
+  padding-right: 2rem;
 }
 
 .global-chat-room-button span,
@@ -375,6 +380,13 @@
   flex: 0 0 auto;
   min-width: 1.5rem;
   white-space: nowrap;
+}
+
+.global-chat-room-badge--direct {
+  position: absolute;
+  right: 0.35rem;
+  top: 0.35rem;
+  z-index: 2;
 }
 
 .global-chat-room-copy {
