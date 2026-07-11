@@ -19,7 +19,7 @@
   flex-direction: row;
   justify-content: flex-end;
   gap: 0.75rem;
-  --navbar-icon-button-extra-gap: 0;
+  --navbar-icon-button-extra-gap: 0.3rem;
 }
 
 .navbar .navbar-icon-nav-item + .navbar-icon-nav-item {
@@ -803,7 +803,7 @@
 
   .navbar .navbar-nav {
     gap: 0.75rem;
-    --navbar-icon-button-extra-gap: 0.375rem;
+    --navbar-icon-button-extra-gap: 0.3rem;
   }
 
   .profile-dropdown-name {
