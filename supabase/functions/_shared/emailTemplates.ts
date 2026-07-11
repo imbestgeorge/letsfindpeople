@@ -152,7 +152,7 @@ export function buildSignupEmail({ displayName }: { displayName?: string }): Ema
   return buildLayout({
     subject: `Welcome to ${BRAND_NAME}!`,
     heading: `Welcome, ${name}!`,
-    body: "Thanks for joining LetsFindPeople. Your account is ready. Set up your profile so you can start searching.",
+    body: "Thanks for joining LetsFindPeople. Set up your profile so you can start searching.",
     ctaLabel: "Set Up Profile",
     ctaUrl: siteUrl,
   });
