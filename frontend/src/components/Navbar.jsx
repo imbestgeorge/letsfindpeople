@@ -1235,14 +1235,15 @@ function Navbar({ onProfileSave }) {
     try {
       const chats = await listMyDirectChats();
       setDirectChats(chats);
-      if (activeDirectChat) {
-        const freshActive = chats.find((chat) => chat.otherUserId === activeDirectChat.otherUserId);
-        if (freshActive) setActiveDirectChat(freshActive);
-      }
+      setActiveDirectChat(prev => {
+        if (!prev?.otherUserId) return prev;
+        const freshActive = chats.find((chat) => chat.otherUserId === prev.otherUserId);
+        return freshActive ? { ...prev, ...freshActive } : prev;
+      });
     } catch (err) {
       console.warn("Failed to load direct chats:", err.message);
     }
-  }, [activeDirectChat, session?.user?.id]);
+  }, [session?.user?.id]);
 
   const loadCurrentChatMessages = useCallback(async ({ silent = false } = {}) => {
     if (chatMode === "direct") {
@@ -1376,6 +1377,21 @@ function Navbar({ onProfileSave }) {
         setChatMessages(prev => (
           prev.some(existing => existing.id === message.id && existing.type === message.type) ? prev : [...prev, message]
         ));
+        if (message.type === "direct" && activeDirectChat?.otherUserId) {
+          const preview = {
+            ...activeDirectChat,
+            conversationId: message.conversationId || activeDirectChat.conversationId,
+            lastBody: message.body,
+            lastMessageAt: message.createdAt,
+            totalMessages: Number(activeDirectChat.totalMessages || 0) + 1,
+            unreadCount: 0,
+          };
+          setActiveDirectChat(preview);
+          setDirectChats(prev => [
+            preview,
+            ...prev.filter((chat) => chat.otherUserId !== activeDirectChat.otherUserId),
+          ]);
+        }
       }
       loadCurrentChatMessages({ silent: true });
       loadDirectChats();
@@ -2609,8 +2625,7 @@ function Navbar({ onProfileSave }) {
 
                 <div className="global-chat-layout">
                   <aside className="global-chat-sidebar">
-                    <div className="global-chat-sidebar-section">
-                      <div className="global-chat-sidebar-label">Global</div>
+                    <div className="global-chat-sidebar-section global-chat-sidebar-section--global">
                       {chatChannels.map((channel) => {
                         const unreadCount = Number(globalChatUnreadCounts[channel.key] || 0);
                         return (
@@ -2633,10 +2648,9 @@ function Navbar({ onProfileSave }) {
                       })}
                     </div>
 
-                    <div className="global-chat-sidebar-section">
-                      <div className="global-chat-sidebar-label">Direct</div>
+                    <div className="global-chat-sidebar-section global-chat-sidebar-section--direct">
                       {directChatMenuItems.length === 0 ? (
-                        <small className="text-muted d-block px-2">No direct chats yet</small>
+                        <small className="global-chat-empty-direct text-muted">No direct chats yet</small>
                       ) : (
                         directChatMenuItems.map((chat) => (
                           <button
@@ -2656,7 +2670,9 @@ function Navbar({ onProfileSave }) {
                             </span>
                             <span className="min-w-0">
                               <span className="d-block text-truncate">{chat.name}</span>
-                              <small className="d-block text-truncate">{chat.lastBody || "Start chatting"}</small>
+                              {chat.lastBody && (
+                                <small className="d-block text-truncate">{chat.lastBody}</small>
+                              )}
                             </span>
                             {chat.unreadCount > 0 && (
                               <span className="badge rounded-pill bg-danger ms-auto">{getChatMenuBadgeLabel(chat.unreadCount)}</span>

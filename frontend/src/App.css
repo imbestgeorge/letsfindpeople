@@ -466,11 +466,16 @@ h1 {
 }
 
 .people-card .btn {
-  margin-top: 15px; /* adjust as needed */
+  margin-top: 0;
 }
 
 .people-desc {
   max-height: 140px;
+  overflow-y: auto;
+}
+
+.people-keywords {
+  max-height: 165px;
   overflow-y: auto;
 }
 
@@ -651,6 +656,28 @@ html, body {
   font-weight: 400;
 }
 
+.console-orange-action-button {
+  --bs-btn-color: #ffffff;
+  --bs-btn-bg: #f97316;
+  --bs-btn-border-color: #f97316;
+  --bs-btn-hover-color: #ffffff;
+  --bs-btn-hover-bg: #ea580c;
+  --bs-btn-hover-border-color: #ea580c;
+  --bs-btn-focus-shadow-rgb: 249, 115, 22;
+  --bs-btn-active-color: #ffffff;
+  --bs-btn-active-bg: #c2410c;
+  --bs-btn-active-border-color: #c2410c;
+  --bs-btn-disabled-color: #ffffff;
+  --bs-btn-disabled-bg: #fb923c;
+  --bs-btn-disabled-border-color: #fb923c;
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.12);
+}
+
+.console-orange-action-button--active {
+  --bs-btn-bg: #ea580c;
+  --bs-btn-border-color: #ea580c;
+}
+
 .console-selected-count {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -754,4 +781,77 @@ html, body {
   --bs-btn-active-color: #fff;
   --bs-btn-active-bg: #5C636A;
   --bs-btn-active-border-color: #545B62;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .btn,
+  .modal-keyword-card,
+  .console-filter-check {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn:focus,
+  .btn:active,
+  .btn:focus-visible,
+  .modal-keyword-card:focus,
+  .modal-keyword-card:active,
+  .modal-keyword-card:focus-visible {
+    box-shadow: none !important;
+    outline: 0 !important;
+  }
+
+  .btn-category:focus,
+  .btn-category:active {
+    background-color: #6D28D9 !important;
+    border-color: #6D28D9 !important;
+    color: #ffffff !important;
+  }
+
+  .btn-category-outline:focus,
+  .btn-category-outline:active {
+    background-color: transparent !important;
+    border-color: #6C757D !important;
+    color: #6C757D !important;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .people-track {
+    gap: 0.75rem;
+  }
+
+  .people-item {
+    width: clamp(148px, calc((100vw - 2.25rem) / 2), 320px);
+  }
+
+  .people-card .card-body {
+    padding: 0.75rem;
+  }
+
+  .people-card .card-title {
+    font-size: 1rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .people-card .card-text {
+    font-size: 0.875rem;
+  }
+
+  .people-desc {
+    max-height: 112px;
+  }
+
+  .people-keywords {
+    max-height: 135px;
+  }
+
+  .people-keywords .modal-keyword-card {
+    max-width: 100%;
+  }
+
+  .console-send-message-button {
+    font-size: 0.875rem;
+    min-height: 42px;
+  }
 }

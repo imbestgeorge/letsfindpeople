@@ -977,7 +977,7 @@ export default function Console({ currentUser }) {
 
           <button
             type="button"
-            className={`btn ${hasImportedMyKeywords ? "btn-category" : "btn-category-outline"} modal-keyword-card console-import-keywords-button`}
+            className={`btn console-orange-action-button modal-keyword-card console-import-keywords-button${hasImportedMyKeywords ? " console-orange-action-button--active" : ""}`}
             onClick={toggleMyKeywordsImport}
             disabled={myKeywordIds.length === 0}
           >
@@ -1135,11 +1135,11 @@ export default function Console({ currentUser }) {
       {!isSearching && !needsKeyword && searchResults !== null && searchResults.length > 0 && (
         <div className="container px-0 mt-4" ref={peopleContainerRef}>
           <h2>Showing {searchResults.length} {searchResults.length === 1 ? "person" : "people"}:</h2>
-          <div style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "thin", WebkitOverflowScrolling: "touch" }} className="mt-4 mb-4">
-            <div style={{ display: "flex", flexWrap: "nowrap", gap: "1rem", width: "max-content" }}>
+          <div className="people-scroll mt-4 mb-4">
+            <div className="people-track">
               {searchResults.map((person, index) => (
-                <div key={person.id ?? index} style={{ flex: "0 0 auto", width: "320px" }}>
-                  <div className="card">
+                <div key={person.id ?? index} className="people-item">
+                  <div className="card people-card">
                     <div className="card-body">
                       <div className="d-flex align-items-center gap-3 mb-3">
                         <span className="profile-avatar-wrap">
@@ -1160,7 +1160,7 @@ export default function Console({ currentUser }) {
                           </h4>
                         </div>
                       </div>
-                      <div className="card-text">
+                      <div className="card-text people-desc">
                         {(person.age != null || person.birthday) && (
                           <p className="mb-1"><i className="bi bi-cake2 me-2"></i>{person.age ?? getAge(person.birthday)} years old</p>
                         )}
@@ -1180,7 +1180,7 @@ export default function Console({ currentUser }) {
                           <p className="mb-1"><i className="bi bi-discord me-2"></i>@{person.contacts.discord.value}</p>
                         )}
                       </div>
-                      <div className="d-flex flex-wrap gap-2 mt-2" style={{ maxHeight: "165px", overflowY: "auto" }}>
+                      <div className="people-keywords d-flex flex-wrap gap-2 mt-2">
                         {[
                           ...(person.keywordIds || []).filter(id => searchedKeywords.includes(id)),
                           ...(person.keywordIds || []).filter(id => !searchedKeywords.includes(id)),
@@ -1201,7 +1201,7 @@ export default function Console({ currentUser }) {
                       <div className="d-flex gap-2 mt-3">
                         <button
                           type="button"
-                          className="btn btn-primary flex-fill py-2 console-send-message-button"
+                          className="btn console-orange-action-button flex-fill py-2 console-send-message-button"
                           onClick={() => startDirectChat(person)}
                           disabled={person.isCurrentUser}
                         >
