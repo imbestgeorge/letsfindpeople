@@ -197,6 +197,23 @@ function getRandomDiceValues() {
   return DEFAULT_DICE_VALUES.map(() => Math.floor(Math.random() * 6) + 1);
 }
 
+function getDiceResultTitle(status) {
+  if (!status?.rewardLabel) return "";
+
+  const sixCount = Number(status.sixCount || 0);
+  if (sixCount === 0) return status.rewardLabel;
+  if (sixCount === 1) return "Play Again";
+  if (sixCount >= 2 && sixCount <= 4) {
+    return `Congratulations! You Won ${status.rewardAmount} Free Searches.`;
+  }
+  if (sixCount === 5) return "Congratulations! You Won Pro Plan For One Month.";
+  if (sixCount === 6) {
+    return "Congratulations! You Won Crunchyroll Mega Fan Lifetime! An Admin Will Contact You Shortly.";
+  }
+
+  return status.rewardLabel;
+}
+
 function formatNotificationTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -1457,6 +1474,29 @@ function Navbar({ onProfileSave }) {
     }
   };
 
+  useEffect(() => {
+    if (!session?.user?.id || isAdmin) {
+      setDiceStatus(null);
+      setDiceDisplayValues(DEFAULT_DICE_VALUES);
+      return undefined;
+    }
+
+    let isMounted = true;
+    getMyDiceGameStatus()
+      .then((status) => {
+        if (!isMounted) return;
+        setDiceStatus(status);
+        setDiceDisplayValues(status.diceValues?.length ? status.diceValues : DEFAULT_DICE_VALUES);
+        applyDiceProfileReward(status);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, isAdmin]);
+
   const openChatAuthorInConsole = (message) => {
     if (!message?.userId) return;
     setShowChatModal(false);
@@ -2389,6 +2429,7 @@ function Navbar({ onProfileSave }) {
   const showDiceNav = !!session && !isAdminUser;
   const showChatNav = !!session && !isAdminUser;
   const showNotificationsNav = !!session && !isAdminUser;
+  const showDiceBadge = showDiceNav && !!diceStatus && (diceStatus.canPlay || diceStatus.canPlayAgain);
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
   const savedProfileIsPro = isProSubscriptionStatus(savedProfile.subscriptionStatus);
@@ -2496,12 +2537,18 @@ function Navbar({ onProfileSave }) {
                 <div className="nav-item">
                   <button
                     type="button"
-                    className="navbar-chat-button"
+                    className="navbar-chat-button position-relative"
                     onClick={openDiceModal}
                     title="Daily dice"
                     aria-label="Open daily dice game"
                   >
                     <i className="bi bi-dice-6"></i>
+                    {showDiceBadge && (
+                      <span className="navbar-notification-badge position-absolute badge rounded-pill bg-danger">
+                        1
+                        <span className="visually-hidden">available dice throw</span>
+                      </span>
+                    )}
                   </button>
                 </div>
               )}
@@ -2772,39 +2819,30 @@ function Navbar({ onProfileSave }) {
                         ))}
                       </div>
 
-                      {diceStatus?.rewardLabel && (
-                        <div className="text-center mt-3">
-                          <div className="fw-semibold">{diceStatus.rewardLabel}</div>
-                          <small className="text-muted">
-                            {diceStatus.canPlayAgain
-                              ? "You rolled one 6, so throw again."
-                              : diceStatus.alreadyPlayed
-                                ? "Come back tomorrow to play again."
-                                : "Reward applied."}
-                          </small>
+                      {getDiceResultTitle(diceStatus) && (
+                        <div className="text-center mt-3 daily-dice-result">
+                          <div className="fw-semibold">{getDiceResultTitle(diceStatus)}</div>
                         </div>
                       )}
 
-                      <div className="daily-dice-rewards mt-4">
-                        <div>1 six: play again</div>
-                        <div>2 sixes: 2 free searches</div>
-                        <div>3 sixes: 4 free searches</div>
-                        <div>4 sixes: 16 free searches</div>
-                        <div>5 sixes: Pro Plan for one month</div>
-                        <div>6 sixes: Crunchyroll Mega Fan Lifetime</div>
+                      <div className="daily-dice-rewards mt-4" aria-label="Daily dice rewards">
+                        <span>0 Six: No Reward</span>
+                        <span>1 Six: Play Again</span>
+                        <span>2 Sixes: 2 Free Searches</span>
+                        <span>3 Sixes: 4 Free Searches</span>
+                        <span>4 Sixes: 16 Free Searches</span>
+                        <span>5 Sixes: Pro Plan For One Month</span>
+                        <span>6 Sixes: Crunchyroll Mega Fan Lifetime</span>
                       </div>
                     </>
                   )}
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={closeDiceModal} disabled={diceRolling}>
-                    Close
-                  </button>
                   <button
                     type="button"
                     className="btn console-orange-action-button"
                     onClick={handlePlayDice}
-                    disabled={diceLoading || diceRolling || (!!diceStatus && !diceStatus.canPlay && !diceStatus.canPlayAgain)}
+                    disabled={diceLoading || diceRolling}
                   >
                     {diceRolling ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
