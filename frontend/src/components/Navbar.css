@@ -199,9 +199,13 @@
 }
 
 .analytics-viewers-list {
-  max-height: 9.6rem;
+  max-height: 16rem;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+.analytics-dialog {
+  max-width: min(560px, calc(100vw - 1rem));
 }
 
 .analytics-upgrade-overlay {
@@ -281,8 +285,11 @@
 }
 
 .global-chat-shell {
+  display: flex;
+  flex-direction: column;
   height: min(680px, calc(100vh - 2rem));
   min-height: 0;
+  overflow: hidden;
 }
 
 .global-chat-layout {
@@ -392,6 +399,8 @@
 }
 
 .global-chat-send-button {
+  font-size: 1rem;
+  font-weight: 400;
   min-height: 44px;
   min-width: 92px;
   padding-left: 1rem;
@@ -623,20 +632,22 @@
   }
 
   .global-chat-dialog {
-    height: calc(100vh - 1rem);
-    margin: 0.5rem;
+    height: auto;
+    margin: 0.5rem auto;
     max-height: none;
-    max-width: none;
-    width: auto;
+    max-width: min(500px, calc(100vw - 1rem));
+    width: calc(100vw - 1rem);
   }
 
   .global-chat-shell {
-    height: 100%;
-    max-height: none;
+    height: calc(55vh + 9.5rem);
+    max-height: calc(100vh - 1rem);
   }
 
   .global-chat-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: 170px minmax(0, 1fr);
+    overflow: hidden;
   }
 
   .global-chat-sidebar {
@@ -656,6 +667,15 @@
 
   .global-chat-messages {
     min-height: 0;
+  }
+
+  .global-chat-main {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .global-chat-main .modal-footer {
+    flex: 0 0 auto;
   }
 
   .navbar-login-dropdown {

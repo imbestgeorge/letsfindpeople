@@ -2586,7 +2586,7 @@ function Navbar({ onProfileSave }) {
       {showChatModal && (
         <>
           <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="globalChatTitle">
-            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable global-chat-dialog">
+            <div className="modal-dialog modal-dialog-centered global-chat-dialog">
               <div className="modal-content global-chat-shell">
                 <div className="modal-header">
                   <div className="min-w-0">
@@ -2913,13 +2913,13 @@ function Navbar({ onProfileSave }) {
       {showAnalyticsModal && (
         <>
           <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="analyticsTitle">
-            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable analytics-dialog">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title" id="analyticsTitle">Analytics</h5>
                   <button type="button" className="btn-close" onClick={() => setShowAnalyticsModal(false)} aria-label="Close"></button>
                 </div>
-                <div className="modal-body">
+                <div className="modal-body analytics-body">
                   {analyticsLoading ? (
                     <div className="d-flex justify-content-center align-items-center py-5">
                       <div className="spinner-border spinner-primary" role="status">

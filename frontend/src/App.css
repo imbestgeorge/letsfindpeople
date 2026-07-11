@@ -631,6 +631,26 @@ html, body {
   width: 100%;
 }
 
+.console-import-keywords-button {
+  border-radius: 14px;
+  min-height: 50px;
+  white-space: normal;
+  width: 100%;
+}
+
+.console-import-keywords-button > div {
+  min-width: 0;
+}
+
+.console-import-keywords-button span {
+  overflow-wrap: anywhere;
+}
+
+.console-send-message-button {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
 .console-selected-count {
   flex: 0 0 auto;
   white-space: nowrap;

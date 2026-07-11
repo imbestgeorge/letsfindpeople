@@ -18,7 +18,8 @@ import {
   subscribeToSiteNotifications,
 } from "../lib/notificationService";
 
-const MAX_SEARCH_KEYWORDS = 12;
+const FREE_SEARCH_KEYWORD_LIMIT = 12;
+const PRO_SEARCH_KEYWORD_LIMIT = 120;
 const DESKTOP_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_KEYWORD_RESULT_LIMIT = 25;
 const MIN_SEARCH_AGE = 16;
@@ -263,6 +264,9 @@ export default function Console({ currentUser }) {
     isAdmin ||
     currentUser?.subscriptionStatus === "active" ||
     currentUser?.subscriptionStatus === "canceling";
+  const maxSearchKeywords = hasUnlimitedSearches
+    ? PRO_SEARCH_KEYWORD_LIMIT
+    : FREE_SEARCH_KEYWORD_LIMIT;
   const hasFreeSearchesRemaining = freeSearchesRemaining > 0;
   const isLoggedIn = !!session?.user;
   const shouldOfferDrawEvent =
@@ -325,7 +329,7 @@ export default function Console({ currentUser }) {
     !isAdmin &&
     (!!searchSetupMessage || !hasUnlimitedSearches || userCount >= 10000);
   const isSearchBlocked = !isLoggedIn || !isProfileComplete;
-  const hasTooManyKeywords = selectedKeywords.length > MAX_SEARCH_KEYWORDS;
+  const hasTooManyKeywords = selectedKeywords.length > maxSearchKeywords;
   const isSearchDisabled =
     isSearchBlocked ||
     isSearching ||
@@ -558,6 +562,20 @@ export default function Console({ currentUser }) {
     };
   }, [currentUser, nameToIdMap]);
 
+  const myKeywordIds = useMemo(() => {
+    const ids = Array.isArray(currentUserFormatted?.keywordIds)
+      ? currentUserFormatted.keywordIds
+      : [];
+
+    return [...new Set(ids
+      .map(Number)
+      .filter((id) => Number.isInteger(id) && id > 0))];
+  }, [currentUserFormatted?.keywordIds]);
+
+  const hasImportedMyKeywords =
+    myKeywordIds.length > 0 &&
+    myKeywordIds.every((id) => selectedKeywords.includes(id));
+
   // Run search: call backend with selected keyword IDs, then rank by overlap
   const runSearch = async () => {
     if (focusedUserId) {
@@ -585,8 +603,8 @@ export default function Console({ currentUser }) {
       return;
     }
 
-    if (selectedKeywords.length > MAX_SEARCH_KEYWORDS) {
-      setSearchError(`Select up to ${MAX_SEARCH_KEYWORDS} keywords to search.`);
+    if (selectedKeywords.length > maxSearchKeywords) {
+      setSearchError(`Select up to ${maxSearchKeywords} keywords to search.`);
       return;
     }
 
@@ -731,6 +749,21 @@ export default function Console({ currentUser }) {
     setSelectedKeywords((prev) =>
       prev.includes(id) ? prev.filter((k) => k !== id) : [...prev, id]
     );
+  };
+
+  const toggleMyKeywordsImport = () => {
+    if (myKeywordIds.length === 0) return;
+
+    setSelectedKeywords((prev) => {
+      const myKeywordSet = new Set(myKeywordIds);
+      const alreadyImported = myKeywordIds.every((id) => prev.includes(id));
+
+      if (alreadyImported) {
+        return prev.filter((id) => !myKeywordSet.has(Number(id)));
+      }
+
+      return [...new Set([...prev, ...myKeywordIds])];
+    });
   };
 
   const toggleSexFilter = (sex) => {
@@ -941,6 +974,18 @@ export default function Console({ currentUser }) {
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            className={`btn ${hasImportedMyKeywords ? "btn-category" : "btn-category-outline"} modal-keyword-card console-import-keywords-button`}
+            onClick={toggleMyKeywordsImport}
+            disabled={myKeywordIds.length === 0}
+          >
+            <div className="d-flex align-items-center gap-2">
+              <span>Import My Keywords</span>
+              <i className={`bi bi-${hasImportedMyKeywords ? "dash" : "plus"}-square`}></i>
+            </div>
+          </button>
         </aside>
       </div>
 
@@ -1017,7 +1062,26 @@ export default function Console({ currentUser }) {
         <div className="container px-0">
           <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
-              <p className="card-text text-muted m-0">Select up to {MAX_SEARCH_KEYWORDS} keywords to search.</p>
+              <p className="card-text text-muted m-0">
+                {hasUnlimitedSearches ? (
+                  <>Select up to {PRO_SEARCH_KEYWORD_LIMIT} keywords to search.</>
+                ) : (
+                  <>
+                    Select up to {FREE_SEARCH_KEYWORD_LIMIT} keywords to search, or upgrade to the{" "}
+                    <a
+                      href="https://letsfindpeople.com/#"
+                      className="console-get-more-link"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        openPricingDropdown();
+                      }}
+                    >
+                      Pro Plan
+                    </a>{" "}
+                    to select up to {PRO_SEARCH_KEYWORD_LIMIT} keywords.
+                  </>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -1137,7 +1201,7 @@ export default function Console({ currentUser }) {
                       <div className="d-flex gap-2 mt-3">
                         <button
                           type="button"
-                          className="btn btn-primary flex-fill py-2 fw-semibold"
+                          className="btn btn-primary flex-fill py-2 console-send-message-button"
                           onClick={() => startDirectChat(person)}
                           disabled={person.isCurrentUser}
                         >
