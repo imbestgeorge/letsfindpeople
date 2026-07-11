@@ -153,6 +153,7 @@ function mapPublicUser(u) {
       discord:   { value: u.discord       || "", show: u.show_discord },
     },
     profilePicture: u.profile_url || null,
+    subscriptionStatus: u.subscription_status || "free",
     lastSeenAt:     u.last_seen_at || null,
     isOnline:       !!u.is_online,
     keywordIds:     u.all_keyword_ids || [],

@@ -129,6 +129,10 @@ function getBasicPlanPrice(location) {
   return "$2.99";
 }
 
+function isProSubscriptionStatus(status) {
+  return status === "active" || status === "canceling";
+}
+
 async function getFunctionErrorMessage(error, data, fallback) {
   if (data?.error) return data.error;
 
@@ -167,6 +171,11 @@ function formatChatTimestamp(value) {
 function getChatAuthorName(message) {
   const name = `${message.author?.firstName || ""} ${message.author?.lastName || ""}`.trim();
   return name || message.author?.email || "Member";
+}
+
+function getChatAuthorDisplayName(message) {
+  const name = getChatAuthorName(message);
+  return isProSubscriptionStatus(message.author?.subscriptionStatus) ? `${name} (Pro)` : name;
 }
 
 function formatNotificationTimestamp(value) {
@@ -1269,7 +1278,7 @@ function Navbar({ onProfileSave }) {
 
     await loadGlobalChatMessages({ silent, channelKey: activeGlobalChannelKey });
     await markGlobalChatMessagesRead(activeGlobalChannelKey).catch(() => {});
-  }, [activeDirectChat, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
+  }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
 
   const loadUnreadChatMessageCount = useCallback(async () => {
     if (!session?.user?.id) {
@@ -1333,6 +1342,7 @@ function Navbar({ onProfileSave }) {
       name: displayName,
       email: profile?.email || "",
       profilePicture: profile?.profilePicture || profile?.profileImagePreview || profile?.profileUrl || null,
+      subscriptionStatus: profile?.subscriptionStatus || "free",
       isOnline: !!profile?.isOnline,
       totalMessages: 0,
       hasConnectionStreak: false,
@@ -1340,6 +1350,7 @@ function Navbar({ onProfileSave }) {
     setChatMode("direct");
     setShowChatModal(true);
     setChatDraft("");
+    setChatLoading(true);
     setChatError("");
     setChatNotice("");
 
@@ -2266,6 +2277,7 @@ function Navbar({ onProfileSave }) {
   const showNotificationsNav = !!session && (showAllNavbarOptions || !isAdminUser);
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
+  const savedProfileIsPro = isProSubscriptionStatus(savedProfile.subscriptionStatus);
   const hasProAnalyticsAccess =
     isAdminUser ||
     savedProfile.subscriptionStatus === "active" ||
@@ -2527,11 +2539,13 @@ function Navbar({ onProfileSave }) {
               {session && (
                 <div className="dropdown">
                   <a className="nav-link dropdown-toggle profile-dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <img
-                      src={savedProfile.profileImagePreview || defaultProfile}
-                      alt="Profile"
-                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "2px solid #dee2e6" }}
-                    />
+                    <span className={`profile-avatar-wrap navbar-profile-avatar-wrap${savedProfileIsPro ? " profile-avatar-wrap--pro" : ""}`}>
+                      <img
+                        src={savedProfile.profileImagePreview || defaultProfile}
+                        alt="Profile"
+                        className="navbar-profile-avatar"
+                      />
+                    </span>
                     <span className="profile-dropdown-name">
                       {savedProfile.firstName || savedProfile.lastName
                         ? `${savedProfile.firstName} ${savedProfile.lastName}`.trim()
@@ -2626,6 +2640,7 @@ function Navbar({ onProfileSave }) {
                 <div className="global-chat-layout">
                   <aside className="global-chat-sidebar">
                     <div className="global-chat-sidebar-section global-chat-sidebar-section--global">
+                      <div className="global-chat-sidebar-label">Global</div>
                       {chatChannels.map((channel) => {
                         const unreadCount = Number(globalChatUnreadCounts[channel.key] || 0);
                         return (
@@ -2649,36 +2664,42 @@ function Navbar({ onProfileSave }) {
                     </div>
 
                     <div className="global-chat-sidebar-section global-chat-sidebar-section--direct">
+                      <div className="global-chat-sidebar-label">Direct DM</div>
                       {directChatMenuItems.length === 0 ? (
                         <small className="global-chat-empty-direct text-muted">No direct chats yet</small>
                       ) : (
-                        directChatMenuItems.map((chat) => (
-                          <button
-                            key={chat.otherUserId}
-                            type="button"
-                            className={`global-chat-room-button${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
-                            onClick={() => {
-                              setActiveDirectChat(chat);
-                              setChatMode("direct");
-                              setChatDraft("");
-                              setChatNotice("");
-                            }}
-                          >
-                            <span className="profile-avatar-wrap global-chat-sidebar-avatar">
-                              <img src={chat.profilePicture || defaultProfile} alt="" />
-                              <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
-                            </span>
-                            <span className="min-w-0">
-                              <span className="d-block text-truncate">{chat.name}</span>
-                              {chat.lastBody && (
-                                <small className="d-block text-truncate">{chat.lastBody}</small>
+                        directChatMenuItems.map((chat) => {
+                          const isChatUserPro = isProSubscriptionStatus(chat.subscriptionStatus);
+
+                          return (
+                            <button
+                              key={chat.otherUserId}
+                              type="button"
+                              className={`global-chat-room-button${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
+                              onClick={() => {
+                                setActiveDirectChat(chat);
+                                setChatMode("direct");
+                                setChatDraft("");
+                                setChatLoading(true);
+                                setChatNotice("");
+                              }}
+                            >
+                              <span className={`profile-avatar-wrap global-chat-sidebar-avatar${isChatUserPro ? " profile-avatar-wrap--pro" : ""}`}>
+                                <img src={chat.profilePicture || defaultProfile} alt="" />
+                                <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
+                              </span>
+                              <span className="min-w-0">
+                                <span className={`d-block text-truncate${isChatUserPro ? " pro-name-effect" : ""}`}>{chat.name}</span>
+                                {chat.lastBody && (
+                                  <small className="d-block text-truncate">{chat.lastBody}</small>
+                                )}
+                              </span>
+                              {chat.unreadCount > 0 && (
+                                <span className="badge rounded-pill bg-danger ms-auto">{getChatMenuBadgeLabel(chat.unreadCount)}</span>
                               )}
-                            </span>
-                            {chat.unreadCount > 0 && (
-                              <span className="badge rounded-pill bg-danger ms-auto">{getChatMenuBadgeLabel(chat.unreadCount)}</span>
-                            )}
-                          </button>
-                        ))
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   </aside>
@@ -2724,6 +2745,7 @@ function Navbar({ onProfileSave }) {
                         <div className="global-chat-message-list">
                           {chatMessages.map((message, index) => {
                             const isOwnMessage = message.userId === savedProfile?.id || message.author?.email === session?.user?.email;
+                            const isAuthorPro = isProSubscriptionStatus(message.author?.subscriptionStatus);
                             const previousMessage = chatMessages[index - 1];
                             const previousIsOwnMessage = previousMessage && (
                               previousMessage.userId === savedProfile?.id ||
@@ -2754,12 +2776,12 @@ function Navbar({ onProfileSave }) {
                                       type="button"
                                       className="btn p-0 border-0 bg-transparent flex-shrink-0 global-chat-avatar-button"
                                       onClick={() => openChatAuthorInConsole(message)}
-                                      aria-label={`Open ${getChatAuthorName(message)} profile`}
+                                      aria-label={`Open ${getChatAuthorDisplayName(message)} profile`}
                                     >
-                                      <span className="profile-avatar-wrap global-chat-avatar-wrap">
+                                      <span className={`profile-avatar-wrap global-chat-avatar-wrap${isAuthorPro ? " profile-avatar-wrap--pro" : ""}`}>
                                         <img
                                           src={message.author?.profileUrl || defaultProfile}
-                                          alt={getChatAuthorName(message)}
+                                          alt={getChatAuthorDisplayName(message)}
                                           width="28"
                                           height="28"
                                           className="rounded-circle global-chat-avatar"
@@ -2770,10 +2792,10 @@ function Navbar({ onProfileSave }) {
                                     <div className="w-75 d-flex flex-column align-items-start">
                                       <button
                                         type="button"
-                                        className="global-chat-author-button mb-1"
+                                        className={`global-chat-author-button mb-1${isAuthorPro ? " pro-name-effect" : ""}`}
                                         onClick={() => openChatAuthorInConsole(message)}
                                       >
-                                        {getChatAuthorName(message)}
+                                        {getChatAuthorDisplayName(message)}
                                       </button>
                                       <div className="rounded-3 p-2 text-break bg-white border">
                                         {message.body}

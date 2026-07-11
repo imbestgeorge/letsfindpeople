@@ -109,6 +109,20 @@ const getAge = (birthday) => {
   return age;
 };
 
+function isProSubscriptionStatus(status) {
+  return status === "active" || status === "canceling";
+}
+
+function getKeywordDisplayLimit(baseLimit, selectedCount) {
+  let limit = baseLimit;
+
+  while (limit - selectedCount < 10) {
+    limit += 10;
+  }
+
+  return limit;
+}
+
 function normalizeCountryName(name) {
   return String(name || "")
     .normalize("NFD")
@@ -339,6 +353,7 @@ export default function Console({ currentUser }) {
   const keywordResultLimit = isMobileView
     ? MOBILE_KEYWORD_RESULT_LIMIT
     : DESKTOP_KEYWORD_RESULT_LIMIT;
+  const visibleKeywordResultLimit = getKeywordDisplayLimit(keywordResultLimit, selectedKeywords.length);
 
   useEffect(() => {
     if (!focusedUserId) return undefined;
@@ -557,6 +572,7 @@ export default function Console({ currentUser }) {
         discord:   { value: currentUser.discordUsername,   show: currentUser.showDiscord },
       },
       profilePicture: currentUser.profileImagePreview,
+      subscriptionStatus: currentUser.subscriptionStatus || "free",
       isOnline: true,
       keywordIds,
     };
@@ -822,9 +838,9 @@ export default function Console({ currentUser }) {
           ({selectedKeywords.length} selected)
         </small>
         <small className="console-results-count text-muted">
-          {deferredFilteredKeywords.length > keywordResultLimit ? (
+          {deferredFilteredKeywords.length > visibleKeywordResultLimit ? (
             <>
-              Showing {keywordResultLimit} out of {deferredFilteredKeywords.length.toLocaleString()} keywords.
+              Showing {Math.min(visibleKeywordResultLimit, deferredFilteredKeywords.length)} out of {deferredFilteredKeywords.length.toLocaleString()} keywords.
               <span className="console-results-hint"> Use the search bar to find more.</span>
             </>
           ) : (
@@ -848,7 +864,7 @@ export default function Console({ currentUser }) {
                 {(() => {
                   const selected = deferredFilteredKeywords.filter((item) => selectedKeywords.includes(item.id));
                   const unselected = deferredFilteredKeywords.filter((item) => !selectedKeywords.includes(item.id));
-                  const visibleUnselected = unselected.slice(0, Math.max(0, keywordResultLimit - selected.length));
+                  const visibleUnselected = unselected.slice(0, Math.max(0, visibleKeywordResultLimit - selected.length));
                   return (
                     <>
                       {selected.map((item) => (
@@ -977,7 +993,7 @@ export default function Console({ currentUser }) {
 
           <button
             type="button"
-            className={`btn console-orange-action-button modal-keyword-card console-import-keywords-button${hasImportedMyKeywords ? " console-orange-action-button--active" : ""}`}
+            className={`btn ${hasImportedMyKeywords ? "console-orange-action-button console-orange-action-button--active" : "btn-category-outline"} modal-keyword-card console-import-keywords-button`}
             onClick={toggleMyKeywordsImport}
             disabled={myKeywordIds.length === 0}
           >
@@ -1142,23 +1158,32 @@ export default function Console({ currentUser }) {
                   <div className="card people-card">
                     <div className="card-body">
                       <div className="d-flex align-items-center gap-3 mb-3">
-                        <span className="profile-avatar-wrap">
-                          <img
-                            src={person.profilePicture || defaultProfile}
-                            alt={person.name}
-                            style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", objectPosition: "center", border: "2px solid #dee2e6", flexShrink: 0 }}
-                          />
-                          <span
-                            className={`profile-presence-dot ${person.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}
-                            title={person.isOnline ? "Online" : "Offline"}
-                            aria-label={person.isOnline ? "Online" : "Offline"}
-                          ></span>
-                        </span>
-                        <div className="text-start min-w-0">
-                          <h4 className="card-title mb-0 text-start">
-                            {person.name}{person.isCurrentUser ? " (Me)" : ""}
-                          </h4>
-                        </div>
+                        {(() => {
+                          const isPersonPro = isProSubscriptionStatus(person.subscriptionStatus);
+                          const personLabel = `${person.name}${person.isCurrentUser ? " (Me)" : isPersonPro ? " (Pro)" : ""}`;
+
+                          return (
+                            <>
+                              <span className={`profile-avatar-wrap${isPersonPro ? " profile-avatar-wrap--pro" : ""}`}>
+                                <img
+                                  src={person.profilePicture || defaultProfile}
+                                  alt={person.name}
+                                  style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", objectPosition: "center", border: "2px solid #dee2e6", flexShrink: 0 }}
+                                />
+                                <span
+                                  className={`profile-presence-dot ${person.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}
+                                  title={person.isOnline ? "Online" : "Offline"}
+                                  aria-label={person.isOnline ? "Online" : "Offline"}
+                                ></span>
+                              </span>
+                              <div className="text-start min-w-0">
+                                <h4 className="card-title mb-0 text-start">
+                                  <span className={isPersonPro ? "pro-name-effect" : ""}>{personLabel}</span>
+                                </h4>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="card-text people-desc">
                         {(person.age != null || person.birthday) && (

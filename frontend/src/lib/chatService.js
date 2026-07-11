@@ -32,6 +32,7 @@ function mapChatMessage(row) {
       lastName: row.last_name || "",
       email: row.email || "",
       profileUrl: row.profile_url || null,
+      subscriptionStatus: row.subscription_status || "free",
       isOnline: !!row.is_online,
     },
   };
@@ -50,6 +51,7 @@ function mapDirectMessage(row) {
       lastName: row.last_name || "",
       email: row.email || "",
       profileUrl: row.profile_url || null,
+      subscriptionStatus: row.subscription_status || "free",
       isOnline: !!row.is_online,
     },
   };
@@ -64,6 +66,7 @@ function mapDirectChat(row) {
     name: name || row.email || "Member",
     email: row.email || "",
     profilePicture: row.profile_url || null,
+    subscriptionStatus: row.subscription_status || "free",
     lastSeenAt: row.last_seen_at || null,
     isOnline: !!row.is_online,
     lastBody: row.last_body || "",
