@@ -49,6 +49,15 @@ const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
+const DEFAULT_DICE_VALUES = [1, 2, 3, 4, 5, 6];
+const DICE_PIPS = {
+  1: ["center"],
+  2: ["top-left", "bottom-right"],
+  3: ["top-left", "center", "bottom-right"],
+  4: ["top-left", "top-right", "bottom-left", "bottom-right"],
+  5: ["top-left", "top-right", "center", "bottom-left", "bottom-right"],
+  6: ["top-left", "top-right", "middle-left", "middle-right", "bottom-left", "bottom-right"],
+};
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -182,6 +191,10 @@ function formatDirectChatPreview(value) {
   const text = String(value || "").trim();
   if (!text) return "";
   return text.length > 13 ? `${text.slice(0, 13)}...` : text;
+}
+
+function getRandomDiceValues() {
+  return DEFAULT_DICE_VALUES.map(() => Math.floor(Math.random() * 6) + 1);
 }
 
 function formatNotificationTimestamp(value) {
@@ -345,6 +358,8 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownMenuRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
   const unreadChatRequestIdRef = useRef(0);
+  const diceRollIntervalRef = useRef(null);
+  const diceCelebrationTimeoutRef = useRef(null);
   const inviteAuthOpenedRef = useRef("");
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
@@ -608,6 +623,8 @@ function Navbar({ onProfileSave }) {
   const [diceLoading, setDiceLoading] = useState(false);
   const [diceRolling, setDiceRolling] = useState(false);
   const [diceError, setDiceError] = useState("");
+  const [diceDisplayValues, setDiceDisplayValues] = useState(DEFAULT_DICE_VALUES);
+  const [diceCelebrating, setDiceCelebrating] = useState(false);
   const [unreadChatMessages, setUnreadChatMessages] = useState(0);
   const [globalChatUnreadCounts, setGlobalChatUnreadCounts] = useState({});
   const [notifications, setNotifications] = useState([]);
@@ -717,6 +734,15 @@ function Navbar({ onProfileSave }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [isModalOpen]);
+
+  useEffect(() => () => {
+    if (diceRollIntervalRef.current) {
+      window.clearInterval(diceRollIntervalRef.current);
+    }
+    if (diceCelebrationTimeoutRef.current) {
+      window.clearTimeout(diceCelebrationTimeoutRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     const dropdown = loginDropdownRef.current;
@@ -1365,9 +1391,11 @@ function Navbar({ onProfileSave }) {
     setShowDiceModal(true);
     setDiceError("");
     setDiceLoading(true);
+    setDiceCelebrating(false);
     try {
       const status = await getMyDiceGameStatus();
       setDiceStatus(status);
+      setDiceDisplayValues(status.diceValues?.length ? status.diceValues : DEFAULT_DICE_VALUES);
       applyDiceProfileReward(status);
     } catch (err) {
       setDiceError(err.message || "Failed to load dice game.");
@@ -1378,19 +1406,51 @@ function Navbar({ onProfileSave }) {
 
   const closeDiceModal = () => {
     if (diceRolling) return;
+    if (diceCelebrationTimeoutRef.current) {
+      window.clearTimeout(diceCelebrationTimeoutRef.current);
+      diceCelebrationTimeoutRef.current = null;
+    }
     setShowDiceModal(false);
     setDiceError("");
+    setDiceCelebrating(false);
   };
 
   const handlePlayDice = async () => {
     if (diceRolling) return;
     setDiceRolling(true);
     setDiceError("");
+    setDiceCelebrating(false);
+    setDiceDisplayValues(getRandomDiceValues());
+    if (diceRollIntervalRef.current) window.clearInterval(diceRollIntervalRef.current);
+    diceRollIntervalRef.current = window.setInterval(() => {
+      setDiceDisplayValues(getRandomDiceValues());
+    }, 90);
+    const startedAt = Date.now();
+
     try {
       const status = await playDailyDiceGame();
+      const remainingRollMs = Math.max(0, 850 - (Date.now() - startedAt));
+      if (remainingRollMs > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, remainingRollMs));
+      }
+      if (diceRollIntervalRef.current) {
+        window.clearInterval(diceRollIntervalRef.current);
+        diceRollIntervalRef.current = null;
+      }
       setDiceStatus(status);
+      setDiceDisplayValues(status.diceValues?.length ? status.diceValues : DEFAULT_DICE_VALUES);
       applyDiceProfileReward(status);
+      setDiceCelebrating(true);
+      if (diceCelebrationTimeoutRef.current) window.clearTimeout(diceCelebrationTimeoutRef.current);
+      diceCelebrationTimeoutRef.current = window.setTimeout(() => {
+        setDiceCelebrating(false);
+        diceCelebrationTimeoutRef.current = null;
+      }, 1200);
     } catch (err) {
+      if (diceRollIntervalRef.current) {
+        window.clearInterval(diceRollIntervalRef.current);
+        diceRollIntervalRef.current = null;
+      }
       setDiceError(err.message || "Failed to throw dice.");
     } finally {
       setDiceRolling(false);
@@ -2695,13 +2755,19 @@ function Navbar({ onProfileSave }) {
                     </div>
                   ) : (
                     <>
-                      <div className="daily-dice-board">
-                        {(diceStatus?.diceValues?.length ? diceStatus.diceValues : [1, 2, 3, 4, 5, 6]).map((value, index) => (
+                      <div className={`daily-dice-board${diceCelebrating ? " daily-dice-board--celebrate" : ""}`}>
+                        {(diceDisplayValues?.length ? diceDisplayValues : DEFAULT_DICE_VALUES).map((value, index) => (
                           <div
                             key={`${value}-${index}`}
                             className={`daily-dice-die${diceRolling ? " daily-dice-die--rolling" : ""}${value === 6 ? " daily-dice-die--six" : ""}`}
+                            style={{ "--dice-index": index }}
+                            aria-label={`Dice ${index + 1}: ${value}`}
                           >
-                            {value}
+                            <span className="daily-dice-face" aria-hidden="true">
+                              {(DICE_PIPS[value] || DICE_PIPS[1]).map((position) => (
+                                <span key={position} className={`daily-dice-pip daily-dice-pip--${position}`}></span>
+                              ))}
+                            </span>
                           </div>
                         ))}
                       </div>

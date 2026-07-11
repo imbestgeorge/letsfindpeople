@@ -57,6 +57,11 @@ enable_confirmations = false
 #   EMAIL_LOGO_URL=https://letsfindpeople.com/logo.png
 #   DRAW_EVENT_EMAIL_MAX_RECIPIENTS=5000
 #   BULK_EMAIL_MAX_RECIPIENTS=5000
+#   NUDGE_CRON_SECRET=<long random secret for scheduled daily nudge calls>
+#   NUDGE_EMAIL_MAX_RECIPIENTS=5000
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+[functions.send-nudge-notifications]
 verify_jwt = false

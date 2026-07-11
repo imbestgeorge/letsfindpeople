@@ -213,3 +213,25 @@ export function buildAdminBulkEmail({
     ctaUrl,
   });
 }
+
+export function buildNudgeEmail({
+  subject,
+  body,
+  ctaLabel,
+  ctaUrl,
+}: {
+  subject: string;
+  body: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+}): EmailTemplate {
+  const safeSubject = String(subject || "New people to meet on LetsFindPeople").trim();
+
+  return buildLayout({
+    subject: safeSubject,
+    heading: "",
+    body: String(body || ""),
+    ctaLabel,
+    ctaUrl,
+  });
+}

@@ -528,32 +528,102 @@
 
 .daily-dice-board {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.8rem;
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  perspective: 720px;
 }
 
 .daily-dice-die {
   align-items: center;
   aspect-ratio: 1;
-  background: #ffffff;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  color: #111827;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 30%),
+    linear-gradient(145deg, #ffffff 0%, #f8fafc 52%, #dbe2ea 100%);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 -8px 16px rgba(15, 23, 42, 0.12),
+    inset 0 6px 12px rgba(255, 255, 255, 0.9),
+    0 10px 20px rgba(15, 23, 42, 0.14);
   display: flex;
-  font-size: 1.3rem;
-  font-weight: 700;
   justify-content: center;
-  line-height: 1;
   min-width: 0;
+  padding: 18%;
+  position: relative;
+  transform-style: preserve-3d;
 }
 
 .daily-dice-die--six {
-  border-color: #f97316;
-  color: #6D28D9;
+  border-color: rgba(249, 115, 22, 0.8);
+  box-shadow:
+    inset 0 -8px 16px rgba(109, 40, 217, 0.13),
+    inset 0 6px 12px rgba(255, 255, 255, 0.95),
+    0 0 0 2px rgba(249, 115, 22, 0.18),
+    0 14px 28px rgba(109, 40, 217, 0.18);
 }
 
 .daily-dice-die--rolling {
-  animation: daily-dice-roll 0.55s ease-in-out infinite alternate;
+  animation: daily-dice-tumble 0.36s cubic-bezier(0.2, 0.82, 0.28, 1) infinite;
+  animation-delay: calc(var(--dice-index, 0) * -0.045s);
+}
+
+.daily-dice-board--celebrate .daily-dice-die {
+  animation: daily-dice-land 0.62s cubic-bezier(0.2, 0.9, 0.24, 1.18) both;
+  animation-delay: calc(var(--dice-index, 0) * 0.055s);
+}
+
+.daily-dice-face {
+  display: grid;
+  grid-template-areas:
+    "top-left top-center top-right"
+    "middle-left center middle-right"
+    "bottom-left bottom-center bottom-right";
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  height: 100%;
+  width: 100%;
+}
+
+.daily-dice-pip {
+  align-self: center;
+  background:
+    radial-gradient(circle at 35% 30%, #4c1d95, #1f2937 72%);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.16),
+    0 1px 1px rgba(255, 255, 255, 0.7);
+  display: block;
+  height: 72%;
+  justify-self: center;
+  width: 72%;
+}
+
+.daily-dice-die--six .daily-dice-pip {
+  background:
+    radial-gradient(circle at 35% 30%, #fb923c, #6D28D9 78%);
+}
+
+.daily-dice-pip--top-left { grid-area: top-left; }
+.daily-dice-pip--top-right { grid-area: top-right; }
+.daily-dice-pip--middle-left { grid-area: middle-left; }
+.daily-dice-pip--middle-right { grid-area: middle-right; }
+.daily-dice-pip--center { grid-area: center; }
+.daily-dice-pip--bottom-left { grid-area: bottom-left; }
+.daily-dice-pip--bottom-right { grid-area: bottom-right; }
+
+.daily-dice-pip--top-center { grid-area: top-center; }
+.daily-dice-pip--bottom-center { grid-area: bottom-center; }
+
+.daily-dice-pip--top-left,
+.daily-dice-pip--middle-left,
+.daily-dice-pip--bottom-left {
+  justify-self: start;
+}
+
+.daily-dice-pip--top-right,
+.daily-dice-pip--middle-right,
+.daily-dice-pip--bottom-right {
+  justify-self: end;
 }
 
 .daily-dice-rewards {
@@ -563,13 +633,31 @@
   gap: 0.35rem;
 }
 
-@keyframes daily-dice-roll {
-  from {
-    transform: translateY(0) rotate(0deg);
+@keyframes daily-dice-tumble {
+  0% {
+    transform: translateY(0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
   }
 
-  to {
-    transform: translateY(-3px) rotate(6deg);
+  45% {
+    transform: translateY(-9px) rotateX(105deg) rotateY(64deg) rotateZ(18deg) scale(1.04);
+  }
+
+  100% {
+    transform: translateY(2px) rotateX(214deg) rotateY(152deg) rotateZ(-12deg) scale(0.98);
+  }
+}
+
+@keyframes daily-dice-land {
+  0% {
+    transform: translateY(-16px) rotateX(52deg) rotateY(-34deg) scale(0.92);
+  }
+
+  58% {
+    transform: translateY(3px) rotateX(0deg) rotateY(0deg) scale(1.06);
+  }
+
+  100% {
+    transform: translateY(0) rotateX(0deg) rotateY(0deg) scale(1);
   }
 }
 
