@@ -401,7 +401,7 @@ begin
 
   insert into public.direct_chat_reads (id_direct_conversation, id_user, last_read_at)
   values (v_conversation_id, v_user_id, now())
-  on conflict (id_direct_conversation, id_user)
+  on conflict on constraint direct_chat_reads_pkey
   do update set last_read_at = excluded.last_read_at;
 
   perform public.touch_my_presence();

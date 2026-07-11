@@ -2,12 +2,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { ensureUser } from "../lib/userService";
-import { isShowAllNavbarLocalEnabled, LOCAL_DEV_USER_ID } from "../lib/devFlags";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const showAllNavbarOptions = isShowAllNavbarLocalEnabled();
   const [session, setSession] = useState(undefined); // undefined = loading
   const [isAdmin, setIsAdmin] = useState(false);
   const [authBlockReason, setAuthBlockReason] = useState(null);
@@ -50,48 +48,6 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    if (showAllNavbarOptions) {
-      let isMounted = true;
-
-      supabase
-        .from("users")
-        .select("id_user, supabase_uid, email")
-        .eq("id_user", LOCAL_DEV_USER_ID)
-        .maybeSingle()
-        .then(({ data: user, error }) => {
-          if (!isMounted) return;
-          if (error || !user?.supabase_uid) {
-            console.error(error || new Error(`Local dev user ${LOCAL_DEV_USER_ID} not found.`));
-            setSession(null);
-            setIsAdmin(false);
-            setIsRoleLoading(false);
-            return;
-          }
-
-          setAuthBlockReason(null);
-          setIsAdmin(false);
-          setIsRoleLoading(false);
-          setSession({
-            access_token: "local-dev-session",
-            token_type: "bearer",
-            user: {
-              id: user.supabase_uid,
-              email: user.email || `local-user-${LOCAL_DEV_USER_ID}@letsfindpeople.local`,
-              aud: "authenticated",
-              role: "authenticated",
-              app_metadata: {},
-              user_metadata: {
-                localDevUserId: user.id_user,
-              },
-            },
-          });
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }
-
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session ?? null);
       if (session?.user) {
@@ -173,10 +129,10 @@ export function AuthProvider({ children }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [showAllNavbarOptions]);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ session, isLoading: session === undefined || isRoleLoading, isRoleLoading, isAdmin, authBlockReason, showAllNavbarOptions }}>
+    <AuthContext.Provider value={{ session, isLoading: session === undefined || isRoleLoading, isRoleLoading, isAdmin, authBlockReason }}>
       {children}
     </AuthContext.Provider>
   );

@@ -142,7 +142,7 @@ function SiteVisitTracker() {
 }
 
 function AuthRedirectHandler() {
-  const { session, isLoading, isAdmin, authBlockReason, showAllNavbarOptions } = useAuth();
+  const { session, isLoading, isAdmin, authBlockReason } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -164,16 +164,15 @@ function AuthRedirectHandler() {
 
     if (!session) return;
 
-    navigate(isAdmin && !showAllNavbarOptions ? "/admin" : "/", { replace: true });
-  }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session, showAllNavbarOptions]);
+    navigate(isAdmin ? "/admin" : "/", { replace: true });
+  }, [authBlockReason, isAdmin, isLoading, location.pathname, navigate, session]);
 
   useEffect(() => {
-    if (showAllNavbarOptions) return;
     if (isLoading || !session || !isAdmin) return;
     if (location.pathname !== "/" && location.pathname !== "/console") return;
 
     navigate("/admin", { replace: true });
-  }, [isAdmin, isLoading, location.pathname, navigate, session, showAllNavbarOptions]);
+  }, [isAdmin, isLoading, location.pathname, navigate, session]);
 
   return null;
 }

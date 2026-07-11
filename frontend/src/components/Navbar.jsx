@@ -326,7 +326,7 @@ function sanitizeSelectedForProfile(selected, selectedGender, countryNames) {
 
 function Navbar({ onProfileSave }) {
   const { dbData, isLoading: catalogLoading } = useDbData();
-  const { session, isAdmin, isLoading: authLoading, showAllNavbarOptions } = useAuth();
+  const { session, isAdmin, isLoading: authLoading } = useAuth();
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const loginDropdownRef = useRef(null);
@@ -2266,15 +2266,13 @@ function Navbar({ onProfileSave }) {
   );
   const isAdminUser = isAdmin;
   const showPricingNav = (
-    showAllNavbarOptions || (
     session &&
     !isAdminUser &&
     !["active", "canceling"].includes(savedProfile.subscriptionStatus)
-    )
   );
-  const showAdminNav = !!session && (showAllNavbarOptions || isAdminUser) && routerLocation.pathname !== "/admin";
-  const showChatNav = !!session && (showAllNavbarOptions || !isAdminUser);
-  const showNotificationsNav = !!session && (showAllNavbarOptions || !isAdminUser);
+  const showAdminNav = !!session && isAdminUser && routerLocation.pathname !== "/admin";
+  const showChatNav = !!session && !isAdminUser;
+  const showNotificationsNav = !!session && !isAdminUser;
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
   const savedProfileIsPro = isProSubscriptionStatus(savedProfile.subscriptionStatus);
