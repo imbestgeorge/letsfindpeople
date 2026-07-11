@@ -110,10 +110,12 @@ export default function Terms() {
 
         <h4>6. Subscription Plans</h4>
         <p>
-          The Service offers a Free Plan with limited searches, and a paid Pro
-          Plan for unlimited searches and profile analytics features such as
-          seeing who viewed your profile. Subscriptions are billed monthly. You
-          may cancel your subscription at any time via the &quot;Cancel
+          The Service offers a Free Plan with access to 3 free searches that
+          renew daily. The paid Pro Plan includes unlimited searches, the
+          ability to see who viewed your profile, the ability to select up to
+          120 keywords when searching, and an exclusive animated profile and
+          name in chats and search results. Subscriptions are billed monthly.
+          You may cancel your subscription at any time via the &quot;Cancel
           Subscription&quot; option in your account. Cancellation stops future
           billing immediately; however, no refunds are issued for the current
           billing period (see Refunds Policy).
@@ -121,8 +123,8 @@ export default function Terms() {
 
         <h4>7. Free Plan Limits</h4>
         <p>
-          Free Plan users receive a limited number of searches that renew daily.
-          Daily dice rewards may add extra searches or temporary Pro Plan access.
+          Free Plan users receive 3 free searches that renew daily. Daily dice
+          rewards may add extra searches or temporary Pro Plan access.
           Attempting to bypass these limits through multiple accounts,
           automation, or exploitation of reward systems is a violation of these
           Terms.

@@ -26,11 +26,11 @@ const DEFAULT_IMAGE_URL = `${SITE_URL}/preview.png`;
 const PAGE_META = {
   "/": {
     title: SITE_NAME,
-    description: "Find people who share your interests!",
+    description: "Search people using filters!",
   },
   "/console": {
     title: SITE_NAME,
-    description: "Find people who share your interests!",
+    description: "Search people using filters!",
   },
   "/auth/callback": {
     title: `${SITE_NAME} | Signing In`,
