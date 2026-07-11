@@ -2938,17 +2938,17 @@ function Navbar({ onProfileSave }) {
                                 <img src={chat.profilePicture || defaultProfile} alt="" />
                                 <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
                               </span>
-                              <span className={`global-chat-room-copy${chat.unreadCount > 0 ? " global-chat-room-copy--unread" : ""}`}>
-                                {chat.unreadCount > 0 && (
-                                  <span className="badge rounded-pill bg-danger global-chat-room-badge global-chat-room-badge--direct">
-                                    {getChatMenuBadgeLabel(chat.unreadCount)}
-                                  </span>
-                                )}
+                              <span className="global-chat-room-copy">
                                 <span className={`global-chat-direct-name${isChatUserPro ? " pro-name-effect" : ""}`}>{chat.name}</span>
                                 {formatDirectChatPreview(chat.lastBody) && (
                                   <small className="global-chat-preview d-block text-truncate">{formatDirectChatPreview(chat.lastBody)}</small>
                                 )}
                               </span>
+                              {chat.unreadCount > 0 && (
+                                <span className="badge rounded-pill bg-danger global-chat-room-badge global-chat-room-badge--direct">
+                                  {getChatMenuBadgeLabel(chat.unreadCount)}
+                                </span>
+                              )}
                             </button>
                           );
                         })
