@@ -289,15 +289,15 @@ begin
   returning id_daily_dice_play into v_play_id;
 
   if v_reward_type = 'free_searches' then
-    update public.users
-    set free_searches_remaining = coalesce(free_searches_remaining, 0) + v_reward_amount
-    where id_user = v_user_id;
+    update public.users as target_user
+    set free_searches_remaining = coalesce(target_user.free_searches_remaining, 0) + v_reward_amount
+    where target_user.id_user = v_user_id;
   elsif v_reward_type = 'pro_month' then
-    update public.users
+    update public.users as target_user
     set
       subscription_status = 'active',
-      dice_pro_expires_at = greatest(coalesce(dice_pro_expires_at, now()), now()) + interval '1 month'
-    where id_user = v_user_id;
+      dice_pro_expires_at = greatest(coalesce(target_user.dice_pro_expires_at, now()), now()) + interval '1 month'
+    where target_user.id_user = v_user_id;
   elsif v_reward_type = 'crunchyroll_lifetime' then
     insert into public.crunchyroll_lifetime_winners (id_user, id_daily_dice_play)
     values (v_user_id, v_play_id)

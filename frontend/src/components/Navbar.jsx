@@ -197,11 +197,15 @@ function getRandomDiceValues() {
   return DEFAULT_DICE_VALUES.map(() => Math.floor(Math.random() * 6) + 1);
 }
 
+function hasDiceResult(status) {
+  return Array.isArray(status?.diceValues) && status.diceValues.length > 0 && !!status?.rewardType;
+}
+
 function getDiceResultTitle(status) {
-  if (!status?.rewardLabel) return "";
+  if (!hasDiceResult(status)) return "";
 
   const sixCount = Number(status.sixCount || 0);
-  if (sixCount === 0) return status.rewardLabel;
+  if (sixCount === 0) return "No Reward";
   if (sixCount === 1) return "Play Again";
   if (sixCount >= 2 && sixCount <= 4) {
     return `Congratulations! You Won ${status.rewardAmount} Free Searches.`;
@@ -212,6 +216,12 @@ function getDiceResultTitle(status) {
   }
 
   return status.rewardLabel;
+}
+
+function getDiceResultSubtext(status) {
+  if (!hasDiceResult(status)) return "";
+  if (Number(status.sixCount || 0) === 1) return "";
+  return "Come again tomorrow.";
 }
 
 function formatNotificationTimestamp(value) {
@@ -2822,6 +2832,9 @@ function Navbar({ onProfileSave }) {
                       {getDiceResultTitle(diceStatus) && (
                         <div className="text-center mt-3 daily-dice-result">
                           <div className="fw-semibold">{getDiceResultTitle(diceStatus)}</div>
+                          {getDiceResultSubtext(diceStatus) && (
+                            <div className="small text-muted mt-1">{getDiceResultSubtext(diceStatus)}</div>
+                          )}
                         </div>
                       )}
 
