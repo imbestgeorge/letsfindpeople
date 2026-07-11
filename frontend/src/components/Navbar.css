@@ -344,10 +344,6 @@
   width: 100%;
 }
 
-.global-chat-room-button--direct {
-  padding-right: 2rem;
-}
-
 .global-chat-room-button span,
 .global-chat-room-button small {
   overflow-wrap: anywhere;
@@ -383,26 +379,31 @@
 }
 
 .global-chat-room-badge--direct {
+  left: 50%;
   position: absolute;
-  right: 0.35rem;
-  top: 0.35rem;
+  top: 0;
+  transform: translateX(-50%);
   z-index: 2;
 }
 
 .global-chat-room-copy {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  position: relative;
+}
+
+.global-chat-room-copy--unread {
+  padding-top: 1.15rem;
 }
 
 .global-chat-direct-name {
   display: block;
-  line-height: 1.2;
+  font-size: 1rem;
+  line-height: 1.25;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
   overflow-wrap: normal !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
   word-break: normal !important;
 }
 

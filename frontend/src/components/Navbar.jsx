@@ -193,66 +193,6 @@ function formatDirectChatPreview(value) {
   return text.length > 13 ? `${text.slice(0, 13)}...` : text;
 }
 
-const DIRECT_CHAT_NAME_MAX_FONT_SIZE = 16;
-const DIRECT_CHAT_NAME_MIN_FONT_SIZE = 10;
-
-function DirectChatName({ name, isPro }) {
-  const nameRef = useRef(null);
-  const [fontSize, setFontSize] = useState(DIRECT_CHAT_NAME_MAX_FONT_SIZE);
-
-  useEffect(() => {
-    const node = nameRef.current;
-    if (!node) return undefined;
-
-    let frameId = 0;
-    const fitName = () => {
-      window.cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => {
-        const target = nameRef.current;
-        if (!target) return;
-
-        let nextFontSize = DIRECT_CHAT_NAME_MAX_FONT_SIZE;
-        target.style.fontSize = `${nextFontSize}px`;
-
-        while (
-          nextFontSize > DIRECT_CHAT_NAME_MIN_FONT_SIZE &&
-          target.scrollWidth > target.clientWidth + 1
-        ) {
-          nextFontSize -= 0.5;
-          target.style.fontSize = `${nextFontSize}px`;
-        }
-
-        setFontSize(nextFontSize);
-      });
-    };
-
-    fitName();
-
-    const observer = typeof ResizeObserver !== "undefined"
-      ? new ResizeObserver(fitName)
-      : null;
-    observer?.observe(node);
-    if (node.parentElement) observer?.observe(node.parentElement);
-    window.addEventListener("resize", fitName);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      observer?.disconnect();
-      window.removeEventListener("resize", fitName);
-    };
-  }, [name]);
-
-  return (
-    <span
-      ref={nameRef}
-      className={`global-chat-direct-name${isPro ? " pro-name-effect" : ""}`}
-      style={{ fontSize }}
-    >
-      {name}
-    </span>
-  );
-}
-
 function getRandomDiceValues() {
   return DEFAULT_DICE_VALUES.map(() => Math.floor(Math.random() * 6) + 1);
 }
@@ -2998,15 +2938,17 @@ function Navbar({ onProfileSave }) {
                                 <img src={chat.profilePicture || defaultProfile} alt="" />
                                 <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
                               </span>
-                              <span className="global-chat-room-copy">
-                                <DirectChatName name={chat.name} isPro={isChatUserPro} />
+                              <span className={`global-chat-room-copy${chat.unreadCount > 0 ? " global-chat-room-copy--unread" : ""}`}>
+                                {chat.unreadCount > 0 && (
+                                  <span className="badge rounded-pill bg-danger global-chat-room-badge global-chat-room-badge--direct">
+                                    {getChatMenuBadgeLabel(chat.unreadCount)}
+                                  </span>
+                                )}
+                                <span className={`global-chat-direct-name${isChatUserPro ? " pro-name-effect" : ""}`}>{chat.name}</span>
                                 {formatDirectChatPreview(chat.lastBody) && (
                                   <small className="global-chat-preview d-block text-truncate">{formatDirectChatPreview(chat.lastBody)}</small>
                                 )}
                               </span>
-                              {chat.unreadCount > 0 && (
-                                <span className="badge rounded-pill bg-danger global-chat-room-badge global-chat-room-badge--direct">{getChatMenuBadgeLabel(chat.unreadCount)}</span>
-                              )}
                             </button>
                           );
                         })
