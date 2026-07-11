@@ -9,22 +9,18 @@ import {
   updateUserProfile,
   deleteUser,
   getUserProfile,
-  isUsernameAvailable,
-  normalizeUsername,
   sendProfileCompletedEmail,
   touchMyPresence,
   uploadProfileGalleryImage,
   uploadProfilePicture,
-  USERNAME_PATTERN,
 } from "../lib/userService";
-import { getPublicUserById, getPublicUserByUsername, requestKeyword } from "../lib/catalogService";
+import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
   CONNECTION_STREAK_MESSAGE_COUNT,
   GLOBAL_CHAT_CHANNELS,
   getUnreadGlobalChatMessageCount,
   getUnreadDirectMessageCount,
-  getKeywordOfTheDay,
   listDirectChatMessages,
   listGlobalChatMessages,
   listMyDirectChats,
@@ -39,7 +35,7 @@ import {
   subscribeToGlobalChatMessages,
 } from "../lib/chatService";
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
-import { getMyProfileAnalytics, recordProfileView } from "../lib/analyticsService";
+import { getMyProfileAnalytics } from "../lib/analyticsService";
 import {
   getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
@@ -51,32 +47,12 @@ import {
 } from "../lib/notificationService";
 
 import "./Navbar.css";
-import ProfilePreviewModal from "./ProfilePreviewModal";
 
 const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
-const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 25;
+const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
 const PROFILE_GALLERY_MAX_IMAGES = 3;
-const PROFILE_ROUTE_RESERVED_PATHS = new Set([
-  "",
-  "admin",
-  "auth",
-  "account-deleted",
-  "underage-banned",
-  "console",
-  "privacy",
-  "terms",
-  "cookies",
-  "refunds",
-  "contact",
-]);
-const PROFILE_THEME_OPTIONS = [
-  { value: "violet", label: "Violet", color: "#6D28D9" },
-  { value: "ocean", label: "Ocean", color: "#0284C7" },
-  { value: "sunset", label: "Sunset", color: "#F97316" },
-  { value: "forest", label: "Forest", color: "#16A34A" },
-];
 const PROFILE_YES_NO_KEYS = [
   "visualArt",
   "listenMusic",
@@ -220,61 +196,6 @@ function buildDrawInviteShareMessage() {
   return "What if someone exactly like you already exists 🤔? Find out on https://letsfindpeople.com";
 }
 
-function getProfileUsernameFromPath(pathname) {
-  const parts = String(pathname || "")
-    .split("/")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length !== 1) return "";
-
-  const username = parts[0].toLowerCase();
-  if (PROFILE_ROUTE_RESERVED_PATHS.has(username)) return "";
-  if (!USERNAME_PATTERN.test(username)) return "";
-  return username;
-}
-
-function getProfileDisplayName(profile) {
-  return profile?.name ||
-    `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim() ||
-    profile?.email ||
-    "Member";
-}
-
-function normalizePublicProfile(profile) {
-  if (!profile) return null;
-
-  return {
-    ...profile,
-    id: profile.id ?? profile.id_user ?? profile.otherUserId ?? null,
-    name: getProfileDisplayName(profile),
-    profilePicture: profile.profilePicture || profile.profileImagePreview || profile.profileUrl || null,
-    profileGalleryUrls: Array.isArray(profile.profileGalleryUrls) ? profile.profileGalleryUrls : [],
-    profileTheme: profile.profileTheme || "violet",
-    contacts: {
-      phone: { value: "", show: false },
-      instagram: {
-        value: profile.contacts?.instagram?.value || profile.instagramUsername || profile.instagram || "",
-        show: profile.contacts?.instagram?.show ?? profile.showInstagram ?? true,
-      },
-      tiktok: {
-        value: profile.contacts?.tiktok?.value || profile.tiktokUsername || profile.tiktok || "",
-        show: profile.contacts?.tiktok?.show ?? profile.showTiktok ?? true,
-      },
-      snapchat: {
-        value: profile.contacts?.snapchat?.value || profile.snapchatUsername || profile.snapchat || "",
-        show: profile.contacts?.snapchat?.show ?? profile.showSnapchat ?? true,
-      },
-      discord: {
-        value: profile.contacts?.discord?.value || profile.discordUsername || profile.discord || "",
-        show: profile.contacts?.discord?.show ?? profile.showDiscord ?? true,
-      },
-    },
-    isOnline: !!profile.isOnline,
-    keywordIds: Array.isArray(profile.keywordIds) ? profile.keywordIds : [],
-  };
-}
-
 async function copyTextToClipboard(text) {
   try {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -413,7 +334,6 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownMenuRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
   const inviteAuthOpenedRef = useRef("");
-  const profileRouteRequestRef = useRef("");
 
   const [keywordRequestStatuses, setKeywordRequestStatuses] = useState({});
 
@@ -483,38 +403,7 @@ function Navbar({ onProfileSave }) {
     });
     return map;
   }, [dbData]);
-  const profileKeywordMap = useMemo(() => {
-    const map = {};
-    (dbData?.categories ?? []).forEach(cat => {
-      cat.subcategories.forEach(sub => {
-        sub.items.forEach(item => {
-          map[item.id] = { name: item.name, subcategory: sub.name };
-        });
-      });
-    });
-    return map;
-  }, [dbData]);
-  const allKeywordsForChat = useMemo(() => (
-    (dbData?.categories ?? []).flatMap(cat =>
-      cat.subcategories.flatMap(sub =>
-        sub.items.map(item => ({ id: item.id, name: item.name, subcategory: sub.name }))
-      )
-    )
-  ), [dbData]);
-  const keywordOfTheDay = useMemo(
-    () => getKeywordOfTheDay(allKeywordsForChat),
-    [allKeywordsForChat]
-  );
-  const chatChannels = useMemo(() => (
-    GLOBAL_CHAT_CHANNELS.map((channel) => (
-      channel.key === "icebreaker"
-        ? {
-            ...channel,
-            description: `Talk about ${keywordOfTheDay.name} for 24h`,
-          }
-        : channel
-    ))
-  ), [keywordOfTheDay.name]);
+  const chatChannels = GLOBAL_CHAT_CHANNELS;
   const analyticsKeywordNameMap = useMemo(() => {
     const map = {};
     (dbData?.categories ?? []).forEach(cat => {
@@ -572,9 +461,6 @@ function Navbar({ onProfileSave }) {
   const [validated, setValidated] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [usernameStatus, setUsernameStatus] = useState("idle");
-  const [usernameMessage, setUsernameMessage] = useState("");
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -593,7 +479,6 @@ function Navbar({ onProfileSave }) {
   const [profileImageSizeError, setProfileImageSizeError] = useState(false);
   const [profileGalleryItems, setProfileGalleryItems] = useState([]);
   const [profileGallerySizeError, setProfileGallerySizeError] = useState("");
-  const [profileTheme, setProfileTheme] = useState("violet");
 
   const resizeProfileImage = (file) => new Promise((resolve, reject) => {
     const imageUrl = URL.createObjectURL(file);
@@ -708,14 +593,14 @@ function Navbar({ onProfileSave }) {
   };
 
   const [savedProfile, setSavedProfile] = useState({
-    id: null, username: "",
+    id: null,
     firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
     location: "", countryCode: "", phoneNumber: "", showPhone: true,
     instagramUsername: "", showInstagram: true,
     tiktokUsername: "", showTiktok: true,
     snapchatUsername: "", showSnapchat: true,
     discordUsername: "", showDiscord: true,
-    profileImagePreview: null, profileGalleryUrls: [], profileTheme: "violet",
+    profileImagePreview: null, profileGalleryUrls: [],
     answers: {}, selected: {}, skipped: {},
     keywordIds: [],
     subscriptionStatus: "free",
@@ -741,11 +626,6 @@ function Navbar({ onProfileSave }) {
   const [chatError, setChatError] = useState("");
   const [chatNotice, setChatNotice] = useState("");
   const [unreadChatMessages, setUnreadChatMessages] = useState(0);
-  const [profilePreviewUser, setProfilePreviewUser] = useState(null);
-  const [profilePreviewLoading, setProfilePreviewLoading] = useState(false);
-  const [profilePreviewError, setProfilePreviewError] = useState("");
-  const [profilePreviewReturnToChat, setProfilePreviewReturnToChat] = useState(false);
-  const [profilePreviewShowSend, setProfilePreviewShowSend] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -770,7 +650,7 @@ function Navbar({ onProfileSave }) {
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification || !!profilePreviewUser || profilePreviewLoading || !!profilePreviewError;
+  const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification;
   const profileKeywordResultLimit = isMobileKeywordLimitView
     ? MOBILE_PROFILE_KEYWORD_RESULT_LIMIT
     : DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT;
@@ -791,14 +671,14 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (!session) {
       setSavedProfile({
-        id: null, username: "",
+        id: null,
         firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
         location: "", countryCode: "", phoneNumber: "", showPhone: true,
         instagramUsername: "", showInstagram: true,
         tiktokUsername: "", showTiktok: true,
         snapchatUsername: "", showSnapchat: true,
         discordUsername: "", showDiscord: true,
-        profileImagePreview: null, profileGalleryUrls: [], profileTheme: "violet",
+        profileImagePreview: null, profileGalleryUrls: [],
         answers: {}, selected: {}, skipped: {},
         keywordIds: [],
         subscriptionStatus: "free",
@@ -816,11 +696,6 @@ function Navbar({ onProfileSave }) {
       setChatDraft("");
       setChatError("");
       setChatNotice("");
-      setProfilePreviewUser(null);
-      setProfilePreviewLoading(false);
-      setProfilePreviewError("");
-      setProfilePreviewReturnToChat(false);
-      setProfilePreviewShowSend(true);
       setNotifications([]);
       setUnreadNotifications(0);
       setNotificationsError("");
@@ -1072,9 +947,6 @@ function Navbar({ onProfileSave }) {
         const showDiscordDefault = profile.discord ? profile.showDiscord : true;
 
         // Apply all state at once
-        setUsername(profile.username);
-        setUsernameStatus(profile.username ? "available" : "idle");
-        setUsernameMessage("");
         setFirstName(profile.firstName);
         setLastName(profile.lastName);
         setBirthDay(loadedDay);
@@ -1096,14 +968,12 @@ function Navbar({ onProfileSave }) {
           url,
         })));
         setProfileGallerySizeError("");
-        setProfileTheme(profile.profileTheme || "violet");
         setAnswers(newAnswers);
         setSelected(newSelected);
         setSkipped(newSkipped);
 
         const hydratedProfile = {
           id: profile.id,
-          username: profile.username,
           firstName: profile.firstName, lastName: profile.lastName,
           birthDay: loadedDay, birthMonth: loadedMonth, birthYear: loadedYear,
           location: profile.location,
@@ -1116,7 +986,6 @@ function Navbar({ onProfileSave }) {
           discordUsername: profile.discord, showDiscord: showDiscordDefault,
           profileImagePreview: profile.profileUrl,
           profileGalleryUrls: profile.profileGalleryUrls || [],
-          profileTheme: profile.profileTheme || "violet",
           lastSeenAt: profile.lastSeenAt || null,
           isOnline: true,
           answers: newAnswers, selected: newSelected, skipped: newSkipped,
@@ -1168,13 +1037,11 @@ function Navbar({ onProfileSave }) {
 
   const isProfileComplete = useMemo(() => {
     const hasRequiredProfileInfo =
-      USERNAME_PATTERN.test(savedProfile.username || "") &&
       !!savedProfile.firstName?.trim() &&
       !!savedProfile.lastName?.trim() &&
       !!savedProfile.birthDay &&
       !!savedProfile.birthMonth &&
-      !!savedProfile.birthYear &&
-      !!savedProfile.location?.trim();
+      !!savedProfile.birthYear;
     const hasRequiredGender = !!savedProfileGender;
 
     const answeredYesNo = yesNoKeys.filter((key) => savedProfile.answers?.[key] != null).length;
@@ -1386,72 +1253,6 @@ function Navbar({ onProfileSave }) {
     await supabase.auth.signOut();
   };
 
-  const currentProfilePreview = useMemo(() => {
-    if (!savedProfile?.username) return null;
-    const birthday = savedProfile.birthYear && savedProfile.birthMonth && savedProfile.birthDay
-      ? `${savedProfile.birthYear}-${String(savedProfile.birthMonth).padStart(2, "0")}-${String(savedProfile.birthDay).padStart(2, "0")}`
-      : null;
-
-    return normalizePublicProfile({
-      id: savedProfile.id,
-      username: savedProfile.username,
-      name: `${savedProfile.firstName || ""} ${savedProfile.lastName || ""}`.trim() || session?.user?.email,
-      birthday,
-      location: savedProfile.location,
-      contacts: {
-        instagram: { value: savedProfile.instagramUsername, show: savedProfile.showInstagram },
-        tiktok: { value: savedProfile.tiktokUsername, show: savedProfile.showTiktok },
-        snapchat: { value: savedProfile.snapchatUsername, show: savedProfile.showSnapchat },
-        discord: { value: savedProfile.discordUsername, show: savedProfile.showDiscord },
-      },
-      profilePicture: savedProfile.profileImagePreview,
-      profileGalleryUrls: savedProfile.profileGalleryUrls,
-      profileTheme: savedProfile.profileTheme,
-      isOnline: true,
-      keywordIds: savedProfile.keywordIds,
-    });
-  }, [savedProfile, session?.user?.email]);
-
-  const openProfilePreview = useCallback((profile, {
-    updateUrl = true,
-    returnToChat = false,
-    showSend = true,
-  } = {}) => {
-    const normalized = normalizePublicProfile(profile);
-    if (!normalized) return;
-
-    setProfilePreviewUser(normalized);
-    setProfilePreviewError("");
-    setProfilePreviewLoading(false);
-    setProfilePreviewReturnToChat(returnToChat);
-    setProfilePreviewShowSend(showSend);
-
-    if (updateUrl && normalized.username) {
-      const nextPath = `/${normalized.username}`;
-      if (routerLocation.pathname !== nextPath) {
-        navigate(nextPath, { replace: false });
-      }
-    }
-  }, [navigate, routerLocation.pathname]);
-
-  const closeProfilePreview = useCallback(() => {
-    const shouldReturnToChat = profilePreviewReturnToChat;
-    profileRouteRequestRef.current = "";
-    setProfilePreviewUser(null);
-    setProfilePreviewError("");
-    setProfilePreviewLoading(false);
-    setProfilePreviewReturnToChat(false);
-    setProfilePreviewShowSend(true);
-
-    if (getProfileUsernameFromPath(routerLocation.pathname)) {
-      navigate("/", { replace: false });
-    }
-
-    if (shouldReturnToChat) {
-      setShowChatModal(true);
-    }
-  }, [navigate, profilePreviewReturnToChat, routerLocation.pathname]);
-
   const loadGlobalChatMessages = useCallback(async ({ silent = false, channelKey = activeGlobalChannelKey } = {}) => {
     if (!session?.user?.id) return;
 
@@ -1545,41 +1346,30 @@ function Navbar({ onProfileSave }) {
     setChatNotice("");
   };
 
-  const openChatAuthorInConsole = async (message) => {
+  const openChatAuthorInConsole = (message) => {
     if (!message?.userId) return;
     setShowChatModal(false);
     setChatDraft("");
-    setProfilePreviewLoading(true);
-    setProfilePreviewError("");
-    try {
-      const profile = await getPublicUserById(message.userId);
-      if (!profile) {
-        setProfilePreviewError("Profile not found.");
-        return;
-      }
-      openProfilePreview(profile, { returnToChat: true, showSend: true });
-    } catch (err) {
-      setProfilePreviewError(err.message || "Failed to load profile.");
-    } finally {
-      setProfilePreviewLoading(false);
-    }
+    navigate(`/?user=${encodeURIComponent(message.userId)}`);
   };
 
   const startDirectChat = useCallback((profile) => {
-    const normalized = normalizePublicProfile(profile);
-    const otherUserId = Number(normalized?.id);
+    const otherUserId = Number(profile?.id ?? profile?.otherUserId);
     if (!Number.isInteger(otherUserId) || otherUserId <= 0 || otherUserId === Number(savedProfile?.id)) return;
 
     const existingChat = directChats.find((chat) => chat.otherUserId === otherUserId);
+    const displayName = profile?.name
+      || `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim()
+      || profile?.email
+      || "Member";
+
     setActiveDirectChat(existingChat || {
-      conversationId: normalized.conversationId || null,
+      conversationId: profile?.conversationId || null,
       otherUserId,
-      username: normalized.username || "",
-      name: normalized.name,
-      email: normalized.email || "",
-      profilePicture: normalized.profilePicture,
-      profileTheme: normalized.profileTheme,
-      isOnline: normalized.isOnline,
+      name: displayName,
+      email: profile?.email || "",
+      profilePicture: profile?.profilePicture || profile?.profileImagePreview || profile?.profileUrl || null,
+      isOnline: !!profile?.isOnline,
       totalMessages: 0,
       hasConnectionStreak: false,
     });
@@ -1588,24 +1378,9 @@ function Navbar({ onProfileSave }) {
     setChatDraft("");
     setChatError("");
     setChatNotice("");
-    setProfilePreviewUser(null);
-    setProfilePreviewError("");
-    setProfilePreviewReturnToChat(false);
-
-    if (getProfileUsernameFromPath(routerLocation.pathname)) {
-      navigate("/", { replace: false });
-    }
 
     loadDirectChats();
-  }, [directChats, loadDirectChats, navigate, routerLocation.pathname, savedProfile?.id]);
-
-  const openMyProfilePreview = () => {
-    if (!currentProfilePreview?.username) {
-      openEditProfile();
-      return;
-    }
-    openProfilePreview(currentProfilePreview, { showSend: false });
-  };
+  }, [directChats, loadDirectChats, savedProfile?.id]);
 
   const selectGlobalChatChannel = (channelKey) => {
     setChatMode("global");
@@ -1884,9 +1659,6 @@ function Navbar({ onProfileSave }) {
   };
 
   const openEditProfile = () => {
-    setUsername(savedProfile.username || "");
-    setUsernameStatus(savedProfile.username ? "available" : "idle");
-    setUsernameMessage("");
     setFirstName(savedProfile.firstName);
     setLastName(savedProfile.lastName);
     setBirthDay(formatBirthDatePart(savedProfile.birthDay));
@@ -1910,7 +1682,6 @@ function Navbar({ onProfileSave }) {
       url,
     })));
     setProfileGallerySizeError("");
-    setProfileTheme(savedProfile.profileTheme || "violet");
     setAnswers(savedProfile.answers);
     setSelected(savedProfile.selected);
     setSkipped(savedProfile.skipped);
@@ -1966,78 +1737,16 @@ function Navbar({ onProfileSave }) {
   }, [routerLocation.pathname]);
 
   useEffect(() => {
-    const routeUsername = getProfileUsernameFromPath(routerLocation.pathname);
-    if (!routeUsername) {
-      profileRouteRequestRef.current = "";
-      return undefined;
-    }
-    if (profilePreviewLoading) return undefined;
-    if (profilePreviewUser?.username === routeUsername && !profilePreviewLoading) return undefined;
-    if (profileRouteRequestRef.current === routeUsername && profilePreviewError) return undefined;
-
-    let isMounted = true;
-    profileRouteRequestRef.current = routeUsername;
-    setProfilePreviewLoading(true);
-    setProfilePreviewError("");
-    setProfilePreviewReturnToChat(false);
-    setProfilePreviewShowSend(!!session?.user?.id);
-
-    getPublicUserByUsername(routeUsername)
-      .then((profile) => {
-        if (!isMounted) return;
-        if (!profile) {
-          setProfilePreviewUser(null);
-          setProfilePreviewError("Profile not found.");
-          return;
-        }
-        setProfilePreviewUser(normalizePublicProfile(profile));
-        if (profile.id) {
-          recordProfileView(profile.id).catch((err) => {
-            console.warn("Failed to record profile view:", err.message);
-          });
-        }
-      })
-      .catch((err) => {
-        if (isMounted) setProfilePreviewError(err.message || "Failed to load profile.");
-      })
-      .finally(() => {
-        if (isMounted) setProfilePreviewLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [profilePreviewError, profilePreviewLoading, profilePreviewUser?.username, routerLocation.pathname, session?.user?.id]);
-
-  useEffect(() => {
-    const handleOpenProfile = (event) => {
-      const detail = event.detail || {};
-      if (detail.user || detail.profile) {
-        openProfilePreview(detail.user || detail.profile, {
-          updateUrl: detail.updateUrl !== false,
-          returnToChat: !!detail.returnToChat,
-          showSend: detail.showSend !== false,
-        });
-        return;
-      }
-
-      if (detail.username) {
-        navigate(`/${normalizeUsername(detail.username)}`);
-      }
-    };
-
     const handleStartDirectChat = (event) => {
       startDirectChat(event.detail?.user || event.detail?.profile);
     };
 
-    window.addEventListener("lfp:open-profile-preview", handleOpenProfile);
     window.addEventListener("lfp:start-direct-chat", handleStartDirectChat);
 
     return () => {
-      window.removeEventListener("lfp:open-profile-preview", handleOpenProfile);
       window.removeEventListener("lfp:start-direct-chat", handleStartDirectChat);
     };
-  }, [navigate, openProfilePreview, startDirectChat]);
+  }, [startDirectChat]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -2433,48 +2142,14 @@ function Navbar({ onProfileSave }) {
     </div>
   );
 
-  const handleUsernameChange = (value) => {
-    const nextUsername = String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "")
-      .slice(0, 16);
-
-    setUsername(nextUsername);
-    setUsernameMessage("");
-    setUsernameStatus(nextUsername && nextUsername === savedProfile.username ? "available" : "idle");
-  };
-
   const handleContinue = async () => {
     if (editStage === 1) {
       setValidated(true);
-      const normalizedUsername = normalizeUsername(username);
       const firstNameTypeError = firstName.trim() && /\d/.test(firstName);
       const lastNameTypeError = lastName.trim() && /\d/.test(lastName);
-      const usernameTypeError = !USERNAME_PATTERN.test(normalizedUsername);
 
-      setUsername(normalizedUsername);
-
-      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || usernameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear || !location.trim()) {
-        if (usernameTypeError) setUsernameMessage("Use 3 to 16 lowercase letters, numbers, or underscores.");
+      if (!firstName.trim() || !lastName.trim() || firstNameTypeError || lastNameTypeError || !selectedGender || !birthDay || !birthMonth || !birthYear) {
         return;
-      }
-
-      if (normalizedUsername !== savedProfile.username || usernameStatus !== "available") {
-        setUsernameStatus("checking");
-        setUsernameMessage("");
-        try {
-          const available = await isUsernameAvailable(normalizedUsername, session?.user?.id);
-          if (!available) {
-            setUsernameStatus("taken");
-            setUsernameMessage("Username is already taken.");
-            return;
-          }
-          setUsernameStatus("available");
-        } catch (err) {
-          setUsernameStatus("error");
-          setUsernameMessage(err.message || "Could not verify username.");
-          return;
-        }
       }
 
       setSelected(prev => {
@@ -2508,14 +2183,14 @@ function Navbar({ onProfileSave }) {
       if (age < 16) {
         // Wipe all local profile state first so nothing is shown
         const blank = {
-          id: null, username: "",
+          id: null,
           firstName: "", lastName: "", birthDay: "", birthMonth: "", birthYear: "",
           location: "", countryCode: "", phoneNumber: "", showPhone: true,
           instagramUsername: "", showInstagram: true,
           tiktokUsername: "", showTiktok: true,
           snapchatUsername: "", showSnapchat: true,
           discordUsername: "", showDiscord: true,
-          profileImagePreview: null, profileGalleryUrls: [], profileTheme: "violet",
+          profileImagePreview: null, profileGalleryUrls: [],
           answers: {}, selected: {}, skipped: {},
           keywordIds: [],
           subscriptionStatus: "free", freeSearchesRemaining: 0, idType: 1,
@@ -2610,7 +2285,6 @@ function Navbar({ onProfileSave }) {
 
     const profile = {
       id: savedProfile.id,
-      username: normalizeUsername(username),
       firstName, lastName,
       birthDay: formatBirthDatePart(birthDay),
       birthMonth: formatBirthDatePart(birthMonth),
@@ -2622,7 +2296,6 @@ function Navbar({ onProfileSave }) {
       discordUsername, showDiscord,
       profileImagePreview: finalImageUrl ?? profileImagePreview,
       profileGalleryUrls: finalGalleryUrls,
-      profileTheme,
       isOnline: true,
       lastSeenAt: new Date().toISOString(),
       answers: sanitizedAnswers,
@@ -2646,7 +2319,6 @@ function Navbar({ onProfileSave }) {
         await updateUserProfile(
           session.user.id,
           {
-            username: normalizeUsername(username),
             firstName, lastName, birthDay, birthMonth, birthYear,
             location, countryCode: "", phoneNumber: "", showPhone: false,
             instagramUsername, showInstagram,
@@ -2655,7 +2327,6 @@ function Navbar({ onProfileSave }) {
             discordUsername, showDiscord,
             profileImageUrl: finalImageUrl,
             profileGalleryUrls: finalGalleryUrls,
-            profileTheme,
             answers: sanitizedAnswers,
             skipped: sanitizedSkipped,
           },
@@ -2716,12 +2387,29 @@ function Navbar({ onProfileSave }) {
       .map((id) => analyticsKeywordNameMap[id])
       .filter(Boolean)
   );
-  const renderAnalyticsViewersList = (isLocked = false) => (
-    <div className={isLocked ? "analytics-viewers-lockup" : undefined}>
-      <div
-        className={`analytics-viewers-list${isLocked ? " analytics-viewers-list--blurred" : ""}`}
-        aria-hidden={isLocked ? "true" : undefined}
-      >
+  const renderAnalyticsViewersList = (isLocked = false) => {
+    if (isLocked) {
+      return (
+        <div className="analytics-upgrade-overlay text-muted text-center py-3">
+          Upgrade to the{" "}
+          <a
+            href="#"
+            className="analytics-upgrade-link"
+            onClick={(event) => {
+              event.preventDefault();
+              setShowAnalyticsModal(false);
+              window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
+            }}
+          >
+            Pro Plan
+          </a>{" "}
+          to see who viewed your profile.
+        </div>
+      );
+    }
+
+    return (
+      <div className="analytics-viewers-list">
         {analytics.viewers.map((viewer, index) => {
           const keywordLabels = getAnalyticsKeywordLabels(viewer);
 
@@ -2750,25 +2438,8 @@ function Navbar({ onProfileSave }) {
           );
         })}
       </div>
-      {isLocked && (
-        <div className="analytics-upgrade-overlay text-muted text-center py-3">
-          Upgrade to the{" "}
-          <a
-            href="#"
-            className="analytics-upgrade-link"
-            onClick={(event) => {
-              event.preventDefault();
-              setShowAnalyticsModal(false);
-              window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
-            }}
-          >
-            Pro Plan
-          </a>{" "}
-          to see who viewed your profile.
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
   const activeGlobalChannel = chatChannels.find((channel) => channel.key === activeGlobalChannelKey) || chatChannels[0];
   const activeChatTitle = chatMode === "direct"
     ? activeDirectChat?.name || "Direct Message"
@@ -2966,7 +2637,6 @@ function Navbar({ onProfileSave }) {
 
                   <ul className="dropdown-menu dropdown-menu-end">
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
-                    <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openMyProfilePreview(); }}>Preview Profile</a></li>
                     {!isAdminUser && (
                       <>
                         <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openAnalytics(); }}>Analytics</a></li>
@@ -3033,12 +2703,6 @@ function Navbar({ onProfileSave }) {
                 <div className="modal-header">
                   <div className="min-w-0">
                     <h5 className="modal-title text-truncate" id="globalChatTitle">{activeChatTitle}</h5>
-                    {chatMode === "global" && activeGlobalChannel?.description && (
-                      <small className="text-muted d-block text-truncate">{activeGlobalChannel.description}</small>
-                    )}
-                    {chatMode === "direct" && activeDirectChat?.username && (
-                      <small className="text-muted d-block text-truncate">@{activeDirectChat.username}</small>
-                    )}
                   </div>
                   <div className="d-flex align-items-center gap-2 ms-auto">
                     {canUseConnectionStreak && (
@@ -3053,7 +2717,7 @@ function Navbar({ onProfileSave }) {
                     )}
                     <button
                       type="button"
-                      className="profile-icon-button"
+                      className="global-chat-report-chat-button"
                       onClick={handleReportCurrentChat}
                       title="Report chat"
                       aria-label="Report chat"
@@ -3101,7 +2765,7 @@ function Navbar({ onProfileSave }) {
                               setChatNotice("");
                             }}
                           >
-                            <span className="profile-preview-avatar-wrap global-chat-sidebar-avatar">
+                            <span className="profile-avatar-wrap global-chat-sidebar-avatar">
                               <img src={chat.profilePicture || defaultProfile} alt="" />
                               <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
                             </span>
@@ -3196,7 +2860,7 @@ function Navbar({ onProfileSave }) {
                                       onClick={() => openChatAuthorInConsole(message)}
                                       aria-label={`Open ${getChatAuthorName(message)} profile`}
                                     >
-                                      <span className="profile-preview-avatar-wrap global-chat-avatar-wrap">
+                                      <span className="profile-avatar-wrap global-chat-avatar-wrap">
                                         <img
                                           src={message.author?.profileUrl || defaultProfile}
                                           alt={getChatAuthorName(message)}
@@ -3286,46 +2950,6 @@ function Navbar({ onProfileSave }) {
                       </div>
                     </form>
                   </section>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
-
-      {profilePreviewUser && !profilePreviewLoading && !profilePreviewError && (
-        <ProfilePreviewModal
-          profile={profilePreviewUser}
-          keywordMap={profileKeywordMap}
-          onClose={closeProfilePreview}
-          onSendMessage={startDirectChat}
-          showSendMessage={profilePreviewShowSend && !!session}
-          isCurrentUser={Number(profilePreviewUser.id) === Number(savedProfile?.id)}
-        />
-      )}
-
-      {(profilePreviewLoading || profilePreviewError) && (
-        <>
-          <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="profilePreviewLoadingTitle">
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title" id="profilePreviewLoadingTitle">Profile</h5>
-                  <button type="button" className="btn-close" onClick={closeProfilePreview} aria-label="Close"></button>
-                </div>
-                <div className="modal-body">
-                  {profilePreviewLoading ? (
-                    <div className="d-flex justify-content-center align-items-center py-5">
-                      <div className="spinner-border spinner-primary" role="status">
-                        <span className="visually-hidden">Loading profile...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="alert alert-danger mb-0" role="alert">
-                      {profilePreviewError}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -3626,7 +3250,6 @@ function Navbar({ onProfileSave }) {
                               ) : (
                                 <label htmlFor={`profileGalleryInput${index}`} className="profile-gallery-placeholder">
                                   <i className="bi bi-image"></i>
-                                  <span>Show a project, hobby, or moment</span>
                                   <small>Upload</small>
                                 </label>
                               )}
@@ -3742,47 +3365,18 @@ function Navbar({ onProfileSave }) {
                         <div className="text-danger" style={{ fontSize: "0.875em", marginTop: "0.25rem" }}>Please select your full date of birth.</div>
                       )}                  </div>
 
-                    {/* Username & Location Row */}
+                    {/* Location */}
                     <div className="row">
-                      <div className="col-12 col-md-6 mb-3">
-                        <label htmlFor="username" className="form-label">Username</label>
-                        <div className="input-group has-validation">
+                      <div className="col-12 mb-3">
+                        <label htmlFor="location" className="form-label">Location <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
+                        <div className="input-group">
                           <input
                             type="text"
-                            className={`form-control${(validated && !USERNAME_PATTERN.test(normalizeUsername(username))) || usernameStatus === "taken" || usernameStatus === "error" ? " is-invalid" : ""}`}
-                            id="username"
-                            placeholder="username_123"
-                            value={username}
-                            minLength={3}
-                            maxLength={16}
-                            onChange={(e) => handleUsernameChange(e.target.value)}
-                            required
-                          />
-                          {usernameStatus === "checking" && (
-                            <span className="input-group-text bg-white">
-                              <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-                            </span>
-                          )}
-                          <div className="invalid-feedback">
-                            {usernameMessage || "Use 3 to 16 letters, numbers, or underscores."}
-                          </div>
-                        </div>
-                        {usernameStatus === "available" && username && (
-                          <small className="text-success d-block mt-1">Username available.</small>
-                        )}
-                      </div>
-
-                      <div className="col-12 col-md-6 mb-3">
-                        <label htmlFor="location" className="form-label">Location</label>
-                        <div className="input-group has-validation">
-                          <input
-                            type="text"
-                            className={`form-control${validated && !location.trim() ? " is-invalid" : ""}`}
+                            className="form-control"
                             id="location"
                             placeholder="City, Country"
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
-                            required
                           />
                           <button
                             type="button"
@@ -3796,7 +3390,6 @@ function Navbar({ onProfileSave }) {
                               <i className="bi bi-geo-alt"></i>
                             )}
                           </button>
-                          <div className="invalid-feedback">Please enter your location.</div>
                         </div>
                       </div>
                     </div>
@@ -3875,24 +3468,6 @@ function Navbar({ onProfileSave }) {
                         </div>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label className="form-label d-block">Profile Theme</label>
-                      <div className="profile-theme-picker">
-                        {PROFILE_THEME_OPTIONS.map((theme) => (
-                          <button
-                            key={theme.value}
-                            type="button"
-                            className={`profile-theme-option${profileTheme === theme.value ? " active" : ""}`}
-                            onClick={() => setProfileTheme(theme.value)}
-                            aria-pressed={profileTheme === theme.value}
-                          >
-                            <span className="profile-theme-swatch" style={{ backgroundColor: theme.color }}></span>
-                            <span>{theme.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
                   </form>
                 )}
 

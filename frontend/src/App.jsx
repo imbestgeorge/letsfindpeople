@@ -111,14 +111,10 @@ function ScrollToTop() {
 
 function HeadManager() {
   const { pathname } = useLocation();
-  const isProfilePath = !PAGE_META[pathname] && pathname.split("/").filter(Boolean).length === 1;
-  const meta = PAGE_META[pathname] || (isProfilePath ? {
-    title: `${SITE_NAME} | Profile`,
-    description: "View a LetsFindPeople profile.",
-  } : {
+  const meta = PAGE_META[pathname] || {
     title: `${SITE_NAME} | Page Not Found`,
     description: "The page you are looking for could not be found on LetsFindPeople.",
-  });
+  };
   const pageUrl = new URL(pathname, SITE_URL).toString();
 
   useEffect(() => {
@@ -212,7 +208,6 @@ function AppFrame({ savedProfile, setSavedProfile }) {
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/refunds" element={<Refunds />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/:profileUsername" element={<Console currentUser={savedProfile} />} />
           <Route path="*" element={<ErrorPage type="notFound" />} />
         </Routes>
       </main>

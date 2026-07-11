@@ -198,28 +198,14 @@
   text-decoration: underline;
 }
 
-.analytics-viewers-lockup {
-  position: relative;
-}
-
 .analytics-viewers-list {
   max-height: 18rem;
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
-.analytics-viewers-list--blurred {
-  filter: blur(4px);
-  user-select: none;
-}
-
 .analytics-upgrade-overlay {
-  left: 0;
-  position: absolute;
-  right: 0;
-  text-shadow: 0 1px 2px rgba(33, 37, 41, 0.35);
-  top: 50%;
-  transform: translateY(-50%);
+  color: #6c757d;
 }
 
 .analytics-viewer-row {
@@ -295,13 +281,15 @@
 }
 
 .global-chat-shell {
-  min-height: min(680px, calc(100vh - 2rem));
+  height: min(680px, calc(100vh - 2rem));
+  min-height: 0;
 }
 
 .global-chat-layout {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
-  min-height: 520px;
+  flex: 1;
+  min-height: 0;
 }
 
 .global-chat-sidebar {
@@ -335,6 +323,13 @@
   padding: 0.55rem 0.6rem;
   text-align: left;
   width: 100%;
+}
+
+.global-chat-room-button span,
+.global-chat-room-button small {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .global-chat-room-button:hover,
@@ -373,13 +368,34 @@
 .global-chat-main {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   min-width: 0;
 }
 
 .global-chat-messages {
   flex: 1;
-  height: 440px;
+  min-height: 0;
   overflow-y: auto;
+}
+
+.global-chat-report-chat-button {
+  align-items: center;
+  background: #6D28D9;
+  border: 1px solid #6D28D9;
+  border-radius: 8px;
+  color: #ffffff;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.global-chat-report-chat-button:hover,
+.global-chat-report-chat-button:focus {
+  background: #5b21b6;
+  border-color: #5b21b6;
+  color: #ffffff;
+  outline: 0;
 }
 
 .global-chat-report-button {
@@ -440,7 +456,7 @@
   text-decoration: none !important;
 }
 
-.profile-preview-avatar-wrap {
+.profile-avatar-wrap {
   display: inline-block;
   position: relative;
 }
@@ -461,132 +477,6 @@
 
 .profile-presence-dot--offline {
   background: #94a3b8;
-}
-
-.profile-preview-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-  padding: 1rem;
-}
-
-.profile-preview-card--violet {
-  border-top: 4px solid #6D28D9;
-}
-
-.profile-preview-card--ocean {
-  border-top: 4px solid #0284C7;
-}
-
-.profile-preview-card--sunset {
-  border-top: 4px solid #F97316;
-}
-
-.profile-preview-card--forest {
-  border-top: 4px solid #16A34A;
-}
-
-.profile-preview-topline {
-  align-items: center;
-  display: flex;
-  gap: 0.85rem;
-  min-width: 0;
-}
-
-.profile-preview-avatar {
-  border: 2px solid #dee2e6;
-  border-radius: 50%;
-  height: 56px;
-  object-fit: cover;
-  object-position: center;
-  width: 56px;
-}
-
-.profile-preview-name {
-  overflow-wrap: anywhere;
-}
-
-.profile-preview-username {
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-.profile-preview-actions {
-  display: flex;
-  gap: 0.35rem;
-}
-
-.profile-icon-button {
-  align-items: center;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  color: #334155;
-  display: inline-flex;
-  height: 36px;
-  justify-content: center;
-  width: 36px;
-}
-
-.profile-icon-button:hover,
-.profile-icon-button:focus {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #111827;
-  outline: 0;
-}
-
-.profile-preview-details {
-  margin-top: 0.9rem;
-}
-
-.profile-contact-link {
-  color: inherit;
-  text-decoration: underline;
-}
-
-.profile-gallery-strip {
-  display: grid;
-  gap: 0.5rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 0.85rem;
-}
-
-.profile-gallery-image {
-  aspect-ratio: 4 / 3;
-  border-radius: 8px;
-  object-fit: cover;
-  width: 100%;
-}
-
-.profile-preview-keywords {
-  max-height: 165px;
-  overflow-y: auto;
-}
-
-.profile-qr-panel {
-  align-items: center;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.85rem;
-  padding: 0.85rem;
-}
-
-.profile-qr-image {
-  border: 6px solid #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 8px 20px rgba(109, 40, 217, 0.16);
-  height: 180px;
-  width: 180px;
-}
-
-.profile-qr-caption {
-  color: #5B21B6;
-  font-weight: 700;
 }
 
 .profile-gallery-upload-grid {
@@ -610,7 +500,7 @@
 .profile-gallery-placeholder {
   align-items: center;
   border: 2px dashed #adb5bd;
-  color: #6c757d;
+  color: #adb5bd;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -621,17 +511,14 @@
 }
 
 .profile-gallery-placeholder i {
+  color: inherit;
   font-size: 1.3rem;
 }
 
-.profile-gallery-placeholder span {
-  font-size: 0.8rem;
-  line-height: 1.2;
-}
-
 .profile-gallery-placeholder small {
-  color: #6D28D9;
-  font-weight: 700;
+  color: inherit;
+  font-size: 0.7rem;
+  font-weight: 400;
 }
 
 .profile-gallery-upload-preview {
@@ -644,37 +531,6 @@
   left: 50%;
   position: absolute;
   transform: translateX(-50%);
-}
-
-.profile-theme-picker {
-  display: grid;
-  gap: 0.5rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.profile-theme-option {
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  color: #212529;
-  display: flex;
-  gap: 0.45rem;
-  justify-content: center;
-  min-height: 42px;
-  padding: 0.45rem;
-}
-
-.profile-theme-option.active {
-  border-color: #6D28D9;
-  box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.12);
-}
-
-.profile-theme-swatch {
-  border-radius: 50%;
-  flex: 0 0 14px;
-  height: 14px;
-  width: 14px;
 }
 
 .navbar-login-heading {
@@ -843,24 +699,14 @@
   }
 
   .global-chat-sidebar {
-    border-bottom: 1px solid #e5e7eb;
     border-right: 0;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: 190px;
+    overflow: visible;
   }
 
-  .global-chat-messages {
-    height: 320px;
-  }
-
-  .profile-gallery-upload-grid,
-  .profile-gallery-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-theme-picker {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .global-chat-sidebar-section {
+    max-height: 150px;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 
   .navbar-login-dropdown {

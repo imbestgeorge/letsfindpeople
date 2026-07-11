@@ -15,24 +15,9 @@ export const GLOBAL_CHAT_CHANNELS = [
     key: "skills-money",
     title: "Skills to Money",
     icon: "bi-cash-coin",
-    description: "Network around skills and income ideas",
-  },
-  {
-    key: "icebreaker",
-    title: "Today's Icebreaker",
-    icon: "bi-lightning-charge",
-    description: "Keyword of the day",
+    description: "Discuss income ideas.",
   },
 ];
-
-export function getKeywordOfTheDay(keywords = []) {
-  const fallback = { id: 67, name: "Keyword #67" };
-  const list = (Array.isArray(keywords) ? keywords : []).filter((item) => item?.id);
-  if (list.length === 0) return fallback;
-
-  const dayIndex = Math.floor(Date.now() / 86400000) % list.length;
-  return list[dayIndex] || list.find((item) => Number(item.id) === 67) || fallback;
-}
 
 function mapChatMessage(row) {
   return {
@@ -47,7 +32,6 @@ function mapChatMessage(row) {
       lastName: row.last_name || "",
       email: row.email || "",
       profileUrl: row.profile_url || null,
-      username: row.username || "",
       isOnline: !!row.is_online,
     },
   };
@@ -66,7 +50,6 @@ function mapDirectMessage(row) {
       lastName: row.last_name || "",
       email: row.email || "",
       profileUrl: row.profile_url || null,
-      username: row.username || "",
       isOnline: !!row.is_online,
     },
   };
@@ -78,11 +61,9 @@ function mapDirectChat(row) {
   return {
     conversationId: row.id_direct_conversation,
     otherUserId: row.other_user_id,
-    username: row.username || "",
     name: name || row.email || "Member",
     email: row.email || "",
     profilePicture: row.profile_url || null,
-    profileTheme: row.profile_theme || "violet",
     lastSeenAt: row.last_seen_at || null,
     isOnline: !!row.is_online,
     lastBody: row.last_body || "",

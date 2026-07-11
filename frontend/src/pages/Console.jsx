@@ -88,7 +88,6 @@ const DIRECT_KEYS = [
   "roleModels",
   "other",
 ];
-const PROFILE_USERNAME_PATTERN = /^[a-z0-9_]{3,16}$/;
 
 function countMatchingKeywords(keywordIds, selectedKeywordIds) {
   const keywords = new Set((keywordIds || []).map(Number));
@@ -297,13 +296,11 @@ export default function Console({ currentUser }) {
     if (!currentUser) return false;
 
     const hasRequiredProfileInfo =
-      PROFILE_USERNAME_PATTERN.test(currentUser.username || "") &&
       !!currentUser.firstName?.trim() &&
       !!currentUser.lastName?.trim() &&
       !!currentUser.birthDay &&
       !!currentUser.birthMonth &&
-      !!currentUser.birthYear &&
-      !!currentUser.location?.trim();
+      !!currentUser.birthYear;
     const hasRequiredGender = !!currentUserGender;
     const answeredYesNo = YES_NO_KEYS.filter((key) => currentUser.answers?.[key] != null).length;
     const completedDirect = DIRECT_KEYS.filter(
@@ -544,7 +541,6 @@ export default function Console({ currentUser }) {
         .filter((id) => id != null))];
     return {
       id: currentUser.id || "current",
-      username: currentUser.username || "",
       name: `${currentUser.firstName} ${currentUser.lastName}`,
       isCurrentUser: true,
       age: isNaN(age) ? null : age,
@@ -558,7 +554,6 @@ export default function Console({ currentUser }) {
       },
       profilePicture: currentUser.profileImagePreview,
       profileGalleryUrls: currentUser.profileGalleryUrls || [],
-      profileTheme: currentUser.profileTheme || "violet",
       isOnline: true,
       keywordIds,
     };
@@ -764,16 +759,6 @@ export default function Console({ currentUser }) {
   const selectedCountryOption =
     countryOptions.find((option) => option.value === selectedCountryFilter) ||
     countryOptions[0];
-
-  const openPersonProfile = (person) => {
-    window.dispatchEvent(new CustomEvent("lfp:open-profile-preview", {
-      detail: {
-        user: person,
-        updateUrl: !!person.username,
-        showSend: !person.isCurrentUser,
-      },
-    }));
-  };
 
   const startDirectChat = (person) => {
     if (!person || person.isCurrentUser) return;
@@ -1094,12 +1079,7 @@ export default function Console({ currentUser }) {
                   <div className="card">
                     <div className="card-body">
                       <div className="d-flex align-items-center gap-3 mb-3">
-                        <button
-                          type="button"
-                          className="btn p-0 border-0 bg-transparent profile-preview-avatar-wrap"
-                          onClick={() => openPersonProfile(person)}
-                          aria-label={`Preview ${person.name}`}
-                        >
+                        <span className="profile-avatar-wrap">
                           <img
                             src={person.profilePicture || defaultProfile}
                             alt={person.name}
@@ -1110,25 +1090,20 @@ export default function Console({ currentUser }) {
                             title={person.isOnline ? "Online" : "Offline"}
                             aria-label={person.isOnline ? "Online" : "Offline"}
                           ></span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn p-0 border-0 bg-transparent text-start min-w-0"
-                          onClick={() => openPersonProfile(person)}
-                        >
+                        </span>
+                        <div className="text-start min-w-0">
                           <h4 className="card-title mb-0 text-start">
                             {person.name}{person.isCurrentUser ? " (Me)" : ""}
                           </h4>
-                          {person.username && (
-                            <small className="text-muted">@{person.username}</small>
-                          )}
-                        </button>
+                        </div>
                       </div>
                       <div className="card-text">
                         {(person.age != null || person.birthday) && (
                           <p className="mb-1"><i className="bi bi-cake2 me-2"></i>{person.age ?? getAge(person.birthday)} years old</p>
                         )}
-                        <p className="mb-1"><i className="bi bi-geo-alt me-2"></i>{person.location}</p>
+                        {person.location && (
+                          <p className="mb-1"><i className="bi bi-geo-alt me-2"></i>{person.location}</p>
+                        )}
                         {person.contacts.instagram?.show && person.contacts.instagram?.value && (
                           <p className="mb-1"><a href={`https://instagram.com/${person.contacts.instagram.value}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "underline", color: "inherit" }}><i className="bi bi-instagram me-2"></i>@{person.contacts.instagram.value}</a></p>
                         )}
@@ -1161,14 +1136,6 @@ export default function Console({ currentUser }) {
                         })}
                       </div>
                       <div className="d-flex gap-2 mt-3">
-                        <button
-                          type="button"
-                          className="btn btn-outline-primary btn-sm flex-fill"
-                          onClick={() => openPersonProfile(person)}
-                        >
-                          <i className="bi bi-person-vcard me-1"></i>
-                          Preview
-                        </button>
                         <button
                           type="button"
                           className="btn btn-primary btn-sm flex-fill"

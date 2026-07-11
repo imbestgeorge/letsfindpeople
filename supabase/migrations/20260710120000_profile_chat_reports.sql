@@ -1,35 +1,35 @@
--- Profile preview, usernames, gallery images, themed profiles, chat channels,
--- direct messages, chat reports, and lightweight presence.
+-- Profile gallery images, chat channels, direct messages, chat reports,
+-- and lightweight presence.
+
+drop function if exists public.get_public_user_profile_by_username(text);
+drop function if exists public.get_public_user_profile(integer);
+drop function if exists public.search_users_by_keywords(integer[]);
+drop function if exists public.send_global_chat_message(text);
+drop function if exists public.send_global_chat_message(text, text);
+drop function if exists public.list_global_chat_messages();
+drop function if exists public.list_global_chat_messages(text);
+drop function if exists public.send_direct_chat_message(integer, text);
+drop function if exists public.list_direct_chat_messages(integer);
+drop function if exists public.list_my_direct_chats();
+
+drop index if exists public.users_username_lower_uidx;
 
 alter table public.users
-  add column if not exists username text,
+  drop constraint if exists users_username_format_chk,
+  drop constraint if exists users_profile_theme_chk,
+  drop constraint if exists users_profile_gallery_array_chk;
+
+alter table public.users
   add column if not exists profile_gallery_urls jsonb not null default '[]'::jsonb,
-  add column if not exists profile_theme text not null default 'violet',
   add column if not exists last_seen_at timestamptz;
 
-update public.users
-set username = 'user' || id_user::text
-where username is null or username = '';
-
-update public.users
-set profile_theme = 'violet'
-where profile_theme is null or profile_theme not in ('violet', 'ocean', 'sunset', 'forest');
-
 alter table public.users
-  add constraint users_username_format_chk
-  check (username is null or username ~ '^[a-z0-9_]{3,16}$') not valid;
+  drop column if exists username,
+  drop column if exists profile_theme;
 
 alter table public.users
   add constraint users_profile_gallery_array_chk
   check (jsonb_typeof(profile_gallery_urls) = 'array') not valid;
-
-alter table public.users
-  add constraint users_profile_theme_chk
-  check (profile_theme in ('violet', 'ocean', 'sunset', 'forest')) not valid;
-
-create unique index if not exists users_username_lower_uidx
-  on public.users (lower(username))
-  where username is not null and is_deleted = false;
 
 create index if not exists users_last_seen_at_idx
   on public.users (last_seen_at desc);
@@ -43,13 +43,14 @@ as $$
 begin
   update public.users
   set last_seen_at = now()
-  where supabase_uid = auth.uid()
+  where supabase_uid = auth.uid()::text
     and is_deleted = false
     and is_banned = false;
 end;
 $$;
 
-create or replace function public.update_my_profile(p_profile jsonb, p_keyword_ids integer[])
+drop function if exists public.update_my_profile(jsonb, integer[]);
+create function public.update_my_profile(p_profile jsonb, p_keyword_ids integer[])
 returns void
 language plpgsql
 security definer
@@ -57,38 +58,16 @@ set search_path = public
 as $$
 declare
   v_user_id integer;
-  v_username text;
-  v_theme text;
   v_gallery jsonb;
 begin
   select id_user into v_user_id
   from public.users
-  where supabase_uid = auth.uid()
+  where supabase_uid = auth.uid()::text
     and is_deleted = false
     and is_banned = false;
 
   if v_user_id is null then
     raise exception 'User not found.';
-  end if;
-
-  v_username := lower(nullif(trim(p_profile->>'username'), ''));
-  if v_username is null or v_username !~ '^[a-z0-9_]{3,16}$' then
-    raise exception 'Username must be 3 to 16 characters and use only lowercase letters, numbers, and underscores.';
-  end if;
-
-  if exists (
-    select 1
-    from public.users
-    where lower(username) = v_username
-      and id_user <> v_user_id
-      and is_deleted = false
-  ) then
-    raise exception 'Username is already taken.';
-  end if;
-
-  v_theme := coalesce(nullif(p_profile->>'profile_theme', ''), 'violet');
-  if v_theme not in ('violet', 'ocean', 'sunset', 'forest') then
-    v_theme := 'violet';
   end if;
 
   v_gallery := case
@@ -106,7 +85,6 @@ begin
 
   update public.users
   set
-    username = v_username,
     first_name = nullif(p_profile->>'first_name', ''),
     last_name = nullif(p_profile->>'last_name', ''),
     date_of_birth = nullif(p_profile->>'date_of_birth', '')::date,
@@ -123,7 +101,6 @@ begin
     show_discord = coalesce((p_profile->>'show_discord')::boolean, true),
     profile_url = nullif(p_profile->>'profile_url', ''),
     profile_gallery_urls = v_gallery,
-    profile_theme = v_theme,
     last_seen_at = now(),
     q_visual_art = case when p_profile ? 'q_visual_art' then (p_profile->>'q_visual_art')::boolean else q_visual_art end,
     q_digital_art = case when p_profile ? 'q_digital_art' then (p_profile->>'q_digital_art')::boolean else q_digital_art end,
@@ -175,8 +152,7 @@ drop function if exists public.get_public_user_profile(integer);
 create function public.get_public_user_profile(p_user_id integer)
 returns table (
   id_user integer,
-  supabase_uid uuid,
-  username text,
+  supabase_uid text,
   first_name text,
   last_name text,
   date_of_birth date,
@@ -193,7 +169,6 @@ returns table (
   show_discord boolean,
   profile_url text,
   profile_gallery_urls jsonb,
-  profile_theme text,
   last_seen_at timestamptz,
   is_online boolean,
   all_keyword_ids integer[],
@@ -206,7 +181,6 @@ as $$
   select
     u.id_user,
     u.supabase_uid,
-    u.username,
     u.first_name,
     u.last_name,
     u.date_of_birth,
@@ -223,7 +197,6 @@ as $$
     coalesce(u.show_discord, true),
     u.profile_url,
     coalesce(u.profile_gallery_urls, '[]'::jsonb),
-    coalesce(u.profile_theme, 'violet'),
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false) as is_online,
     coalesce(array_agg(distinct uk.id_keyword) filter (where uk.id_keyword is not null), '{}')::integer[],
@@ -237,54 +210,12 @@ as $$
 $$;
 
 drop function if exists public.get_public_user_profile_by_username(text);
-create function public.get_public_user_profile_by_username(p_username text)
-returns table (
-  id_user integer,
-  supabase_uid uuid,
-  username text,
-  first_name text,
-  last_name text,
-  date_of_birth date,
-  location text,
-  phone_number text,
-  show_phone_number boolean,
-  instagram text,
-  show_instagram boolean,
-  tiktok text,
-  show_tiktok boolean,
-  snapchat text,
-  show_snapchat boolean,
-  discord text,
-  show_discord boolean,
-  profile_url text,
-  profile_gallery_urls jsonb,
-  profile_theme text,
-  last_seen_at timestamptz,
-  is_online boolean,
-  all_keyword_ids integer[],
-  match_count integer
-)
-language sql
-security definer
-set search_path = public
-as $$
-  select *
-  from public.get_public_user_profile((
-    select id_user
-    from public.users
-    where lower(username) = lower(trim(p_username))
-      and coalesce(is_deleted, false) = false
-      and coalesce(is_banned, false) = false
-    limit 1
-  ));
-$$;
 
 drop function if exists public.search_users_by_keywords(integer[]);
 create function public.search_users_by_keywords(keyword_ids integer[])
 returns table (
   id_user integer,
-  supabase_uid uuid,
-  username text,
+  supabase_uid text,
   first_name text,
   last_name text,
   date_of_birth date,
@@ -301,7 +232,6 @@ returns table (
   show_discord boolean,
   profile_url text,
   profile_gallery_urls jsonb,
-  profile_theme text,
   last_seen_at timestamptz,
   is_online boolean,
   all_keyword_ids integer[],
@@ -330,7 +260,6 @@ as $$
   select
     u.id_user,
     u.supabase_uid,
-    u.username,
     u.first_name,
     u.last_name,
     u.date_of_birth,
@@ -347,7 +276,6 @@ as $$
     coalesce(u.show_discord, true),
     u.profile_url,
     coalesce(u.profile_gallery_urls, '[]'::jsonb),
-    coalesce(u.profile_theme, 'violet'),
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false),
     coalesce(ak.all_keyword_ids, '{}')::integer[],
@@ -440,7 +368,7 @@ set search_path = public
 as $$
   select id_user
   from public.users
-  where supabase_uid = auth.uid()
+  where supabase_uid = auth.uid()::text
     and coalesce(is_deleted, false) = false
     and coalesce(is_banned, false) = false
   limit 1;
@@ -455,7 +383,7 @@ as $$
   select exists (
     select 1
     from public.users
-    where supabase_uid = auth.uid()
+    where supabase_uid = auth.uid()::text
       and id_type = 2
       and coalesce(is_deleted, false) = false
       and coalesce(is_banned, false) = false
@@ -475,7 +403,6 @@ returns table (
   last_name text,
   email text,
   profile_url text,
-  username text,
   last_seen_at timestamptz,
   is_online boolean
 )
@@ -493,7 +420,6 @@ as $$
     u.last_name,
     u.email,
     u.profile_url,
-    u.username,
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false)
   from public.global_chat_messages m
@@ -519,7 +445,6 @@ returns table (
   last_name text,
   email text,
   profile_url text,
-  username text,
   last_seen_at timestamptz,
   is_online boolean
 )
@@ -638,16 +563,15 @@ begin
 end;
 $$;
 
-create or replace function public.list_my_direct_chats()
+drop function if exists public.list_my_direct_chats();
+create function public.list_my_direct_chats()
 returns table (
   id_direct_conversation bigint,
   other_user_id integer,
-  username text,
   first_name text,
   last_name text,
   email text,
   profile_url text,
-  profile_theme text,
   last_seen_at timestamptz,
   is_online boolean,
   last_body text,
@@ -695,12 +619,10 @@ as $$
   select
     c.id_direct_conversation,
     u.id_user,
-    u.username,
     u.first_name,
     u.last_name,
     u.email,
     u.profile_url,
-    coalesce(u.profile_theme, 'violet'),
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false),
     ms.last_body,
@@ -716,7 +638,8 @@ as $$
   order by ms.last_message_at desc nulls last, c.updated_at desc;
 $$;
 
-create or replace function public.list_direct_chat_messages(p_other_user_id integer)
+drop function if exists public.list_direct_chat_messages(integer);
+create function public.list_direct_chat_messages(p_other_user_id integer)
 returns table (
   id_direct_message bigint,
   id_direct_conversation bigint,
@@ -727,7 +650,6 @@ returns table (
   last_name text,
   email text,
   profile_url text,
-  username text,
   last_seen_at timestamptz,
   is_online boolean
 )
@@ -749,7 +671,6 @@ begin
     u.last_name,
     u.email,
     u.profile_url,
-    u.username,
     u.last_seen_at,
     coalesce(u.last_seen_at > now() - interval '5 minutes', false)
   from public.direct_chat_messages m
@@ -761,7 +682,8 @@ begin
 end;
 $$;
 
-create or replace function public.send_direct_chat_message(p_other_user_id integer, p_body text)
+drop function if exists public.send_direct_chat_message(integer, text);
+create function public.send_direct_chat_message(p_other_user_id integer, p_body text)
 returns table (
   id_direct_message bigint,
   id_direct_conversation bigint,
@@ -772,7 +694,6 @@ returns table (
   last_name text,
   email text,
   profile_url text,
-  username text,
   last_seen_at timestamptz,
   is_online boolean
 )

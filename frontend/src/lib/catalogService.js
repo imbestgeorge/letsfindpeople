@@ -142,7 +142,6 @@ function mapPublicUser(u) {
   return {
     id:             u.id_user,
     supabaseUid:    u.supabase_uid,
-    username:       u.username || "",
     name:           `${u.first_name || ""} ${u.last_name || ""}`.trim(),
     birthday:       u.date_of_birth,
     location:       u.location,
@@ -155,7 +154,6 @@ function mapPublicUser(u) {
     },
     profilePicture: u.profile_url || null,
     profileGalleryUrls: Array.isArray(u.profile_gallery_urls) ? u.profile_gallery_urls : [],
-    profileTheme:   u.profile_theme || "violet",
     lastSeenAt:     u.last_seen_at || null,
     isOnline:       !!u.is_online,
     keywordIds:     u.all_keyword_ids || [],
@@ -292,19 +290,6 @@ export async function getPublicUserById(userId) {
 
   const { data, error } = await supabase.rpc("get_public_user_profile", {
     p_user_id: id,
-  });
-  if (error) throw new Error(error.message);
-
-  const row = Array.isArray(data) ? data[0] : data;
-  return row ? mapPublicUser(row) : null;
-}
-
-export async function getPublicUserByUsername(username) {
-  const normalized = String(username || "").trim().toLowerCase();
-  if (!normalized) throw new Error("Invalid username.");
-
-  const { data, error } = await supabase.rpc("get_public_user_profile_by_username", {
-    p_username: normalized,
   });
   if (error) throw new Error(error.message);
 
