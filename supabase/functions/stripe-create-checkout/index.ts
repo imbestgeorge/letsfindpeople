@@ -1,6 +1,6 @@
 // supabase/functions/stripe-create-checkout/index.ts
 // @ts-nocheck
-// Creates a Stripe Checkout session for the Basic Plan subscription.
+// Creates a Stripe Checkout session for the Pro Plan subscription.
 //
 // Required Supabase secret env vars (set via `supabase secrets set`):
 //   STRIPE_SECRET_KEY  — from Stripe Dashboard > Developers > API keys

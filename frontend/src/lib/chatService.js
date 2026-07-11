@@ -37,6 +37,12 @@ function mapChatMessage(row) {
   };
 }
 
+function assertNoChatError(row) {
+  if (row?.error_message) {
+    throw new Error(row.error_message);
+  }
+}
+
 function mapDirectMessage(row) {
   return {
     id: row.id_direct_message,
@@ -112,6 +118,7 @@ export async function sendGlobalChatMessage(message, channelKey = "international
   if (error) throw new Error(error.message);
 
   const row = Array.isArray(data) ? data[0] : data;
+  assertNoChatError(row);
   return row ? mapChatMessage(row) : null;
 }
 
@@ -156,6 +163,7 @@ export async function sendDirectChatMessage(otherUserId, message) {
   if (error) throw new Error(error.message);
 
   const row = Array.isArray(data) ? data[0] : data;
+  assertNoChatError(row);
   return row ? mapDirectMessage(row) : null;
 }
 

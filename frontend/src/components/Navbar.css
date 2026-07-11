@@ -99,6 +99,10 @@
   overflow: hidden;
 }
 
+.navbar .navbar-notification-badge {
+  background-color: #f97316 !important;
+}
+
 .navbar-notification-badge {
   font-size: 0.65rem;
   line-height: 0.8rem;
@@ -367,6 +371,7 @@
 }
 
 .global-chat-room-button .badge {
+  background-color: #f97316 !important;
   flex: 0 0 auto;
   min-width: 1.5rem;
   white-space: nowrap;
@@ -554,12 +559,11 @@
 }
 
 .daily-dice-die--six {
-  border-color: rgba(249, 115, 22, 0.8);
+  border-color: rgba(148, 163, 184, 0.5);
   box-shadow:
-    inset 0 -8px 16px rgba(109, 40, 217, 0.13),
-    inset 0 6px 12px rgba(255, 255, 255, 0.95),
-    0 0 0 2px rgba(249, 115, 22, 0.18),
-    0 14px 28px rgba(109, 40, 217, 0.18);
+    inset 0 -8px 16px rgba(15, 23, 42, 0.12),
+    inset 0 6px 12px rgba(255, 255, 255, 0.9),
+    0 10px 20px rgba(15, 23, 42, 0.14);
 }
 
 .daily-dice-die--rolling {
@@ -876,8 +880,13 @@
   }
 
   .global-chat-sidebar-section--direct {
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-sizing: border-box;
     max-height: 150px;
     overflow-y: auto;
+    padding: 0.5rem;
     scrollbar-width: thin;
   }
 

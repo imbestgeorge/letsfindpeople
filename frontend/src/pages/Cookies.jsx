@@ -4,7 +4,7 @@ export default function Cookies() {
       <h1 className="policy-title">Cookies Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 June 2026</strong>
+          <strong>Last updated: 11 July 2026</strong>
         </p>
 
         <p>
@@ -48,6 +48,10 @@ export default function Cookies() {
             draw-event invite code and cache the keyword catalog so the Service
             loads faster.
           </li>
+          <li>
+            <strong>Safety storage and logs:</strong> support authentication,
+            abuse prevention, chat spam controls, and account security checks.
+          </li>
         </ul>
 
         <p>
@@ -63,8 +67,9 @@ export default function Cookies() {
           <br />
           We may use cookies, local storage, or server-side logs to understand
           how users interact with the Service -- for example, page visits,
-          popular features, search activity, and registration flow performance.
-          This data is collected in aggregate or pseudonymous form and is used
+          popular features, search activity, profile analytics, dice rewards,
+          chat activity, and registration flow performance. This data is
+          collected in aggregate or pseudonymous form where possible and is used
           solely to improve and protect the Service.
         </p>
 

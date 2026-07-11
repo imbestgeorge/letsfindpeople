@@ -4,7 +4,7 @@ export default function Contact() {
       <h1 className="policy-title">Contact Information</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 June 2026</strong>
+          <strong>Last updated: 11 July 2026</strong>
         </p>
 
         <p>
@@ -29,7 +29,8 @@ export default function Contact() {
           <li>A clear description of your issue or question.</li>
           <li>
             The related feature, such as profile setup, search, chat,
-            notifications, invite links, subscriptions, or account access.
+            notifications, invite links, daily dice, subscriptions, spam
+            controls, or account access.
           </li>
           <li>Any relevant screenshots, if applicable.</li>
         </ul>
@@ -38,7 +39,8 @@ export default function Contact() {
         <ul>
           <li>Account access and login issues.</li>
           <li>Profile, profile picture, search, and keyword questions.</li>
-          <li>International chat, notifications, and draw-event invite links.</li>
+          <li>Global chat, direct messages, notifications, and draw-event invite links.</li>
+          <li>Daily dice rewards, free searches, and Pro Plan access questions.</li>
           <li>
             Subscription and billing enquiries (note: we do not issue refunds --
             see our Refunds Policy).

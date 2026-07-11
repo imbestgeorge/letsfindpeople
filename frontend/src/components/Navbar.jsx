@@ -126,7 +126,7 @@ function getBrowserCountryCode() {
   }
 }
 
-function getBasicPlanPrice(location) {
+function getProPlanPrice(location) {
   const locationParts = String(location || "")
     .split(",")
     .map(normalizeCountry)
@@ -1443,7 +1443,7 @@ function Navbar({ onProfileSave }) {
   };
 
   const handlePlayDice = async () => {
-    if (diceRolling) return;
+    if (diceRolling || (diceStatus && !diceStatus.canPlay && !diceStatus.canPlayAgain)) return;
     setDiceRolling(true);
     setDiceError("");
     setDiceCelebrating(false);
@@ -2425,8 +2425,8 @@ function Navbar({ onProfileSave }) {
       firstStageCountryNames
     )).length;
   const totalQuestions = yesNoKeys.length + directKeys.length;
-  const basicPlanPrice = useMemo(
-    () => getBasicPlanPrice(savedProfile.location),
+  const proPlanPrice = useMemo(
+    () => getProPlanPrice(savedProfile.location),
     [savedProfile.location]
   );
   const isAdminUser = isAdmin;
@@ -2440,6 +2440,7 @@ function Navbar({ onProfileSave }) {
   const showChatNav = !!session && !isAdminUser;
   const showNotificationsNav = !!session && !isAdminUser;
   const showDiceBadge = showDiceNav && !!diceStatus && (diceStatus.canPlay || diceStatus.canPlayAgain);
+  const canPlayDiceNow = !!diceStatus && (diceStatus.canPlay || diceStatus.canPlayAgain);
   const chatBadgeLabel = unreadChatMessages > 99 ? "99+" : String(unreadChatMessages);
   const notificationBadgeLabel = unreadNotifications > 99 ? "99+" : String(unreadNotifications);
   const savedProfileIsPro = isProSubscriptionStatus(savedProfile.subscriptionStatus);
@@ -2702,7 +2703,7 @@ function Navbar({ onProfileSave }) {
                       >
                         {checkoutLoading
                           ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                          : `Subscribe for ${basicPlanPrice}/month`}
+                          : `Subscribe for ${proPlanPrice}/month`}
                       </button>
                     )}
 
@@ -2855,12 +2856,14 @@ function Navbar({ onProfileSave }) {
                     type="button"
                     className="btn console-orange-action-button"
                     onClick={handlePlayDice}
-                    disabled={diceLoading || diceRolling}
+                    disabled={diceLoading || diceRolling || !canPlayDiceNow}
                   >
                     {diceRolling ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     ) : diceStatus?.canPlayAgain ? (
                       "Throw Again"
+                    ) : diceStatus?.alreadyPlayed ? (
+                      "Come Back Tomorrow"
                     ) : (
                       "Throw Dice"
                     )}

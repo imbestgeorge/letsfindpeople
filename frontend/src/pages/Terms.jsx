@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="policy-title">Terms &amp; Conditions</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 June 2026</strong>
+          <strong>Last updated: 11 July 2026</strong>
         </p>
 
         <p>
@@ -59,8 +59,13 @@ export default function Terms() {
           <li>Use the Service to harass, stalk, spam, or harm other users.</li>
           <li>
             Send abusive, threatening, unlawful, explicit, misleading, or
-            otherwise harmful content through global chat, notifications,
-            invites, keyword requests, profile fields, or uploaded images.
+            otherwise harmful content through global chat, direct messages,
+            notifications, invites, keyword requests, profile fields, or
+            uploaded images.
+          </li>
+          <li>
+            Send repeated, automated, deceptive, or unusually high-volume chat
+            messages designed to disrupt the Service or pressure other users.
           </li>
           <li>
             Attempt to reverse-engineer, decompile, or tamper with any part of
@@ -77,28 +82,38 @@ export default function Terms() {
           You are solely responsible for the information you submit to your
           profile, including your name, location, contact details, profile
           picture, contact visibility permissions, interest selections, keyword
-          requests, uploaded images, and messages you send through the Service.
-          You must have the rights needed to upload or submit that content. You
-          grant LetsFindPeople a
+          requests, uploaded images, and global or direct messages you send
+          through the Service. You must have the rights needed to upload or
+          submit that content. You grant LetsFindPeople a
           non-exclusive licence to store, moderate, and display this information
           to other users of the Service as intended by its functionality.
         </p>
 
-        <h4>5. Chat, Notifications, and Invites</h4>
+        <h4>5. Chat, Notifications, Invites, and Dice</h4>
         <p>
-          The Service may include international chat, in-app notifications, and
-          draw-event invite links. Chat messages are visible to signed-in users
-          and may be removed or moderated if they violate these Terms.
+          The Service may include global chat channels, direct messages,
+          in-app notifications, draw-event invite links, and a daily dice game.
+          Global chat messages are visible to signed-in users. Direct messages
+          are visible to the conversation participants and may be moderated if
+          they violate these Terms.
           Notifications and draw-event invites are provided for site updates,
           events, and related signup flows. You must not use these features to
           spam, deceive, pressure, or abuse other users.
         </p>
+        <p>
+          The daily dice game may award free searches, temporary Pro Plan
+          access, or promotional rewards. Dice rewards have no cash value, are
+          subject to availability and anti-abuse checks, and may be corrected or
+          removed if granted due to an error, exploit, or violation of these
+          Terms.
+        </p>
 
         <h4>6. Subscription Plans</h4>
         <p>
-          The Service offers a Free Plan with limited searches, and a paid Basic
-          Plan for unlimited searches. Subscriptions are billed monthly. You may
-          cancel your subscription at any time via the &quot;Cancel
+          The Service offers a Free Plan with limited searches, and a paid Pro
+          Plan for unlimited searches and profile analytics features such as
+          seeing who viewed your profile. Subscriptions are billed monthly. You
+          may cancel your subscription at any time via the &quot;Cancel
           Subscription&quot; option in your account. Cancellation stops future
           billing immediately; however, no refunds are issued for the current
           billing period (see Refunds Policy).
@@ -106,9 +121,11 @@ export default function Terms() {
 
         <h4>7. Free Plan Limits</h4>
         <p>
-          Free Plan users are limited to a set number of searches. Attempting to
-          bypass these limits through multiple accounts or automated means is a
-          violation of these Terms.
+          Free Plan users receive a limited number of searches that renew daily.
+          Daily dice rewards may add extra searches or temporary Pro Plan access.
+          Attempting to bypass these limits through multiple accounts,
+          automation, or exploitation of reward systems is a violation of these
+          Terms.
         </p>
 
         <h4>8. Moderation and Termination</h4>
@@ -117,6 +134,8 @@ export default function Terms() {
           suspend access, ban an account, or permanently terminate an account at
           any time, without notice, if we determine that you have violated these
           Terms or engaged in abusive, fraudulent, or harmful behaviour.
+          Repeated chat spam may result in escalating chat pauses, account
+          suspension, or permanent removal depending on severity.
         </p>
 
         <h4>9. Disclaimer of Warranties</h4>

@@ -4,12 +4,12 @@ export default function Refunds() {
       <h1 className="policy-title">Refunds Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 June 2026</strong>
+          <strong>Last updated: 11 July 2026</strong>
         </p>
 
         <p>
-          Please read this Refunds Policy carefully before subscribing to any
-          paid plan on LetsFindPeople. Paid subscriptions are processed through
+          Please read this Refunds Policy carefully before subscribing to the
+          Pro Plan on LetsFindPeople. Paid subscriptions are processed through
           Stripe.
         </p>
 
@@ -52,7 +52,14 @@ export default function Refunds() {
           ensure the Service meets your needs before subscribing.
         </p>
 
-        <h4>4. Exceptions</h4>
+        <h4>4. Promotional Rewards</h4>
+        <p>
+          Daily dice rewards, free searches, temporary Pro Plan access, and
+          promotional rewards have no cash value and are not refundable,
+          transferable, or exchangeable for money.
+        </p>
+
+        <h4>5. Exceptions</h4>
         <p>
           In rare cases involving billing errors caused by us (e.g. a duplicate
           charge), we will review the situation and issue a correction if
@@ -63,7 +70,7 @@ export default function Refunds() {
           within 7 days of the charge.
         </p>
 
-        <h4>5. Consumer Rights</h4>
+        <h4>6. Consumer Rights</h4>
         <p>
           If you are located in the European Union, you may have statutory rights
           under consumer protection law. This policy does not limit any rights
@@ -71,7 +78,7 @@ export default function Refunds() {
           excluded.
         </p>
 
-        <h4>6. Contact</h4>
+        <h4>7. Contact</h4>
         <p>
           For billing-related questions, contact us at:{" "}
           <a href="mailto:contact@letsfindpeople.com">

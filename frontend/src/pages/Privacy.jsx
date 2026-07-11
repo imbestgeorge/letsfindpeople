@@ -4,7 +4,7 @@ export default function Privacy() {
       <h1 className="policy-title">Privacy Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 June 2026</strong>
+          <strong>Last updated: 11 July 2026</strong>
         </p>
 
         <p>
@@ -54,15 +54,21 @@ export default function Privacy() {
           </li>
           <li>
             <strong>Communications and permission data:</strong> global chat
-            messages you send, notification read or dismissal status,
-            draw-event invite activity, keyword requests you submit, and the
-            profile visibility permissions you choose.
+            messages and direct messages you send, notification read or
+            dismissal status, draw-event invite activity, keyword requests you
+            submit, and the profile visibility permissions you choose.
           </li>
           <li>
             <strong>Payment and subscription data:</strong> subscription status,
             Stripe customer and subscription identifiers, and billing events
             needed to manage paid plans. We do not store your full payment card
             details.
+          </li>
+          <li>
+            <strong>Rewards and moderation data:</strong> daily dice plays,
+            rewards, profile analytics events, chat spam signals, temporary
+            chat pauses, account suspension status, and moderation logs needed
+            to operate and protect the Service.
           </li>
         </ul>
 
@@ -75,8 +81,9 @@ export default function Privacy() {
           </li>
           <li>To process subscription payments and manage your plan.</li>
           <li>
-            To provide global chat, in-app notifications, draw-event invites,
-            keyword requests, and other account features.
+            To provide global chat, direct messages, in-app notifications,
+            draw-event invites, daily dice rewards, keyword requests, profile
+            analytics, and other account features.
           </li>
           <li>
             To detect and prevent abuse, scraping, unauthorised access, and
@@ -89,11 +96,12 @@ export default function Privacy() {
         <h4>3. Data Encryption and Security</h4>
         <p>
           We take data security seriously. Profile data -- including your
-          interests and keyword selections -- will be encrypted at rest, ensuring
-          that even in the event of a data breach, individual interest data
-          cannot be attributed to a specific user by an attacker. We implement
-          industry-standard security measures including encrypted transmission
-          (HTTPS) and access controls. However, no system is completely
+          interests and keyword selections -- is protected with access controls
+          and encrypted transmission (HTTPS). We use authentication checks,
+          role-based administrative access, database-side validation,
+          rate-limiting and spam-detection controls for chat, restricted
+          redirect validation for payments, and moderation tools to reduce
+          unauthorised access and abuse. However, no system is completely
           impenetrable, and we cannot guarantee absolute security.
         </p>
 
@@ -112,10 +120,11 @@ export default function Privacy() {
           location will stay blank until you grant access and use the GPS button.
         </p>
         <p>
-          Messages sent in the international chat are visible to signed-in users
-          and may show your name and profile picture. Site notifications and
-          draw-event invites may record whether you have received, opened,
-          dismissed, or completed the related signup flow.
+          Messages sent in global chat are visible to signed-in users and may
+          show your name and profile picture. Direct messages are shown to the
+          conversation participants. Site notifications and draw-event invites
+          may record whether you have received, opened, dismissed, or completed
+          the related signup flow.
         </p>
 
         <h4>5. Data Sharing</h4>
@@ -142,10 +151,12 @@ export default function Privacy() {
           We retain your personal data for as long as your account is active or
           as needed to provide the Service. You may request deletion of your
           account and data at any time by contacting us. Global chat messages
-          are designed to be short-lived and are retained for up to 7 days.
-          Certain security logs, billing records, moderation records, and
-          account deletion records may be retained where needed for legal,
-          accounting, security, or abuse-prevention purposes.
+          are designed to be short-lived and shown for up to 7 days. Direct
+          messages, notification records, invite activity, dice reward records,
+          analytics events, certain security logs, billing records, moderation
+          records, and account deletion records may be retained where needed to
+          provide the Service or for legal, accounting, security, or
+          abuse-prevention purposes.
         </p>
 
         <h4>7. Your Rights (GDPR)</h4>
