@@ -634,6 +634,7 @@ function Navbar({ onProfileSave }) {
 
   // tracks whether we've already hydrated state from the DB for the current session
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileLoadError, setProfileLoadError] = useState("");
   const isModalOpen = showCancelSubModal || showAnalyticsModal || showEditModal || showChatModal || !!selectedNotification;
   const profileKeywordResultLimit = isMobileKeywordLimitView
     ? MOBILE_PROFILE_KEYWORD_RESULT_LIMIT
@@ -670,6 +671,7 @@ function Navbar({ onProfileSave }) {
         idType: 1,
       });
       setProfileLoaded(false);
+      setProfileLoadError("");
       setSubscriptionDetails({ loading: false, error: "", currentPeriodEnd: null });
       setShowChatModal(false);
       setChatMode("global");
@@ -858,6 +860,7 @@ function Navbar({ onProfileSave }) {
   // Hydrate all profile state from DB once session + catalog are both ready
   useEffect(() => {
     if (authLoading || !session?.user || !dbData || profileLoaded) return;
+    setProfileLoadError("");
 
     const selectorItems = {
       visualArt: visualArtItems, digitalArt: digitalArtItems,
@@ -975,15 +978,17 @@ function Navbar({ onProfileSave }) {
         };
         setSavedProfile(hydratedProfile);
         if (onProfileSave) onProfileSave(hydratedProfile);
+        setProfileLoaded(true);
       })
       .catch((err) => {
         // 404 just means a brand-new account with no profile yet — that's fine
-        if (!err.message?.includes("User not found")) {
-          console.error("Failed to load profile from DB:", err.message);
+        if (err.message?.includes("User not found")) {
+          setProfileLoaded(true);
+          return;
         }
-      })
-      .finally(() => {
-        setProfileLoaded(true);
+
+        console.error("Failed to load profile from DB:", err.message);
+        setProfileLoadError(err.message || "Failed to load profile.");
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, session, dbData, profileLoaded]);
@@ -1040,6 +1045,7 @@ function Navbar({ onProfileSave }) {
   const mustCompleteProfile =
     !!session &&
     profileLoaded &&
+    !profileLoadError &&
     routerLocation.pathname === "/" &&
     !isProfileComplete;
 
