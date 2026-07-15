@@ -18,8 +18,8 @@ import {
   subscribeToSiteNotifications,
 } from "../lib/notificationService";
 
-const FREE_SEARCH_KEYWORD_LIMIT = 12;
-const PRO_SEARCH_KEYWORD_LIMIT = 120;
+const FREE_SEARCH_KEYWORD_LIMIT = 120;
+const PRO_SEARCH_KEYWORD_LIMIT = 300;
 const DESKTOP_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_KEYWORD_RESULT_LIMIT = 25;
 const MIN_SEARCH_AGE = 16;

@@ -2687,7 +2687,7 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Pro Plan</h5>
-                      <p className="text mb-0">Access to unlimited searches, profile views, 120 search keywords, and an exclusive animated profile and name.</p>
+                      <p className="text mb-0">Access to unlimited searches, profile views, 300 search keywords, and an exclusive animated profile and name.</p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (
