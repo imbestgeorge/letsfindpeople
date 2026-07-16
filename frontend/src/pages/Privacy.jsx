@@ -65,8 +65,8 @@ export default function Privacy() {
             details.
           </li>
           <li>
-            <strong>Rewards and moderation data:</strong> daily dice plays,
-            rewards, profile analytics events, chat spam signals, temporary
+            <strong>Moderation data:</strong> profile analytics events,
+            chat spam signals, temporary
             chat pauses, account suspension status, and moderation logs needed
             to operate and protect the Service.
           </li>
@@ -82,7 +82,7 @@ export default function Privacy() {
           <li>To process subscription payments and manage your plan.</li>
           <li>
             To provide global chat, direct messages, in-app notifications,
-            draw-event invites, daily dice rewards, keyword requests, profile
+            draw-event invites, keyword requests, profile
             analytics, and other account features.
           </li>
           <li>

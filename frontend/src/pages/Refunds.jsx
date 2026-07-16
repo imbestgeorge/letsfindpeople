@@ -54,8 +54,8 @@ export default function Refunds() {
 
         <h4>4. Promotional Rewards</h4>
         <p>
-          Daily dice rewards, free searches, temporary Pro Plan access, and
-          promotional rewards have no cash value and are not refundable,
+          Free searches, temporary Pro Plan access, and promotional rewards
+          have no cash value and are not refundable,
           transferable, or exchangeable for money.
         </p>
 

@@ -49,6 +49,7 @@ const GENDER_KEYWORDS = ["Male", "Female", "Other"];
 const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
+const DICE_FEATURE_ENABLED = false;
 const DEFAULT_DICE_VALUES = [1, 2, 3, 4, 5, 6];
 const DICE_PIPS = {
   1: ["center"],
@@ -1415,6 +1416,8 @@ function Navbar({ onProfileSave }) {
   };
 
   const openDiceModal = async () => {
+    if (!DICE_FEATURE_ENABLED) return;
+
     setShowDiceModal(true);
     setDiceError("");
     setDiceLoading(true);
@@ -1485,7 +1488,7 @@ function Navbar({ onProfileSave }) {
   };
 
   useEffect(() => {
-    if (!session?.user?.id || isAdmin) {
+    if (!DICE_FEATURE_ENABLED || !session?.user?.id || isAdmin) {
       setDiceStatus(null);
       setDiceDisplayValues(DEFAULT_DICE_VALUES);
       return undefined;
@@ -2436,7 +2439,7 @@ function Navbar({ onProfileSave }) {
     !["active", "canceling"].includes(savedProfile.subscriptionStatus)
   );
   const showAdminNav = !!session && isAdminUser && routerLocation.pathname !== "/admin";
-  const showDiceNav = !!session && !isAdminUser;
+  const showDiceNav = DICE_FEATURE_ENABLED && !!session && !isAdminUser;
   const showChatNav = !!session && !isAdminUser;
   const showNotificationsNav = !!session && !isAdminUser;
   const showDiceBadge = showDiceNav && !!diceStatus && (diceStatus.canPlay || diceStatus.canPlayAgain);
@@ -2451,10 +2454,10 @@ function Navbar({ onProfileSave }) {
   const analyticsSummaryItems = [
     { label: "Total searches done", value: analytics.totalSearchesDone },
     { label: "Times you appeared in search", value: analytics.totalTimesSearched },
-    {
-      label: hasProAnalyticsAccess ? "Profile views (available below)" : "Profile views",
+    ...(hasProAnalyticsAccess ? [{
+      label: "Profile views (available below)",
       value: analytics.totalProfileViews,
-    },
+    }] : []),
   ];
   const getAnalyticsKeywordLabels = (viewer) => (
     viewer.keywordNames?.length
@@ -2789,7 +2792,7 @@ function Navbar({ onProfileSave }) {
       </nav>
 
       {/* Daily Dice Modal */}
-      {showDiceModal && (
+      {DICE_FEATURE_ENABLED && showDiceModal && (
         <>
           <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="dailyDiceTitle">
             <div className="modal-dialog modal-dialog-centered">
@@ -3235,12 +3238,14 @@ function Navbar({ onProfileSave }) {
 
                       <hr className="my-3" />
 
-                      {analytics.viewers.length === 0 ? (
+                      {!hasProAnalyticsAccess ? (
+                        renderAnalyticsViewersList(true)
+                      ) : analytics.viewers.length === 0 ? (
                         <div className="text-muted text-center py-4">
                           No profile views yet
                         </div>
                       ) : (
-                        renderAnalyticsViewersList(!hasProAnalyticsAccess)
+                        renderAnalyticsViewersList()
                       )}
                     </>
                   )}

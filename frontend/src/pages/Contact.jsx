@@ -29,7 +29,7 @@ export default function Contact() {
           <li>A clear description of your issue or question.</li>
           <li>
             The related feature, such as profile setup, search, chat,
-            notifications, invite links, daily dice, subscriptions, spam
+            notifications, invite links, subscriptions, spam
             controls, or account access.
           </li>
           <li>Any relevant screenshots, if applicable.</li>
@@ -40,7 +40,7 @@ export default function Contact() {
           <li>Account access and login issues.</li>
           <li>Profile, profile picture, search, and keyword questions.</li>
           <li>Global chat, direct messages, notifications, and draw-event invite links.</li>
-          <li>Daily dice rewards, free searches, and Pro Plan access questions.</li>
+          <li>Free searches and Pro Plan access questions.</li>
           <li>
             Subscription and billing enquiries (note: we do not issue refunds --
             see our Refunds Policy).

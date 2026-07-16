@@ -89,23 +89,16 @@ export default function Terms() {
           to other users of the Service as intended by its functionality.
         </p>
 
-        <h4>5. Chat, Notifications, Invites, and Dice</h4>
+        <h4>5. Chat, Notifications, and Invites</h4>
         <p>
           The Service may include global chat channels, direct messages,
-          in-app notifications, draw-event invite links, and a daily dice game.
+          in-app notifications, and draw-event invite links.
           Global chat messages are visible to signed-in users. Direct messages
           are visible to the conversation participants and may be moderated if
           they violate these Terms.
           Notifications and draw-event invites are provided for site updates,
           events, and related signup flows. You must not use these features to
           spam, deceive, pressure, or abuse other users.
-        </p>
-        <p>
-          The daily dice game may award free searches, temporary Pro Plan
-          access, or promotional rewards. Dice rewards have no cash value, are
-          subject to availability and anti-abuse checks, and may be corrected or
-          removed if granted due to an error, exploit, or violation of these
-          Terms.
         </p>
 
         <h4>6. Subscription Plans</h4>
@@ -122,11 +115,9 @@ export default function Terms() {
 
         <h4>7. Free Plan Limits</h4>
         <p>
-          Free Plan users receive 3 free searches that renew daily. Daily dice
-          rewards may add extra searches or temporary Pro Plan access.
+          Free Plan users receive 3 free searches that renew daily.
           Attempting to bypass these limits through multiple accounts,
-          automation, or exploitation of reward systems is a violation of these
-          Terms.
+          automation, or other misuse is a violation of these Terms.
         </p>
 
         <h4>8. Moderation and Termination</h4>
