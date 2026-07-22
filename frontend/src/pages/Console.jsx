@@ -18,8 +18,8 @@ import {
   subscribeToSiteNotifications,
 } from "../lib/notificationService";
 
-const FREE_SEARCH_KEYWORD_LIMIT = 120;
-const PRO_SEARCH_KEYWORD_LIMIT = 300;
+const FREE_SEARCH_KEYWORD_LIMIT = 180;
+const PRO_SEARCH_KEYWORD_LIMIT = 180;
 const DESKTOP_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_KEYWORD_RESULT_LIMIT = 25;
 const MIN_SEARCH_AGE = 16;
@@ -993,7 +993,7 @@ export default function Console({ currentUser }) {
 
           <button
             type="button"
-            className={`btn ${hasImportedMyKeywords ? "console-orange-action-button console-orange-action-button--active" : "btn-category-outline"} modal-keyword-card console-import-keywords-button`}
+            className={`btn ${hasImportedMyKeywords ? "console-yellow-action-button console-yellow-action-button--active" : "btn-category-outline"} modal-keyword-card console-import-keywords-button`}
             onClick={toggleMyKeywordsImport}
             disabled={myKeywordIds.length === 0}
           >
@@ -1079,24 +1079,7 @@ export default function Console({ currentUser }) {
           <div className="card nothing-card text-center mt-4 mb-4">
             <div className="card-body d-flex justify-content-center align-items-center">
               <p className="card-text text-muted m-0">
-                {hasUnlimitedSearches ? (
-                  <>Select up to {PRO_SEARCH_KEYWORD_LIMIT} keywords to search.</>
-                ) : (
-                  <>
-                    Select up to {FREE_SEARCH_KEYWORD_LIMIT} keywords to search, or upgrade to the{" "}
-                    <a
-                      href="https://letsfindpeople.com/#"
-                      className="console-get-more-link"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        openPricingDropdown();
-                      }}
-                    >
-                      Pro Plan
-                    </a>{" "}
-                    to select up to {PRO_SEARCH_KEYWORD_LIMIT} keywords.
-                  </>
-                )}
+                Select up to {maxSearchKeywords} keywords to search.
               </p>
             </div>
           </div>
@@ -1226,7 +1209,7 @@ export default function Console({ currentUser }) {
                       <div className="d-flex gap-2 mt-3">
                         <button
                           type="button"
-                          className="btn console-orange-action-button flex-fill py-2 console-send-message-button"
+                          className="btn console-yellow-action-button flex-fill py-2 console-send-message-button"
                           onClick={() => startDirectChat(person)}
                           disabled={person.isCurrentUser}
                         >

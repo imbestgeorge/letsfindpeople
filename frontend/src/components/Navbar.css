@@ -105,7 +105,8 @@
 }
 
 .navbar .navbar-notification-badge {
-  background-color: #f97316 !important;
+  background-color: #facc15 !important;
+  color: #111827;
 }
 
 .navbar-notification-badge {
@@ -377,7 +378,8 @@
 }
 
 .global-chat-room-button .badge {
-  background-color: #f97316 !important;
+  background-color: #facc15 !important;
+  color: #111827;
   flex: 0 0 auto;
   min-width: 1.5rem;
   white-space: nowrap;
@@ -630,7 +632,7 @@
 
 .daily-dice-die--six .daily-dice-pip {
   background:
-    radial-gradient(circle at 35% 30%, #fb923c, #6D28D9 78%);
+    radial-gradient(circle at 35% 30%, #fde047, #6D28D9 78%);
 }
 
 .daily-dice-pip--top-left { grid-area: top-left; }

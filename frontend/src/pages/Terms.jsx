@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="policy-title">Terms &amp; Conditions</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 July 2026</strong>
+          <strong>Last updated: 22 July 2026</strong>
         </p>
 
         <p>
@@ -105,8 +105,8 @@ export default function Terms() {
         <p>
           The Service offers a Free Plan with access to 3 free searches that
           renew daily. The paid Pro Plan includes unlimited searches, profile
-          views, 300 search keywords, and an exclusive animated profile and
-          name. Subscriptions are billed monthly. You may cancel your
+          views, and an exclusive animated profile. Subscriptions are billed
+          monthly. You may cancel your
           subscription at any time via the &quot;Cancel Subscription&quot; option in
           your account. Cancellation stops future billing immediately; however,
           no refunds are issued for the current billing period (see Refunds

@@ -134,9 +134,9 @@ function getProPlanPrice(location) {
     .filter(Boolean);
   const countryCandidates = [...locationParts, getBrowserCountryCode()];
 
-  if (countryCandidates.some(country => GBP_COUNTRIES.has(country))) return "£2.99";
-  if (countryCandidates.some(country => EUROPE_COUNTRIES.has(country))) return "€2.99";
-  return "$2.99";
+  if (countryCandidates.some(country => GBP_COUNTRIES.has(country))) return "£0.69";
+  if (countryCandidates.some(country => EUROPE_COUNTRIES.has(country))) return "€0.69";
+  return "$0.69";
 }
 
 function isProSubscriptionStatus(status) {
@@ -2454,10 +2454,10 @@ function Navbar({ onProfileSave }) {
   const analyticsSummaryItems = [
     { label: "Total searches done", value: analytics.totalSearchesDone },
     { label: "Times you appeared in search", value: analytics.totalTimesSearched },
-    ...(hasProAnalyticsAccess ? [{
-      label: "Profile views (available below)",
+    {
+      label: "Profile views",
       value: analytics.totalProfileViews,
-    }] : []),
+    },
   ];
   const getAnalyticsKeywordLabels = (viewer) => (
     viewer.keywordNames?.length
@@ -2690,7 +2690,7 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Pro Plan</h5>
-                      <p className="text mb-0">Access to unlimited searches, profile views, 300 search keywords, and an exclusive animated profile and name.</p>
+                      <p className="text mb-0">Access to unlimited searches, profile views, and an exclusive animated profile.</p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (
@@ -2857,7 +2857,7 @@ function Navbar({ onProfileSave }) {
                 <div className="modal-footer">
                   <button
                     type="button"
-                    className="btn console-orange-action-button"
+                    className="btn console-yellow-action-button"
                     onClick={handlePlayDice}
                     disabled={diceLoading || diceRolling || !canPlayDiceNow}
                   >

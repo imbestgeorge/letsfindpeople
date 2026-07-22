@@ -613,7 +613,7 @@ function Admin() {
         ip:          r.ip || '-',
         action:      formatLogAction(r),
         status:      r.status,
-        statusColor: r.status === 'Success' ? 'green' : r.status === 'Error' ? 'red' : 'orange',
+        statusColor: r.status === 'Success' ? 'green' : r.status === 'Error' ? 'red' : '#facc15',
         details:     formatLogDetails(r),
         date:        new Date(r.created_at).toLocaleString('en-GB', {
           day: '2-digit', month: '2-digit', year: 'numeric',
