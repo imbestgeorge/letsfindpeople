@@ -25,14 +25,19 @@ import {
   markDirectChatMessagesRead,
   markGlobalChatMessagesRead,
   removeGlobalChatSubscription,
+  getChatMessagePreview,
   sendDirectChatMessage,
+  sendDirectChatMediaMessage,
   sendGlobalChatMessage,
+  sendGlobalChatMediaMessage,
   subscribeToDirectChatMessages,
   subscribeToGlobalChatMessages,
+  uploadChatImage,
 } from "../lib/chatService";
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
 import { getMyProfileAnalytics } from "../lib/analyticsService";
 import { getMyDiceGameStatus, playDailyDiceGame } from "../lib/diceService";
+import { fetchGiphyGifs, hasGiphyApiKey } from "../lib/giphyService";
 import {
   getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
@@ -191,9 +196,34 @@ function getChatAuthorDisplayName(message) {
 }
 
 function formatDirectChatPreview(value) {
-  const text = String(value || "").trim();
+  const text = getChatMessagePreview(value);
   if (!text) return "";
   return text.length > 13 ? `${text.slice(0, 13)}...` : text;
+}
+
+function renderChatMessageContent(message) {
+  if (message.media) {
+    const mediaLabel = message.media.title || (message.media.type === "gif" ? "GIF" : "Image");
+
+    return (
+      <a
+        href={message.media.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="d-block"
+        aria-label={`Open ${mediaLabel}`}
+      >
+        <img
+          src={message.media.url}
+          alt={mediaLabel}
+          className="img-fluid rounded global-chat-media-image"
+          loading="lazy"
+        />
+      </a>
+    );
+  }
+
+  return message.body;
 }
 
 function getRandomDiceValues() {
@@ -387,6 +417,7 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownRef = useRef(null);
   const notificationsDropdownMenuRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
+  const chatImageInputRef = useRef(null);
   const unreadChatRequestIdRef = useRef(0);
   const diceRollIntervalRef = useRef(null);
   const diceCelebrationTimeoutRef = useRef(null);
@@ -647,8 +678,15 @@ function Navbar({ onProfileSave }) {
   const [chatDraft, setChatDraft] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
+  const [chatMediaUploading, setChatMediaUploading] = useState(false);
   const [chatError, setChatError] = useState("");
   const [chatNotice, setChatNotice] = useState("");
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearchTerm, setGifSearchTerm] = useState("");
+  const [debouncedGifSearchTerm, setDebouncedGifSearchTerm] = useState("");
+  const [gifResults, setGifResults] = useState([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState("");
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [diceStatus, setDiceStatus] = useState(null);
   const [diceLoading, setDiceLoading] = useState(false);
@@ -1417,12 +1455,14 @@ function Navbar({ onProfileSave }) {
     setShowChatModal(true);
     setChatError("");
     setChatNotice("");
+    setShowGifPicker(false);
   };
 
   const closeGlobalChat = () => {
     setShowChatModal(false);
     setChatDraft("");
     setChatNotice("");
+    setShowGifPicker(false);
   };
 
   const applyDiceProfileReward = (status) => {
@@ -1573,6 +1613,7 @@ function Navbar({ onProfileSave }) {
     setChatLoading(true);
     setChatError("");
     setChatNotice("");
+    setShowGifPicker(false);
 
     loadDirectChats();
   }, [directChats, loadDirectChats, savedProfile?.id]);
@@ -1583,6 +1624,31 @@ function Navbar({ onProfileSave }) {
     setActiveDirectChat(null);
     setChatDraft("");
     setChatNotice("");
+    setShowGifPicker(false);
+  };
+
+  const appendSentChatMessage = (message) => {
+    if (!message) return;
+
+    setChatMessages(prev => (
+      prev.some(existing => existing.id === message.id && existing.type === message.type) ? prev : [...prev, message]
+    ));
+
+    if (message.type === "direct" && activeDirectChat?.otherUserId) {
+      const preview = {
+        ...activeDirectChat,
+        conversationId: message.conversationId || activeDirectChat.conversationId,
+        lastBody: message.body,
+        lastMessageAt: message.createdAt,
+        totalMessages: Number(activeDirectChat.totalMessages || 0) + 1,
+        unreadCount: 0,
+      };
+      setActiveDirectChat(preview);
+      setDirectChats(prev => [
+        preview,
+        ...prev.filter((chat) => chat.otherUserId !== activeDirectChat.otherUserId),
+      ]);
+    }
   };
 
   const handleChatSubmit = async (e) => {
@@ -1604,32 +1670,102 @@ function Navbar({ onProfileSave }) {
         ? await sendDirectChatMessage(activeDirectChat.otherUserId, body)
         : await sendGlobalChatMessage(body, activeGlobalChannelKey);
       setChatDraft("");
-      if (message) {
-        setChatMessages(prev => (
-          prev.some(existing => existing.id === message.id && existing.type === message.type) ? prev : [...prev, message]
-        ));
-        if (message.type === "direct" && activeDirectChat?.otherUserId) {
-          const preview = {
-            ...activeDirectChat,
-            conversationId: message.conversationId || activeDirectChat.conversationId,
-            lastBody: message.body,
-            lastMessageAt: message.createdAt,
-            totalMessages: Number(activeDirectChat.totalMessages || 0) + 1,
-            unreadCount: 0,
-          };
-          setActiveDirectChat(preview);
-          setDirectChats(prev => [
-            preview,
-            ...prev.filter((chat) => chat.otherUserId !== activeDirectChat.otherUserId),
-          ]);
-        }
-      }
+      appendSentChatMessage(message);
       loadCurrentChatMessages({ silent: true });
       loadDirectChats();
     } catch (err) {
       setChatError(err.message || "Failed to send message.");
     } finally {
       setChatSending(false);
+    }
+  };
+
+  const sendChatMediaPayload = async (payload) => {
+    if (!session?.user) {
+      setChatError("Sign in to send messages.");
+      return;
+    }
+    if (chatMode === "direct" && !activeDirectChat?.otherUserId) {
+      setChatError("Choose someone to message.");
+      return;
+    }
+    if (chatSending) return;
+
+    setChatSending(true);
+    setChatError("");
+    setChatNotice("");
+
+    try {
+      const message = chatMode === "direct" && activeDirectChat?.otherUserId
+        ? await sendDirectChatMediaMessage(activeDirectChat.otherUserId, payload)
+        : await sendGlobalChatMediaMessage(payload, activeGlobalChannelKey);
+      appendSentChatMessage(message);
+      loadCurrentChatMessages({ silent: true });
+      loadDirectChats();
+    } catch (err) {
+      setChatError(err.message || "Failed to send media.");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const toggleGifPicker = () => {
+    if (!session?.user) {
+      setChatError("Sign in to send GIFs.");
+      return;
+    }
+    if (chatMode === "direct" && !activeDirectChat?.otherUserId) {
+      setChatError("Choose someone to message.");
+      return;
+    }
+
+    setChatError("");
+    setShowGifPicker(prev => !prev);
+  };
+
+  const handleGifSelect = async (gif) => {
+    setShowGifPicker(false);
+    await sendChatMediaPayload({
+      type: "gif",
+      url: gif.url,
+      title: gif.title,
+      width: gif.width,
+      height: gif.height,
+    });
+  };
+
+  const openChatImageFilePicker = () => {
+    if (!session?.user) {
+      setChatError("Sign in to send images.");
+      return;
+    }
+    if (chatMode === "direct" && !activeDirectChat?.otherUserId) {
+      setChatError("Choose someone to message.");
+      return;
+    }
+
+    setChatError("");
+    setShowGifPicker(false);
+    chatImageInputRef.current?.click();
+  };
+
+  const handleChatImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || chatMediaUploading) return;
+
+    setChatMediaUploading(true);
+    setChatError("");
+    setChatNotice("");
+    setShowGifPicker(false);
+
+    try {
+      const mediaPayload = await uploadChatImage(session.user.id, file);
+      await sendChatMediaPayload(mediaPayload);
+    } catch (err) {
+      setChatError(err.message || "Failed to send image.");
+    } finally {
+      setChatMediaUploading(false);
     }
   };
 
@@ -1963,6 +2099,42 @@ function Navbar({ onProfileSave }) {
       window.clearTimeout(timeoutId);
     };
   }, [chatLoading, chatMessages.length, showChatModal]);
+
+  useEffect(() => {
+    if (!showGifPicker) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedGifSearchTerm(gifSearchTerm.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [gifSearchTerm, showGifPicker]);
+
+  useEffect(() => {
+    if (!showGifPicker) return undefined;
+
+    let isMounted = true;
+    setGifLoading(true);
+    setGifError("");
+
+    fetchGiphyGifs(debouncedGifSearchTerm)
+      .then((items) => {
+        if (!isMounted) return;
+        setGifResults(items);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setGifResults([]);
+        setGifError(err.message || "Failed to load GIFs.");
+      })
+      .finally(() => {
+        if (isMounted) setGifLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedGifSearchTerm, showGifPicker]);
 
   useEffect(() => {
     if (authLoading || !session?.user?.id) return;
@@ -2554,6 +2726,8 @@ function Navbar({ onProfileSave }) {
   const activeChatTitle = chatMode === "direct"
     ? activeDirectChat?.name || "Direct Message"
     : activeGlobalChannel?.title || "International";
+  const isChatComposerDisabled = !session || (chatMode === "direct" && !activeDirectChat);
+  const isChatBusy = chatSending || chatMediaUploading;
   const directChatMenuItems = useMemo(() => {
     if (!activeDirectChat?.otherUserId) return directChats;
     if (directChats.some((chat) => chat.otherUserId === activeDirectChat.otherUserId)) return directChats;
@@ -2977,6 +3151,7 @@ function Navbar({ onProfileSave }) {
                               setChatMessages([]);
                               setChatLoading(true);
                               setChatNotice("");
+                              setShowGifPicker(false);
                             }}
                           >
                               <span className={`profile-avatar-wrap global-chat-sidebar-avatar${isChatUserPro ? " profile-avatar-wrap--pro" : ""}`}>
@@ -3059,7 +3234,7 @@ function Navbar({ onProfileSave }) {
                                 {isOwnMessage ? (
                                   <div className="w-75 d-flex flex-column align-items-end">
                                     <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
-                                      {message.body}
+                                      {renderChatMessageContent(message)}
                                     </div>
                                     {showMessageTime && (
                                       <small className="text-muted mt-1 text-end">
@@ -3095,7 +3270,7 @@ function Navbar({ onProfileSave }) {
                                         {getChatAuthorDisplayName(message)}
                                       </button>
                                       <div className="rounded-3 p-2 text-break bg-white border">
-                                        {message.body}
+                                        {renderChatMessageContent(message)}
                                       </div>
                                       {showMessageTime && (
                                         <small className="text-muted mt-1">
@@ -3113,36 +3288,135 @@ function Navbar({ onProfileSave }) {
                     </div>
 
                     <form className="modal-footer" onSubmit={handleChatSubmit}>
-                      <div className="input-group">
-                        <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
-                        <input
-                          type="text"
-                          id="globalChatMessage"
-                          className="form-control"
-                          placeholder="Message"
-                          value={chatDraft}
-                          maxLength={CHAT_MAX_MESSAGE_LENGTH}
-                          disabled={!session || (chatMode === "direct" && !activeDirectChat)}
-                          onChange={(e) => setChatDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleChatSubmit(e);
-                            }
-                          }}
-                        />
+                      <div className="d-flex align-items-center gap-2 w-100">
+                        <div className="position-relative flex-grow-1 min-w-0">
+                          {showGifPicker && (
+                            <div className="global-chat-gif-picker position-absolute end-0 mb-2 bg-white border rounded-3 shadow p-3">
+                              <div className="input-group input-group-sm mb-2">
+                                <span className="input-group-text bg-white">
+                                  <i className="bi bi-search"></i>
+                                </span>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  placeholder="Search GIFs"
+                                  value={gifSearchTerm}
+                                  maxLength={50}
+                                  onChange={(event) => setGifSearchTerm(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") event.preventDefault();
+                                  }}
+                                  autoFocus
+                                />
+                              </div>
+
+                              {gifLoading ? (
+                                <div className="d-flex justify-content-center align-items-center py-4">
+                                  <div className="spinner-border spinner-border-sm spinner-primary" role="status">
+                                    <span className="visually-hidden">Loading GIFs...</span>
+                                  </div>
+                                </div>
+                              ) : gifError ? (
+                                <div className="alert alert-warning py-2 small mb-2" role="alert">
+                                  {gifError}
+                                </div>
+                              ) : gifResults.length === 0 ? (
+                                <div className="text-muted text-center py-3 small">
+                                  No GIFs found
+                                </div>
+                              ) : (
+                                <div className="row g-2">
+                                  {gifResults.map((gif) => (
+                                    <div key={gif.id} className="col-4">
+                                      <button
+                                        type="button"
+                                        className="btn btn-light border p-0 w-100 global-chat-gif-option"
+                                        onClick={() => handleGifSelect(gif)}
+                                        disabled={isChatBusy}
+                                        title={gif.title}
+                                      >
+                                        <img
+                                          src={gif.previewUrl}
+                                          alt={gif.title}
+                                          className="img-fluid rounded"
+                                          loading="lazy"
+                                        />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="text-muted small text-end mt-2">
+                                Powered by GIPHY
+                              </div>
+                            </div>
+                          )}
+
+                          <label htmlFor="globalChatMessage" className="visually-hidden">Message</label>
+                          <input
+                            type="text"
+                            id="globalChatMessage"
+                            className="form-control global-chat-message-input"
+                            placeholder="Message"
+                            value={chatDraft}
+                            maxLength={CHAT_MAX_MESSAGE_LENGTH}
+                            disabled={isChatComposerDisabled || isChatBusy}
+                            onChange={(e) => setChatDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleChatSubmit(e);
+                              }
+                            }}
+                          />
+                          <div className="position-absolute top-50 end-0 translate-middle-y d-flex align-items-center gap-1 pe-2 global-chat-input-actions">
+                            <button
+                              type="button"
+                              className="btn btn-link btn-sm p-1 text-secondary"
+                              onClick={toggleGifPicker}
+                              disabled={isChatComposerDisabled || isChatBusy}
+                              title={hasGiphyApiKey() ? "GIFs" : "GIFs need a GIPHY API key"}
+                              aria-label="Open GIF picker"
+                              aria-expanded={showGifPicker}
+                            >
+                              <i className="bi bi-filetype-gif"></i>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-link btn-sm p-1 text-secondary"
+                              onClick={openChatImageFilePicker}
+                              disabled={isChatComposerDisabled || isChatBusy}
+                              title="Image"
+                              aria-label="Send image"
+                            >
+                              {chatMediaUploading ? (
+                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                              ) : (
+                                <i className="bi bi-image"></i>
+                              )}
+                            </button>
+                          </div>
+                          <input
+                            ref={chatImageInputRef}
+                            type="file"
+                            className="d-none"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleChatImageChange}
+                          />
+                        </div>
+
                         <button
                           type="submit"
-                          className="btn btn-primary global-chat-send-button"
-                          disabled={!session || !chatDraft.trim() || chatSending || (chatMode === "direct" && !activeDirectChat)}
+                          className="btn btn-primary rounded-circle flex-shrink-0 global-chat-send-button"
+                          disabled={isChatComposerDisabled || !chatDraft.trim() || isChatBusy}
+                          title="Send"
+                          aria-label="Send message"
                         >
-                          {chatSending ? (
+                          {isChatBusy ? (
                             <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                           ) : (
-                            <>
-                              <i className="bi bi-send me-1"></i>
-                              Send
-                            </>
+                            <i className="bi bi-send"></i>
                           )}
                         </button>
                       </div>

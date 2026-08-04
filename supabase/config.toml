@@ -26,6 +26,7 @@ port = 54324
 enabled = true
 # Storage buckets are managed via the Supabase dashboard or migrations.
 # Required bucket: "profile-pictures" (public)
+# Required migration-managed bucket: "chat-media" (public, compressed JPG chat images)
 
 [auth]
 enabled = true

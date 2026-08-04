@@ -55,9 +55,10 @@ export default function Privacy() {
           </li>
           <li>
             <strong>Communications and permission data:</strong> global chat
-            messages and direct messages you send, notification read or
-            dismissal status, draw-event invite activity, keyword requests you
-            submit, and the profile visibility permissions you choose.
+            messages, direct messages, chat GIF selections, and compressed chat
+            images you send, notification read or dismissal status, draw-event
+            invite activity, keyword requests you submit, and the profile
+            visibility permissions you choose.
           </li>
           <li>
             <strong>Payment and subscription data:</strong> subscription status,
@@ -83,8 +84,8 @@ export default function Privacy() {
           <li>To process subscription payments and manage your plan.</li>
           <li>
             To provide global chat, direct messages, in-app notifications,
-            draw-event invites, keyword requests, importing your saved keywords,
-            profile
+            draw-event invites, keyword requests, GIF sharing, chat image
+            uploads, importing your saved keywords, profile
             analytics, and other account features.
           </li>
           <li>
@@ -139,8 +140,9 @@ export default function Privacy() {
           <li>
             Third-party service providers who assist us in operating the Service
             (e.g. Google authentication, Supabase hosting, database and storage,
-            and Stripe payment processing), bound by appropriate confidentiality
-            or data-processing terms.
+            Stripe payment processing, and GIPHY GIF search and delivery),
+            bound by appropriate confidentiality or data-processing terms where
+            applicable.
           </li>
           <li>
             Law enforcement or regulatory authorities if required by applicable
@@ -153,8 +155,9 @@ export default function Privacy() {
           We retain your personal data for as long as your account is active or
           as needed to provide the Service. You may request deletion of your
           account and data at any time by contacting us. Global chat messages
-          are designed to be short-lived and shown for up to 7 days. Direct
-          messages, notification records, invite activity, dice reward records,
+          and related uploaded chat images are designed to be short-lived and
+          shown for up to 7 days. Direct messages, notification records, invite
+          activity, dice reward records,
           analytics events, certain security logs, billing records, moderation
           records, and account deletion records may be retained where needed to
           provide the Service or for legal, accounting, security, or

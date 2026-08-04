@@ -491,13 +491,53 @@
   margin-top: 0.6rem;
 }
 
+.global-chat-media-image {
+  display: block;
+  max-height: 240px;
+  object-fit: contain;
+}
+
+.global-chat-message-input {
+  padding-right: 4.9rem;
+}
+
+.global-chat-input-actions {
+  z-index: 3;
+}
+
+.global-chat-input-actions .btn {
+  line-height: 1;
+  text-decoration: none;
+}
+
+.global-chat-gif-picker {
+  bottom: 100%;
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
+  width: min(360px, calc(100vw - 2rem));
+  z-index: 1070;
+}
+
+.global-chat-gif-option {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.global-chat-gif-option img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
 .global-chat-send-button {
+  align-items: center;
+  display: inline-flex;
   font-size: 1rem;
-  font-weight: 400;
+  justify-content: center;
   min-height: 44px;
-  min-width: 92px;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  min-width: 44px;
+  padding: 0;
+  width: 44px;
 }
 
 .global-chat-avatar {

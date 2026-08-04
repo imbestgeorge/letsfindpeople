@@ -50,6 +50,10 @@ export default function Cookies() {
             loads faster.
           </li>
           <li>
+            <strong>Chat media storage:</strong> support compressed image
+            uploads and selected GIF references in chat.
+          </li>
+          <li>
             <strong>Safety storage and logs:</strong> support authentication,
             abuse prevention, chat spam controls, and account security checks.
           </li>
@@ -78,6 +82,8 @@ export default function Cookies() {
         <p>
           We do not use third-party advertising or tracking cookies, and we do
           not share your browsing activity with advertising networks.
+          GIF search and GIF previews may be loaded from GIPHY when you open or
+          use the GIF picker.
         </p>
 
         <h4>4. Managing Cookies</h4>

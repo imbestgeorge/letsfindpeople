@@ -61,7 +61,7 @@ export default function Terms() {
             Send abusive, threatening, unlawful, explicit, misleading, or
             otherwise harmful content through global chat, direct messages,
             notifications, invites, keyword requests, profile fields, or
-            uploaded images.
+            uploaded images, or GIFs.
           </li>
           <li>
             Send repeated, automated, deceptive, or unusually high-volume chat
@@ -92,10 +92,13 @@ export default function Terms() {
         <h4>5. Chat, Notifications, and Invites</h4>
         <p>
           The Service may include global chat channels, direct messages,
-          in-app notifications, and draw-event invite links.
+          in-app notifications, draw-event invite links, GIF sharing, and
+          compressed chat image uploads.
           Global chat messages are visible to signed-in users. Direct messages
           are visible to the conversation participants and may be moderated if
           they violate these Terms.
+          Images and GIFs sent in chat are subject to the same acceptable-use
+          rules as written messages.
           Notifications and draw-event invites are provided for site updates,
           events, and related signup flows. You must not use these features to
           spam, deceive, pressure, or abuse other users.
