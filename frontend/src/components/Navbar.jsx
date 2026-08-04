@@ -417,6 +417,8 @@ function Navbar({ onProfileSave }) {
   const notificationsDropdownRef = useRef(null);
   const notificationsDropdownMenuRef = useRef(null);
   const chatMessagesBodyRef = useRef(null);
+  const chatGifPickerRef = useRef(null);
+  const chatGifButtonRef = useRef(null);
   const chatImageInputRef = useRef(null);
   const unreadChatRequestIdRef = useRef(0);
   const diceRollIntervalRef = useRef(null);
@@ -2103,6 +2105,34 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (!showGifPicker) return undefined;
 
+    const closeGifPickerOnOutsideInteraction = (event) => {
+      const target = event.target;
+      if (
+        chatGifPickerRef.current?.contains(target) ||
+        chatGifButtonRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setShowGifPicker(false);
+    };
+
+    const closeGifPickerOnEscape = (event) => {
+      if (event.key === "Escape") setShowGifPicker(false);
+    };
+
+    document.addEventListener("pointerdown", closeGifPickerOnOutsideInteraction);
+    document.addEventListener("keydown", closeGifPickerOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeGifPickerOnOutsideInteraction);
+      document.removeEventListener("keydown", closeGifPickerOnEscape);
+    };
+  }, [showGifPicker]);
+
+  useEffect(() => {
+    if (!showGifPicker) return undefined;
+
     const timeoutId = window.setTimeout(() => {
       setDebouncedGifSearchTerm(gifSearchTerm.trim());
     }, 300);
@@ -3094,7 +3124,7 @@ function Navbar({ onProfileSave }) {
       {/* Chat Modal */}
       {showChatModal && (
         <>
-          <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="globalChatTitle">
+          <div className="modal show d-block" tabIndex="-1" role="dialog" aria-modal="true" aria-labelledby="globalChatTitle">
             <div className="modal-dialog modal-dialog-centered global-chat-dialog">
               <div className="modal-content global-chat-shell">
                 <div className="modal-header">
@@ -3291,7 +3321,10 @@ function Navbar({ onProfileSave }) {
                       <div className="d-flex align-items-center gap-2 w-100">
                         <div className="position-relative flex-grow-1 min-w-0">
                           {showGifPicker && (
-                            <div className="global-chat-gif-picker position-absolute end-0 mb-2 bg-white border rounded-3 shadow p-3">
+                            <div
+                              className="global-chat-gif-picker position-absolute bg-white border rounded-3 shadow p-3"
+                              ref={chatGifPickerRef}
+                            >
                               <div className="input-group input-group-sm mb-2">
                                 <span className="input-group-text bg-white">
                                   <i className="bi bi-search"></i>
@@ -3372,8 +3405,9 @@ function Navbar({ onProfileSave }) {
                           />
                           <div className="position-absolute top-50 end-0 translate-middle-y d-flex align-items-center gap-1 pe-2 global-chat-input-actions">
                             <button
+                              ref={chatGifButtonRef}
                               type="button"
-                              className="btn btn-link btn-sm p-1 text-secondary"
+                              className="btn btn-link btn-sm p-1 global-chat-input-action-button"
                               onClick={toggleGifPicker}
                               disabled={isChatComposerDisabled || isChatBusy}
                               title="GIFs"
@@ -3384,7 +3418,7 @@ function Navbar({ onProfileSave }) {
                             </button>
                             <button
                               type="button"
-                              className="btn btn-link btn-sm p-1 text-secondary"
+                              className="btn btn-link btn-sm p-1 global-chat-input-action-button"
                               onClick={openChatImageFilePicker}
                               disabled={isChatComposerDisabled || isChatBusy}
                               title="Image"
@@ -3426,7 +3460,7 @@ function Navbar({ onProfileSave }) {
               </div>
             </div>
           </div>
-          <div className="modal-backdrop fade show"></div>
+          <div className="modal-backdrop show"></div>
         </>
       )}
 

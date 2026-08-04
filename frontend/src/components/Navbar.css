@@ -505,15 +505,33 @@
   z-index: 3;
 }
 
-.global-chat-input-actions .btn {
+.global-chat-input-actions .global-chat-input-action-button,
+.global-chat-input-actions .global-chat-input-action-button:hover,
+.global-chat-input-actions .global-chat-input-action-button:focus,
+.global-chat-input-actions .global-chat-input-action-button:active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #6D28D9 !important;
+  font-size: 1.35rem;
   line-height: 1;
+  outline: 0;
   text-decoration: none;
+  transition: none;
+}
+
+.global-chat-input-actions .global-chat-input-action-button:disabled {
+  color: #a78bfa !important;
+  opacity: 0.65;
 }
 
 .global-chat-gif-picker {
-  bottom: 100%;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
   max-height: min(360px, 55vh);
   overflow-y: auto;
+  right: auto;
+  transform: translateX(-50%);
   width: min(360px, calc(100vw - 2rem));
   z-index: 1070;
 }
@@ -1006,6 +1024,16 @@
 
   .global-chat-main .modal-footer {
     flex: 0 0 auto;
+  }
+
+  .global-chat-gif-picker {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    left: 50%;
+    max-height: min(380px, calc(100vh - 8rem));
+    position: fixed !important;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(340px, calc(100vw - 1.5rem));
   }
 
   .daily-dice-board {
