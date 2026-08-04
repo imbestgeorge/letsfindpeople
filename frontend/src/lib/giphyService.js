@@ -1,64 +1,31 @@
-const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || "";
-const GIPHY_API_BASE_URL = "https://api.giphy.com/v1/gifs";
-const GIPHY_RESULT_LIMIT = 12;
-const GIPHY_RATING = "pg-13";
+import { supabase } from "./supabaseClient";
 
-export function hasGiphyApiKey() {
-  return Boolean(GIPHY_API_KEY);
-}
+async function getFunctionErrorMessage(error, fallback) {
+  try {
+    if (error?.context?.headers?.get("content-type")?.includes("application/json")) {
+      const body = await error.context.json();
+      if (body?.error) return body.error;
+    }
+  } catch {
+    // Fall through to the generic error message.
+  }
 
-function pickGiphyImage(gif) {
-  const images = gif?.images || {};
-  const sendImage =
-    images.fixed_width?.webp ||
-    images.fixed_width?.url ||
-    images.downsized?.url ||
-    images.original?.webp ||
-    images.original?.url;
-  const previewImage =
-    images.fixed_width_small?.webp ||
-    images.fixed_width_small?.url ||
-    images.fixed_width_downsampled?.webp ||
-    sendImage;
-
-  if (!sendImage || !previewImage) return null;
-
-  return {
-    id: gif.id,
-    title: gif.title || "GIPHY GIF",
-    url: sendImage,
-    previewUrl: previewImage,
-    width: Number(images.fixed_width?.width || images.downsized?.width || images.original?.width) || null,
-    height: Number(images.fixed_width?.height || images.downsized?.height || images.original?.height) || null,
-  };
+  return error?.message || fallback;
 }
 
 export async function fetchGiphyGifs(query = "") {
-  if (!GIPHY_API_KEY) {
-    throw new Error("Add VITE_GIPHY_API_KEY to enable GIF search.");
-  }
-
-  const trimmedQuery = String(query || "").trim().slice(0, 50);
-  const endpoint = trimmedQuery ? "search" : "trending";
-  const params = new URLSearchParams({
-    api_key: GIPHY_API_KEY,
-    limit: String(GIPHY_RESULT_LIMIT),
-    rating: GIPHY_RATING,
-    bundle: "messaging_non_clips",
+  const { data, error } = await supabase.functions.invoke("giphy-search", {
+    body: {
+      query: String(query || "").trim().slice(0, 50),
+    },
   });
 
-  if (trimmedQuery) {
-    params.set("q", trimmedQuery);
-    params.set("lang", "en");
+  if (error) {
+    throw new Error(await getFunctionErrorMessage(error, "Failed to load GIFs."));
+  }
+  if (data?.error) {
+    throw new Error(data.error);
   }
 
-  const response = await fetch(`${GIPHY_API_BASE_URL}/${endpoint}?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error("Failed to load GIFs.");
-  }
-
-  const payload = await response.json();
-  return (payload.data || [])
-    .map(pickGiphyImage)
-    .filter(Boolean);
+  return Array.isArray(data?.gifs) ? data.gifs : [];
 }

@@ -51,6 +51,7 @@ enable_confirmations = false
 #   STRIPE_SECRET_KEY
 #   STRIPE_WEBHOOK_SECRET
 #   STRIPE_PRICE_ID
+#   GIPHY_API_KEY
 #   RESEND_API_KEY
 #   RESEND_FROM_EMAIL=no-reply@letsfindpeople.com
 # Optional email secrets:

@@ -37,7 +37,7 @@ import {
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
 import { getMyProfileAnalytics } from "../lib/analyticsService";
 import { getMyDiceGameStatus, playDailyDiceGame } from "../lib/diceService";
-import { fetchGiphyGifs, hasGiphyApiKey } from "../lib/giphyService";
+import { fetchGiphyGifs } from "../lib/giphyService";
 import {
   getOrCreateDrawEventInvite,
   getUnreadSiteNotificationCount,
@@ -3376,7 +3376,7 @@ function Navbar({ onProfileSave }) {
                               className="btn btn-link btn-sm p-1 text-secondary"
                               onClick={toggleGifPicker}
                               disabled={isChatComposerDisabled || isChatBusy}
-                              title={hasGiphyApiKey() ? "GIFs" : "GIFs need a GIPHY API key"}
+                              title="GIFs"
                               aria-label="Open GIF picker"
                               aria-expanded={showGifPicker}
                             >
