@@ -50,6 +50,8 @@ const DESKTOP_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const MOBILE_PROFILE_KEYWORD_RESULT_LIMIT = 100;
 const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
 const DICE_FEATURE_ENABLED = false;
+const PRICING_DROPDOWN_EVENT = "lfp:open-pricing";
+const PRICING_HIGHLIGHT_DURATION_MS = 1000;
 const DEFAULT_DICE_VALUES = [1, 2, 3, 4, 5, 6];
 const DICE_PIPS = {
   1: ["center"],
@@ -512,6 +514,7 @@ function Navbar({ onProfileSave }) {
   const [showCancelSubModal, setShowCancelSubModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [highlightedPricingFeature, setHighlightedPricingFeature] = useState(null);
   const [editStage, setEditStage] = useState(1);
   const [validated, setValidated] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -852,23 +855,49 @@ function Navbar({ onProfileSave }) {
 
   useEffect(() => {
     let openTimeoutId = null;
+    let highlightStartTimeoutId = null;
+    let highlightEndTimeoutId = null;
 
-    const openPricingDropdown = () => {
+    const clearPricingHighlightTimers = () => {
+      if (highlightStartTimeoutId) window.clearTimeout(highlightStartTimeoutId);
+      if (highlightEndTimeoutId) window.clearTimeout(highlightEndTimeoutId);
+      highlightStartTimeoutId = null;
+      highlightEndTimeoutId = null;
+    };
+
+    const openPricingDropdown = (event) => {
+      const highlightFeature = event?.detail?.highlightFeature || null;
+
       if (openTimeoutId) window.clearTimeout(openTimeoutId);
+      clearPricingHighlightTimers();
+      setHighlightedPricingFeature(null);
 
       openTimeoutId = window.setTimeout(() => {
         if (!pricingDropdownMenuRef.current?.classList.contains("show")) {
           pricingDropdownToggleRef.current?.click();
         }
         pricingDropdownToggleRef.current?.blur();
+
+        if (highlightFeature) {
+          highlightStartTimeoutId = window.setTimeout(() => {
+            setHighlightedPricingFeature(highlightFeature);
+            highlightEndTimeoutId = window.setTimeout(() => {
+              setHighlightedPricingFeature(null);
+              highlightEndTimeoutId = null;
+            }, PRICING_HIGHLIGHT_DURATION_MS);
+            highlightStartTimeoutId = null;
+          }, 20);
+        }
+
         openTimeoutId = null;
       }, 0);
     };
 
-    window.addEventListener("lfp:open-pricing", openPricingDropdown);
+    window.addEventListener(PRICING_DROPDOWN_EVENT, openPricingDropdown);
     return () => {
       if (openTimeoutId) window.clearTimeout(openTimeoutId);
-      window.removeEventListener("lfp:open-pricing", openPricingDropdown);
+      clearPricingHighlightTimers();
+      window.removeEventListener(PRICING_DROPDOWN_EVENT, openPricingDropdown);
     };
   }, []);
 
@@ -2477,7 +2506,9 @@ function Navbar({ onProfileSave }) {
             onClick={(event) => {
               event.preventDefault();
               setShowAnalyticsModal(false);
-              window.dispatchEvent(new CustomEvent("lfp:open-pricing"));
+              window.dispatchEvent(new CustomEvent(PRICING_DROPDOWN_EVENT, {
+                detail: { highlightFeature: "profile-views" },
+              }));
             }}
           >
             Pro Plan
@@ -2529,6 +2560,9 @@ function Navbar({ onProfileSave }) {
     return [activeDirectChat, ...directChats];
   }, [activeDirectChat, directChats]);
   const getChatMenuBadgeLabel = (count) => (Number(count) > 99 ? "99+" : String(Number(count) || 0));
+  const getPricingBenefitClassName = (feature) => (
+    `navbar-pricing-benefit${highlightedPricingFeature === feature ? " navbar-pricing-benefit--highlight" : ""}`
+  );
 
   return (
     <>
@@ -2690,7 +2724,15 @@ function Navbar({ onProfileSave }) {
 
                     <div className="row align-items-center">
                       <h5 className="title mb-2">Pro Plan</h5>
-                      <p className="text mb-0">Access to unlimited searches, profile views, and an exclusive animated profile.</p>
+                      <p className="text mb-0">
+                        Access to{" "}
+                        <span className={getPricingBenefitClassName("unlimited-searches")}>unlimited searches</span>
+                        {", "}
+                        <span className={getPricingBenefitClassName("import-my-keywords")}>import my keywords</span>
+                        {", "}
+                        <span className={getPricingBenefitClassName("profile-views")}>profile views</span>
+                        {", and an exclusive animated profile."}
+                      </p>
                     </div>
                     <div className="mb-3"></div>
                     {savedProfile.subscriptionStatus === "active" ? (

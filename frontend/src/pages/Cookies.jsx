@@ -4,7 +4,7 @@ export default function Cookies() {
       <h1 className="policy-title">Cookies Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 July 2026</strong>
+          <strong>Last updated: 4 August 2026</strong>
         </p>
 
         <p>
@@ -41,7 +41,8 @@ export default function Cookies() {
           </li>
           <li>
             <strong>Session cookies:</strong> maintain your session state (e.g.
-            your current search or profile edit in progress).
+            your current search, imported keyword selection, or profile edit in
+            progress).
           </li>
           <li>
             <strong>Invite and catalog storage:</strong> remember a pending

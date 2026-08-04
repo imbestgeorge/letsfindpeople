@@ -4,7 +4,7 @@ export default function Privacy() {
       <h1 className="policy-title">Privacy Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 July 2026</strong>
+          <strong>Last updated: 4 August 2026</strong>
         </p>
 
         <p>
@@ -45,7 +45,8 @@ export default function Privacy() {
           <li>
             <strong>Interest data:</strong> keywords, answers to interest
             questions, hobbies, personality, sexuality, and other profile
-            selections you make.
+            selections you make, including keywords you import from your saved
+            profile into search.
           </li>
           <li>
             <strong>Technical data:</strong> IP address, browser type, device
@@ -82,7 +83,8 @@ export default function Privacy() {
           <li>To process subscription payments and manage your plan.</li>
           <li>
             To provide global chat, direct messages, in-app notifications,
-            draw-event invites, keyword requests, profile
+            draw-event invites, keyword requests, importing your saved keywords,
+            profile
             analytics, and other account features.
           </li>
           <li>

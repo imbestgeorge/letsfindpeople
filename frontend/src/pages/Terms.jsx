@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="policy-title">Terms &amp; Conditions</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 22 July 2026</strong>
+          <strong>Last updated: 4 August 2026</strong>
         </p>
 
         <p>
@@ -104,9 +104,9 @@ export default function Terms() {
         <h4>6. Subscription Plans</h4>
         <p>
           The Service offers a Free Plan with access to 3 free searches that
-          renew daily. The paid Pro Plan includes unlimited searches, profile
-          views, and an exclusive animated profile. Subscriptions are billed
-          monthly. You may cancel your
+          renew daily. The paid Pro Plan includes access to unlimited searches,
+          import my keywords, profile views, and an exclusive animated profile.
+          Subscriptions are billed monthly. You may cancel your
           subscription at any time via the &quot;Cancel Subscription&quot; option in
           your account. Cancellation stops future billing immediately; however,
           no refunds are issued for the current billing period (see Refunds
@@ -115,9 +115,11 @@ export default function Terms() {
 
         <h4>7. Free Plan Limits</h4>
         <p>
-          Free Plan users receive 3 free searches that renew daily.
-          Attempting to bypass these limits through multiple accounts,
-          automation, or other misuse is a violation of these Terms.
+          Free Plan users receive 3 free searches that renew daily. Paid
+          features, including unlimited searches, importing saved profile
+          keywords into search, and access to profile-view details, require an
+          active Pro Plan. Attempting to bypass these limits through multiple
+          accounts, automation, or other misuse is a violation of these Terms.
         </p>
 
         <h4>8. Moderation and Termination</h4>

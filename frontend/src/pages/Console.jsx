@@ -225,8 +225,10 @@ function formatResetTime(resetAt) {
   });
 }
 
-function openPricingDropdown() {
-  window.dispatchEvent(new CustomEvent(PRICING_DROPDOWN_EVENT));
+function openPricingDropdown(highlightFeature) {
+  window.dispatchEvent(new CustomEvent(PRICING_DROPDOWN_EVENT, {
+    detail: { highlightFeature },
+  }));
 }
 
 export default function Console({ currentUser }) {
@@ -768,6 +770,11 @@ export default function Console({ currentUser }) {
   };
 
   const toggleMyKeywordsImport = () => {
+    if (!hasUnlimitedSearches) {
+      openPricingDropdown("import-my-keywords");
+      return;
+    }
+
     if (myKeywordIds.length === 0) return;
 
     setSelectedKeywords((prev) => {
@@ -995,7 +1002,7 @@ export default function Console({ currentUser }) {
             type="button"
             className={`btn ${hasImportedMyKeywords ? "console-yellow-action-button console-yellow-action-button--active" : "btn-category-outline"} modal-keyword-card console-import-keywords-button`}
             onClick={toggleMyKeywordsImport}
-            disabled={myKeywordIds.length === 0}
+            disabled={!isLoggedIn || (hasUnlimitedSearches && myKeywordIds.length === 0)}
           >
             <div className="d-flex align-items-center gap-2">
               <span>Import My Keywords</span>
@@ -1041,7 +1048,7 @@ export default function Console({ currentUser }) {
                             onClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
-                              openPricingDropdown();
+                              openPricingDropdown("unlimited-searches");
                             }}
                           >
                             Get More Now

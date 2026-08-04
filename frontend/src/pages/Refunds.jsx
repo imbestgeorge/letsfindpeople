@@ -4,7 +4,7 @@ export default function Refunds() {
       <h1 className="policy-title">Refunds Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 11 July 2026</strong>
+          <strong>Last updated: 4 August 2026</strong>
         </p>
 
         <p>
@@ -54,8 +54,8 @@ export default function Refunds() {
 
         <h4>4. Promotional Rewards</h4>
         <p>
-          Free searches, temporary Pro Plan access, and promotional rewards
-          have no cash value and are not refundable,
+          Free searches, import-my-keywords access, temporary Pro Plan access,
+          and promotional rewards have no cash value and are not refundable,
           transferable, or exchangeable for money.
         </p>
 
