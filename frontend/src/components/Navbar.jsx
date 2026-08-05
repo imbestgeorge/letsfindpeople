@@ -237,6 +237,34 @@ function createEmptyChatRelationships() {
   };
 }
 
+function filterDirectChatsByRelationships(chats, relationships) {
+  const blockedIds = getBlockedRelationshipIds(relationships);
+  const hiddenDirectChats = relationships?.hiddenDirectChats || {};
+
+  return (chats || []).filter((chat) => {
+    const otherUserId = Number(chat.otherUserId);
+    if (blockedIds.has(otherUserId)) return false;
+
+    const hiddenBefore = hiddenDirectChats[otherUserId];
+    if (!hiddenBefore) return true;
+
+    if (!chat.lastMessageAt) return false;
+    return new Date(chat.lastMessageAt).getTime() > new Date(hiddenBefore).getTime();
+  });
+}
+
+function filterDirectMessagesByRelationships(messages, otherUserId, relationships) {
+  const hiddenBefore = relationships?.hiddenDirectChats?.[Number(otherUserId)];
+  if (!hiddenBefore) return messages || [];
+
+  const hiddenTime = new Date(hiddenBefore).getTime();
+  if (!Number.isFinite(hiddenTime)) return messages || [];
+
+  return (messages || []).filter((message) => (
+    new Date(message.createdAt).getTime() > hiddenTime
+  ));
+}
+
 function renderChatMessageContent(message, onMediaOpen) {
   if (message.media) {
     const mediaLabel = message.media.title || (message.media.type === "gif" ? "GIF" : "Image");
@@ -1435,34 +1463,6 @@ function Navbar({ onProfileSave }) {
     }
   }, [session?.user?.id]);
 
-  const filterDirectChatsByRelationships = useCallback((chats, relationships = chatRelationships) => {
-    const blockedIds = getBlockedRelationshipIds(relationships);
-    const hiddenDirectChats = relationships?.hiddenDirectChats || {};
-
-    return (chats || []).filter((chat) => {
-      const otherUserId = Number(chat.otherUserId);
-      if (blockedIds.has(otherUserId)) return false;
-
-      const hiddenBefore = hiddenDirectChats[otherUserId];
-      if (!hiddenBefore) return true;
-
-      if (!chat.lastMessageAt) return false;
-      return new Date(chat.lastMessageAt).getTime() > new Date(hiddenBefore).getTime();
-    });
-  }, [chatRelationships]);
-
-  const filterDirectMessagesByRelationships = useCallback((messages, otherUserId, relationships = chatRelationships) => {
-    const hiddenBefore = relationships?.hiddenDirectChats?.[Number(otherUserId)];
-    if (!hiddenBefore) return messages || [];
-
-    const hiddenTime = new Date(hiddenBefore).getTime();
-    if (!Number.isFinite(hiddenTime)) return messages || [];
-
-    return (messages || []).filter((message) => (
-      new Date(message.createdAt).getTime() > hiddenTime
-    ));
-  }, [chatRelationships]);
-
   const loadDirectChats = useCallback(async () => {
     if (!session?.user?.id) {
       setDirectChats([]);
@@ -1485,7 +1485,7 @@ function Navbar({ onProfileSave }) {
     } catch (err) {
       console.warn("Failed to load direct chats:", err.message);
     }
-  }, [filterDirectChatsByRelationships, session?.user?.id]);
+  }, [session?.user?.id]);
 
   const loadCurrentChatMessages = useCallback(async ({ silent = false } = {}) => {
     if (chatMode === "direct") {
@@ -1515,7 +1515,7 @@ function Navbar({ onProfileSave }) {
 
     await loadGlobalChatMessages({ silent, channelKey: activeGlobalChannelKey });
     await markGlobalChatMessagesRead(activeGlobalChannelKey).catch(() => {});
-  }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, filterDirectMessagesByRelationships, loadGlobalChatMessages]);
+  }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
 
   const loadUnreadChatMessageCount = useCallback(async () => {
     const requestId = unreadChatRequestIdRef.current + 1;
