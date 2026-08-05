@@ -704,8 +704,20 @@ html, body {
   --bs-btn-border-color: #eab308;
 }
 
+@keyframes pro-gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
 .profile-avatar-wrap--pro::before {
-  background: linear-gradient(135deg, #facc15, #6D28D9);
+  animation: pro-gradient-flow 2.4s linear infinite;
+  background: linear-gradient(90deg, #facc15, #6D28D9, #facc15);
+  background-size: 200% 100%;
   border-radius: 999px;
   content: "";
   inset: -3px;
@@ -723,8 +735,10 @@ html, body {
 }
 
 .pro-name-effect {
-  background: linear-gradient(90deg, #facc15, #6D28D9);
+  animation: pro-gradient-flow 2.4s linear infinite;
+  background: linear-gradient(90deg, #facc15, #6D28D9, #facc15);
   background-clip: text;
+  background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
