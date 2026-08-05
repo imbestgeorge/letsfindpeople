@@ -235,13 +235,11 @@
   table-layout: fixed;
 }
 
-.admin-reports-table th,
-.admin-reports-table td,
 .admin-report-cell,
 .admin-report-body {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .admin-report-body {
