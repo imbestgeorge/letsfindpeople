@@ -35,6 +35,13 @@
   left: auto;
 }
 
+.navbar .profile-dropdown-menu {
+  --bs-dropdown-link-active-bg: #6D28D9;
+  --bs-dropdown-link-active-color: #ffffff;
+  --bs-dropdown-link-hover-bg: rgba(109, 40, 217, 0.12);
+  --bs-dropdown-link-hover-color: #4c1d95;
+}
+
 .navbar .nav-link {
   align-items: center;
   display: flex;

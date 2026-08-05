@@ -3315,7 +3315,7 @@ function Navbar({ onProfileSave }) {
                     </span>
                   </a>
 
-                  <ul className="dropdown-menu dropdown-menu-end">
+                  <ul className="dropdown-menu dropdown-menu-end profile-dropdown-menu">
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); openEditProfile(); }}>Edit Profile</a></li>
                     {!isAdminUser && (
                       <>
