@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="policy-title">Terms &amp; Conditions</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 4 August 2026</strong>
+          <strong>Last updated: 5 August 2026</strong>
         </p>
 
         <p>
@@ -99,6 +99,10 @@ export default function Terms() {
           they violate these Terms.
           Images and GIFs sent in chat are subject to the same acceptable-use
           rules as written messages.
+          You may report messages, GIFs, images, or users for review. Blocking
+          another user removes direct-chat access between you and hides you from
+          each other in people search, but global chat messages may still be
+          visible.
           Notifications and draw-event invites are provided for site updates,
           events, and related signup flows. You must not use these features to
           spam, deceive, pressure, or abuse other users.

@@ -536,6 +536,18 @@
   z-index: 1070;
 }
 
+.global-chat-gif-close-button,
+.global-chat-gif-close-button:hover,
+.global-chat-gif-close-button:focus,
+.global-chat-gif-close-button:active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #6D28D9 !important;
+  line-height: 1;
+  text-decoration: none;
+}
+
 .global-chat-gif-option {
   aspect-ratio: 1 / 1;
   overflow: hidden;
@@ -556,6 +568,40 @@
   min-width: 44px;
   padding: 0;
   width: 44px;
+}
+
+.global-chat-context-menu {
+  min-width: 176px;
+  z-index: 1080;
+}
+
+.global-chat-media-lightbox {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 1090;
+}
+
+.global-chat-media-lightbox-image {
+  max-height: calc(100vh - 4rem);
+  max-width: calc(100vw - 2rem);
+  object-fit: contain;
+}
+
+.global-chat-media-lightbox-close,
+.global-chat-media-lightbox-close:hover,
+.global-chat-media-lightbox-close:focus,
+.global-chat-media-lightbox-close:active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  font-size: 1.4rem;
+  line-height: 1;
+  text-decoration: none;
 }
 
 .global-chat-avatar {
@@ -602,6 +648,12 @@
   margin: 0;
   padding: 0;
   text-decoration: none !important;
+}
+
+.global-chat-avatar-button:disabled,
+.global-chat-author-button:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .profile-avatar-wrap {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { supabase } from '../lib/supabaseClient';
+import { listAdminChatReports, parseChatMediaPayload } from '../lib/chatService';
 import {
   BULK_EMAIL_BODY_MAX_LENGTH,
   BULK_EMAIL_CTA_LABEL_MAX_LENGTH,
@@ -122,6 +123,22 @@ const formatLogDetails = (row) => {
   return '';
 };
 
+const formatAdminReportDate = (value) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+  });
+};
+
+const getAdminReportContent = (report) => {
+  if (report.contentKind === 'user') return 'User profile';
+  const media = parseChatMediaPayload(report.body);
+  if (media?.url) return { ...media, type: media.type || report.contentKind };
+  if (report.mediaUrl) return { type: report.contentKind, url: report.mediaUrl, title: report.contentKind };
+  return String(report.body || '').trim() || '-';
+};
+
 function Admin() {
   const [page, setPage] = useState(0);
   const [selectedYear, setSelectedYear] = useState(() => getCurrentDashboardYear());
@@ -161,6 +178,14 @@ function Admin() {
   const [logActionId, setLogActionId] = useState('');
   const [logDateInput, setLogDateInput] = useState('');
   const [logDate, setLogDate] = useState('');
+
+  // Reports state
+  const [reports, setReports] = useState([]);
+  const [reportsTotal, setReportsTotal] = useState(0);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState(null);
+  const [currentReportPage, setCurrentReportPage] = useState(1);
+  const reportsPerPage = 20;
 
   // Real statistics state
   const [statsError, setStatsError] = useState(null);
@@ -629,6 +654,23 @@ function Admin() {
     }
   }, [logsPerPage]);
 
+  const fetchReports = useCallback(async (pageNum) => {
+    setReportsLoading(true);
+    setReportsError(null);
+    try {
+      const { reports, total } = await listAdminChatReports({
+        page: pageNum,
+        perPage: reportsPerPage,
+      });
+      setReports(reports);
+      setReportsTotal(total);
+    } catch (err) {
+      setReportsError(err.message);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [reportsPerPage]);
+
   const fetchLogActions = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -911,6 +953,12 @@ function Admin() {
     }
   }, [page, currentLogPage, logActionId, logDate, fetchLogs, fetchLogActions, logActions.length]);
 
+  useEffect(() => {
+    if (page === 7) {
+      fetchReports(currentReportPage);
+    }
+  }, [page, currentReportPage, fetchReports]);
+
   // Fetch requested keywords whenever the Requests tab is active or request page changes
   useEffect(() => {
     if (page === 4) {
@@ -1059,6 +1107,21 @@ function Admin() {
     const totalPages = getTotalLogPages();
     if (pageNum >= 1 && pageNum <= totalPages) {
       setCurrentLogPage(pageNum);
+    }
+  };
+
+  const getTotalReportPages = () => {
+    return Math.max(1, Math.ceil(reportsTotal / reportsPerPage));
+  };
+
+  const getReportPageNumbers = () => {
+    return getPaginationPageNumbers(currentReportPage, getTotalReportPages(), maxPaginationPages);
+  };
+
+  const onReportPageChange = (pageNum) => {
+    const totalPages = getTotalReportPages();
+    if (pageNum >= 1 && pageNum <= totalPages) {
+      setCurrentReportPage(pageNum);
     }
   };
 
@@ -1513,6 +1576,7 @@ function Admin() {
     { id: 2, label: 'Keywords' },
     { id: 5, label: 'Notifications' },
     { id: 6, label: 'Crunchyroll Winners' },
+    { id: 7, label: 'Reports' },
     { id: 4, label: 'Requests' },
     { id: 3, label: 'Logs' },
   ];
@@ -1975,6 +2039,120 @@ function Admin() {
                 </tbody>
               </table>
             </div>
+          )}
+        </>
+      )}
+
+      {/* Reports Tab */}
+      {page === 7 && (
+        <>
+          {reportsLoading ? (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+              <div className="spinner-border spinner-primary" role="status">
+                <span className="visually-hidden">Loading reports...</span>
+              </div>
+            </div>
+          ) : reportsError ? (
+            <div className="alert alert-danger">Failed to load reports: {reportsError}</div>
+          ) : (
+          <>
+          <div className="table-responsive">
+            <table className="table table-striped align-middle text-center admin-reports-table">
+              <thead>
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Reported</th>
+                  <th scope="col">Reporter</th>
+                  <th scope="col">Content</th>
+                  <th scope="col">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.length === 0 ? (
+                  <tr><td colSpan={5} className="text-muted">No reports found.</td></tr>
+                ) : (
+                  reports.map((report) => {
+                    const content = getAdminReportContent(report);
+                    const isMedia = content && typeof content === 'object';
+
+                    return (
+                      <tr key={report.id}>
+                        <td>
+                          <span className="badge text-bg-secondary text-uppercase">
+                            {report.contentKind}
+                          </span>
+                          {report.messageType && (
+                            <small className="d-block text-muted mt-1">{report.messageType}</small>
+                          )}
+                        </td>
+                        <td>
+                          <div>{report.reportedName || '-'}</div>
+                          <small className="text-muted">{report.reportedEmail || `User #${report.reportedUserId || '-'}`}</small>
+                        </td>
+                        <td>
+                          <div>{report.reporterName || '-'}</div>
+                          <small className="text-muted">{report.reporterEmail || `User #${report.reporterUserId || '-'}`}</small>
+                        </td>
+                        <td className="text-start">
+                          {isMedia ? (
+                            <a href={content.url} target="_blank" rel="noopener noreferrer" className="d-inline-flex align-items-center gap-2">
+                              <img
+                                src={content.url}
+                                alt={content.title || report.contentKind}
+                                className="admin-report-media-thumb rounded border"
+                              />
+                              <span>{content.type === 'gif' ? 'GIF' : 'Image'}</span>
+                            </a>
+                          ) : (
+                            <span className="admin-report-body">{content}</span>
+                          )}
+                        </td>
+                        <td>{formatAdminReportDate(report.createdAt)}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <nav aria-label="Reports pagination">
+            <ul className="pagination justify-content-center mt-5 mb-5">
+              <li className={`page-item ${currentReportPage === 1 ? 'disabled' : ''}`}>
+                <a
+                  className="page-link"
+                  onClick={() => onReportPageChange(currentReportPage - 1)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Previous
+                </a>
+              </li>
+              {getReportPageNumbers().map((pageNum) => (
+                <li
+                  key={pageNum}
+                  className={`page-item ${pageNum === currentReportPage ? 'active' : ''}`}
+                >
+                  <a
+                    className="page-link"
+                    onClick={() => onReportPageChange(pageNum)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {pageNum}
+                  </a>
+                </li>
+              ))}
+              <li className={`page-item ${currentReportPage === getTotalReportPages() ? 'disabled' : ''}`}>
+                <a
+                  className="page-link"
+                  onClick={() => onReportPageChange(currentReportPage + 1)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Next
+                </a>
+              </li>
+            </ul>
+          </nav>
+          </>
           )}
         </>
       )}

@@ -4,7 +4,7 @@ export default function Privacy() {
       <h1 className="policy-title">Privacy Policy</h1>
       <div className="policy-content">
         <p>
-          <strong>Last updated: 4 August 2026</strong>
+          <strong>Last updated: 5 August 2026</strong>
         </p>
 
         <p>
@@ -58,7 +58,8 @@ export default function Privacy() {
             messages, direct messages, chat GIF selections, and compressed chat
             images you send, notification read or dismissal status, draw-event
             invite activity, keyword requests you submit, and the profile
-            visibility permissions you choose.
+            visibility permissions, direct-chat removal choices, blocks, and
+            reports you submit.
           </li>
           <li>
             <strong>Payment and subscription data:</strong> subscription status,
@@ -86,7 +87,7 @@ export default function Privacy() {
             To provide global chat, direct messages, in-app notifications,
             draw-event invites, keyword requests, GIF sharing, chat image
             uploads, importing your saved keywords, profile
-            analytics, and other account features.
+            analytics, reporting, blocking, and other account features.
           </li>
           <li>
             To detect and prevent abuse, scraping, unauthorised access, and
@@ -127,7 +128,8 @@ export default function Privacy() {
           show your name and profile picture. Direct messages are shown to the
           conversation participants. Site notifications and draw-event invites
           may record whether you have received, opened, dismissed, or completed
-          the related signup flow.
+          the related signup flow. Reports may include a snapshot of the
+          reported text, image, GIF, or user so administrators can review it.
         </p>
 
         <h4>5. Data Sharing</h4>
@@ -157,7 +159,7 @@ export default function Privacy() {
           account and data at any time by contacting us. Global chat messages
           and related uploaded chat images are designed to be short-lived and
           shown for up to 7 days. Direct messages, notification records, invite
-          activity, dice reward records,
+          activity, blocks, reports, dice reward records,
           analytics events, certain security logs, billing records, moderation
           records, and account deletion records may be retained where needed to
           provide the Service or for legal, accounting, security, or

@@ -207,6 +207,62 @@ export async function listMyDirectChats() {
   return (data || []).map(mapDirectChat);
 }
 
+export async function listMyChatRelationships() {
+  const { data, error } = await supabase.rpc("list_my_chat_relationships");
+  if (error) throw new Error(error.message);
+
+  const hiddenDirectChats = {};
+  const blockedUserIds = new Set();
+  const blockedByUserIds = new Set();
+
+  (data || []).forEach((row) => {
+    const userId = Number(row.user_id);
+    if (!Number.isInteger(userId) || userId <= 0) return;
+
+    if (row.relationship_type === "hidden") {
+      hiddenDirectChats[userId] = row.hidden_before || null;
+    } else if (row.relationship_type === "blocked") {
+      blockedUserIds.add(userId);
+    } else if (row.relationship_type === "blocked_by") {
+      blockedByUserIds.add(userId);
+    }
+  });
+
+  return {
+    hiddenDirectChats,
+    blockedUserIds,
+    blockedByUserIds,
+  };
+}
+
+export function getBlockedRelationshipIds(relationships) {
+  return new Set([
+    ...Array.from(relationships?.blockedUserIds || []),
+    ...Array.from(relationships?.blockedByUserIds || []),
+  ]);
+}
+
+export async function removeDirectChatForMe(otherUserId) {
+  const { error } = await supabase.rpc("hide_direct_conversation_from_me", {
+    p_other_user_id: Number(otherUserId),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function unhideDirectChatForMe(otherUserId) {
+  const { error } = await supabase.rpc("unhide_direct_conversation_for_me", {
+    p_other_user_id: Number(otherUserId),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function blockChatUser(otherUserId) {
+  const { error } = await supabase.rpc("block_user_from_chat", {
+    p_blocked_user_id: Number(otherUserId),
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function listDirectChatMessages(otherUserId) {
   const { data, error } = await supabase.rpc("list_direct_chat_messages", {
     p_other_user_id: Number(otherUserId),
@@ -248,6 +304,67 @@ export async function sendDirectChatMessage(otherUserId, message) {
 
 export function sendDirectChatMediaMessage(otherUserId, payload) {
   return sendDirectChatMessage(otherUserId, buildChatMediaBody(payload));
+}
+
+export async function deleteMyChatMessage(message) {
+  const { data, error } = await supabase.rpc("delete_my_chat_message", {
+    p_message_type: message?.type,
+    p_message_id: Number(message?.id),
+  });
+  if (error) throw new Error(error.message);
+  return !!data;
+}
+
+export async function reportChatMessage(message) {
+  const { data, error } = await supabase.rpc("report_chat_content", {
+    p_target_type: "message",
+    p_reported_user_id: Number(message?.userId) || null,
+    p_message_type: message?.type,
+    p_message_id: Number(message?.id),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function reportChatUser(userId) {
+  const { data, error } = await supabase.rpc("report_chat_content", {
+    p_target_type: "user",
+    p_reported_user_id: Number(userId),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function listAdminChatReports({ page = 1, perPage = 20 } = {}) {
+  const limit = Math.max(1, Math.min(Number(perPage) || 20, 100));
+  const offset = Math.max(0, (Math.max(1, Number(page) || 1) - 1) * limit);
+  const { data, error } = await supabase.rpc("list_admin_chat_reports", {
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) throw new Error(error.message);
+
+  const rows = data || [];
+  return {
+    reports: rows.map((row) => ({
+      id: Number(row.id_chat_report),
+      reporterUserId: Number(row.reporter_user_id),
+      reporterName: row.reporter_name || "Deleted Account",
+      reporterEmail: row.reporter_email || "",
+      reportedUserId: row.reported_user_id ? Number(row.reported_user_id) : null,
+      reportedName: row.reported_name || "Deleted Account",
+      reportedEmail: row.reported_email || "",
+      targetType: row.target_type || "",
+      messageType: row.message_type || "",
+      messageId: row.message_id ? Number(row.message_id) : null,
+      contentKind: row.content_kind || "text",
+      body: row.body || "",
+      mediaUrl: row.media_url || "",
+      status: row.status || "open",
+      createdAt: row.created_at || null,
+    })),
+    total: Number(rows[0]?.total_count || 0),
+  };
 }
 
 function getImageDimensions(file) {

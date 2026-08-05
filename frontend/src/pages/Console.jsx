@@ -12,6 +12,7 @@ import {
   userMatchesSearchFilters,
 } from "../lib/catalogService";
 import { recordProfileView, recordSearchAnalytics } from "../lib/analyticsService";
+import { getBlockedRelationshipIds, listMyChatRelationships } from "../lib/chatService";
 import {
   getLatestEnabledDrawEventNotification,
   removeSiteNotificationSubscription,
@@ -274,6 +275,8 @@ export default function Console({ currentUser }) {
   const [freeSearchesResetAt, setFreeSearchesResetAt] = useState(
     currentUser?.freeSearchesResetAt ?? null
   );
+  const [blockedSearchUserIds, setBlockedSearchUserIds] = useState(() => new Set());
+  const [blockedRelationshipsLoaded, setBlockedRelationshipsLoaded] = useState(false);
   const [_latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
 
   const hasUnlimitedSearches =
@@ -349,6 +352,7 @@ export default function Console({ currentUser }) {
   const isSearchDisabled =
     isSearchBlocked ||
     isSearching ||
+    !blockedRelationshipsLoaded ||
     catalogLoading ||
     hasTooManyKeywords ||
     (!hasUnlimitedSearches && !hasFreeSearchesRemaining);
@@ -358,8 +362,44 @@ export default function Console({ currentUser }) {
   const visibleKeywordResultLimit = getKeywordDisplayLimit(keywordResultLimit, selectedKeywords.length);
 
   useEffect(() => {
+    if (!session?.user?.id) {
+      setBlockedSearchUserIds(new Set());
+      setBlockedRelationshipsLoaded(true);
+      return undefined;
+    }
+
+    let isMounted = true;
+    setBlockedRelationshipsLoaded(false);
+    const loadBlockedRelationships = () => {
+      listMyChatRelationships()
+        .then((relationships) => {
+          if (isMounted) {
+            setBlockedSearchUserIds(getBlockedRelationshipIds(relationships));
+            setBlockedRelationshipsLoaded(true);
+          }
+        })
+        .catch((err) => {
+          if (isMounted) {
+            console.warn("Failed to load blocked users:", err.message);
+            setBlockedSearchUserIds(new Set());
+            setBlockedRelationshipsLoaded(true);
+          }
+        });
+    };
+
+    loadBlockedRelationships();
+    window.addEventListener("lfp:chat-relationships-changed", loadBlockedRelationships);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("lfp:chat-relationships-changed", loadBlockedRelationships);
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     if (!focusedUserId) return undefined;
     if (authLoading) return undefined;
+    if (!blockedRelationshipsLoaded) return undefined;
 
     const userId = Number(focusedUserId);
     if (!Number.isInteger(userId) || userId <= 0) {
@@ -369,6 +409,13 @@ export default function Console({ currentUser }) {
 
     if (!session?.user) {
       setSearchError("You have to login before viewing this user.");
+      setSearchResults([]);
+      navigate("/", { replace: true });
+      return undefined;
+    }
+
+    if (blockedSearchUserIds.has(userId)) {
+      setSearchError("This profile is unavailable.");
       setSearchResults([]);
       navigate("/", { replace: true });
       return undefined;
@@ -405,7 +452,7 @@ export default function Console({ currentUser }) {
     return () => {
       isMounted = false;
     };
-  }, [authLoading, focusedUserId, navigate, session?.user]);
+  }, [authLoading, blockedRelationshipsLoaded, blockedSearchUserIds, focusedUserId, navigate, session?.user]);
 
   useEffect(() => {
     if (!focusedUserId || isSearching || !searchResults?.length) return;
@@ -658,7 +705,7 @@ export default function Console({ currentUser }) {
       });
       // Filter out the current user from backend results to avoid duplicate
       const filtered = session?.user?.id
-        ? users.filter(u => u.supabaseUid !== session.user.id)
+        ? users.filter(u => u.supabaseUid !== session.user.id && !blockedSearchUserIds.has(Number(u.id)))
         : users;
       const results = filtered.map((user) => ({
         ...user,

@@ -17,14 +17,21 @@ import { requestKeyword } from "../lib/catalogService";
 import {
   CHAT_MAX_MESSAGE_LENGTH,
   GLOBAL_CHAT_CHANNELS,
+  blockChatUser,
+  deleteMyChatMessage,
+  getBlockedRelationshipIds,
   getUnreadGlobalChatMessageCount,
   getUnreadDirectMessageCount,
+  listMyChatRelationships,
   listDirectChatMessages,
   listGlobalChatMessages,
   listMyDirectChats,
   markDirectChatMessagesRead,
   markGlobalChatMessagesRead,
   removeGlobalChatSubscription,
+  removeDirectChatForMe,
+  reportChatMessage,
+  reportChatUser,
   getChatMessagePreview,
   sendDirectChatMessage,
   sendDirectChatMediaMessage,
@@ -32,6 +39,7 @@ import {
   sendGlobalChatMediaMessage,
   subscribeToDirectChatMessages,
   subscribeToGlobalChatMessages,
+  unhideDirectChatForMe,
   uploadChatImage,
 } from "../lib/chatService";
 import { buildInviteUrl, getInviteCodeFromSearch, storePendingInviteCode } from "../lib/inviteService";
@@ -57,6 +65,10 @@ const DRAW_INVITE_SHARE_TITLE = "LetsFindPeople";
 const DICE_FEATURE_ENABLED = false;
 const PRICING_DROPDOWN_EVENT = "lfp:open-pricing";
 const PRICING_HIGHLIGHT_DURATION_MS = 1000;
+const CHAT_LONG_PRESS_MS = 550;
+const CHAT_CONTEXT_MENU_WIDTH = 176;
+const CHAT_CONTEXT_MENU_HEIGHT = 150;
+const CHAT_CONTEXT_MENU_MIN_MARGIN = 8;
 const DEFAULT_DICE_VALUES = [1, 2, 3, 4, 5, 6];
 const DICE_PIPS = {
   1: ["center"],
@@ -201,16 +213,39 @@ function formatDirectChatPreview(value) {
   return text.length > 13 ? `${text.slice(0, 13)}...` : text;
 }
 
-function renderChatMessageContent(message) {
+function getChatContextMenuPosition(point) {
+  const viewportWidth = typeof window === "undefined" ? 360 : window.innerWidth;
+  const viewportHeight = typeof window === "undefined" ? 640 : window.innerHeight;
+
+  return {
+    x: Math.min(
+      Math.max(CHAT_CONTEXT_MENU_MIN_MARGIN, point.clientX),
+      viewportWidth - CHAT_CONTEXT_MENU_WIDTH - CHAT_CONTEXT_MENU_MIN_MARGIN
+    ),
+    y: Math.min(
+      Math.max(CHAT_CONTEXT_MENU_MIN_MARGIN, point.clientY),
+      Math.max(CHAT_CONTEXT_MENU_MIN_MARGIN, viewportHeight - CHAT_CONTEXT_MENU_HEIGHT - CHAT_CONTEXT_MENU_MIN_MARGIN)
+    ),
+  };
+}
+
+function createEmptyChatRelationships() {
+  return {
+    hiddenDirectChats: {},
+    blockedUserIds: new Set(),
+    blockedByUserIds: new Set(),
+  };
+}
+
+function renderChatMessageContent(message, onMediaOpen) {
   if (message.media) {
     const mediaLabel = message.media.title || (message.media.type === "gif" ? "GIF" : "Image");
 
     return (
-      <a
-        href={message.media.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="d-block"
+      <button
+        type="button"
+        className="btn p-0 border-0 bg-transparent d-block"
+        onClick={() => onMediaOpen(message.media)}
         aria-label={`Open ${mediaLabel}`}
       >
         <img
@@ -219,7 +254,7 @@ function renderChatMessageContent(message) {
           className="img-fluid rounded global-chat-media-image"
           loading="lazy"
         />
-      </a>
+      </button>
     );
   }
 
@@ -419,7 +454,10 @@ function Navbar({ onProfileSave }) {
   const chatMessagesBodyRef = useRef(null);
   const chatGifPickerRef = useRef(null);
   const chatGifButtonRef = useRef(null);
+  const chatContextMenuRef = useRef(null);
   const chatImageInputRef = useRef(null);
+  const chatLongPressTimeoutRef = useRef(null);
+  const chatLongPressTriggeredRef = useRef(false);
   const unreadChatRequestIdRef = useRef(0);
   const diceRollIntervalRef = useRef(null);
   const diceCelebrationTimeoutRef = useRef(null);
@@ -689,6 +727,9 @@ function Navbar({ onProfileSave }) {
   const [gifResults, setGifResults] = useState([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState("");
+  const [chatRelationships, setChatRelationships] = useState(() => createEmptyChatRelationships());
+  const [chatContextMenu, setChatContextMenu] = useState(null);
+  const [previewChatMedia, setPreviewChatMedia] = useState(null);
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [diceStatus, setDiceStatus] = useState(null);
   const [diceLoading, setDiceLoading] = useState(false);
@@ -1376,6 +1417,52 @@ function Navbar({ onProfileSave }) {
     }
   }, [activeGlobalChannelKey, session?.user?.id]);
 
+  const loadChatRelationships = useCallback(async () => {
+    if (!session?.user?.id) {
+      const emptyRelationships = createEmptyChatRelationships();
+      setChatRelationships(emptyRelationships);
+      return emptyRelationships;
+    }
+
+    try {
+      const relationships = await listMyChatRelationships();
+      setChatRelationships(relationships);
+      window.dispatchEvent(new CustomEvent("lfp:chat-relationships-changed"));
+      return relationships;
+    } catch (err) {
+      console.warn("Failed to load chat relationship controls:", err.message);
+      return createEmptyChatRelationships();
+    }
+  }, [session?.user?.id]);
+
+  const filterDirectChatsByRelationships = useCallback((chats, relationships = chatRelationships) => {
+    const blockedIds = getBlockedRelationshipIds(relationships);
+    const hiddenDirectChats = relationships?.hiddenDirectChats || {};
+
+    return (chats || []).filter((chat) => {
+      const otherUserId = Number(chat.otherUserId);
+      if (blockedIds.has(otherUserId)) return false;
+
+      const hiddenBefore = hiddenDirectChats[otherUserId];
+      if (!hiddenBefore) return true;
+
+      if (!chat.lastMessageAt) return false;
+      return new Date(chat.lastMessageAt).getTime() > new Date(hiddenBefore).getTime();
+    });
+  }, [chatRelationships]);
+
+  const filterDirectMessagesByRelationships = useCallback((messages, otherUserId, relationships = chatRelationships) => {
+    const hiddenBefore = relationships?.hiddenDirectChats?.[Number(otherUserId)];
+    if (!hiddenBefore) return messages || [];
+
+    const hiddenTime = new Date(hiddenBefore).getTime();
+    if (!Number.isFinite(hiddenTime)) return messages || [];
+
+    return (messages || []).filter((message) => (
+      new Date(message.createdAt).getTime() > hiddenTime
+    ));
+  }, [chatRelationships]);
+
   const loadDirectChats = useCallback(async () => {
     if (!session?.user?.id) {
       setDirectChats([]);
@@ -1383,17 +1470,22 @@ function Navbar({ onProfileSave }) {
     }
 
     try {
-      const chats = await listMyDirectChats();
-      setDirectChats(chats);
+      const [chats, relationships] = await Promise.all([
+        listMyDirectChats(),
+        listMyChatRelationships(),
+      ]);
+      setChatRelationships(relationships);
+      const visibleChats = filterDirectChatsByRelationships(chats, relationships);
+      setDirectChats(visibleChats);
       setActiveDirectChat(prev => {
         if (!prev?.otherUserId) return prev;
-        const freshActive = chats.find((chat) => chat.otherUserId === prev.otherUserId);
-        return freshActive ? { ...prev, ...freshActive } : prev;
+        const freshActive = visibleChats.find((chat) => chat.otherUserId === prev.otherUserId);
+        return freshActive ? { ...prev, ...freshActive } : null;
       });
     } catch (err) {
       console.warn("Failed to load direct chats:", err.message);
     }
-  }, [session?.user?.id]);
+  }, [filterDirectChatsByRelationships, session?.user?.id]);
 
   const loadCurrentChatMessages = useCallback(async ({ silent = false } = {}) => {
     if (chatMode === "direct") {
@@ -1406,8 +1498,12 @@ function Navbar({ onProfileSave }) {
       setChatError("");
 
       try {
-        const messages = await listDirectChatMessages(activeDirectChat.otherUserId);
-        setChatMessages(messages);
+        const [messages, relationships] = await Promise.all([
+          listDirectChatMessages(activeDirectChat.otherUserId),
+          listMyChatRelationships(),
+        ]);
+        setChatRelationships(relationships);
+        setChatMessages(filterDirectMessagesByRelationships(messages, activeDirectChat.otherUserId, relationships));
         await markDirectChatMessagesRead(activeDirectChat.otherUserId);
       } catch (err) {
         setChatError(err.message || "Failed to load direct messages.");
@@ -1419,7 +1515,7 @@ function Navbar({ onProfileSave }) {
 
     await loadGlobalChatMessages({ silent, channelKey: activeGlobalChannelKey });
     await markGlobalChatMessagesRead(activeGlobalChannelKey).catch(() => {});
-  }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
+  }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, filterDirectMessagesByRelationships, loadGlobalChatMessages]);
 
   const loadUnreadChatMessageCount = useCallback(async () => {
     const requestId = unreadChatRequestIdRef.current + 1;
@@ -1583,6 +1679,7 @@ function Navbar({ onProfileSave }) {
 
   const openChatAuthorInConsole = (message) => {
     if (!message?.userId) return;
+    if (getBlockedRelationshipIds(chatRelationships).has(Number(message.userId))) return;
     setShowChatModal(false);
     setChatDraft("");
     navigate(`/?user=${encodeURIComponent(message.userId)}`);
@@ -1591,6 +1688,10 @@ function Navbar({ onProfileSave }) {
   const startDirectChat = useCallback((profile) => {
     const otherUserId = Number(profile?.id ?? profile?.otherUserId);
     if (!Number.isInteger(otherUserId) || otherUserId <= 0 || otherUserId === Number(savedProfile?.id)) return;
+    if (getBlockedRelationshipIds(chatRelationships).has(otherUserId)) {
+      setChatError("You cannot open this profile because one of you has blocked the other.");
+      return;
+    }
 
     const existingChat = directChats.find((chat) => chat.otherUserId === otherUserId);
     const displayName = profile?.name
@@ -1617,8 +1718,13 @@ function Navbar({ onProfileSave }) {
     setChatNotice("");
     setShowGifPicker(false);
 
-    loadDirectChats();
-  }, [directChats, loadDirectChats, savedProfile?.id]);
+    unhideDirectChatForMe(otherUserId)
+      .catch(() => {})
+      .finally(() => {
+        loadChatRelationships();
+        loadDirectChats();
+      });
+  }, [chatRelationships, directChats, loadChatRelationships, loadDirectChats, savedProfile?.id]);
 
   const selectGlobalChatChannel = (channelKey) => {
     setChatMode("global");
@@ -1668,6 +1774,9 @@ function Navbar({ onProfileSave }) {
     setChatNotice("");
 
     try {
+      if (chatMode === "direct" && activeDirectChat?.otherUserId) {
+        await unhideDirectChatForMe(activeDirectChat.otherUserId).catch(() => {});
+      }
       const message = chatMode === "direct" && activeDirectChat?.otherUserId
         ? await sendDirectChatMessage(activeDirectChat.otherUserId, body)
         : await sendGlobalChatMessage(body, activeGlobalChannelKey);
@@ -1698,6 +1807,9 @@ function Navbar({ onProfileSave }) {
     setChatNotice("");
 
     try {
+      if (chatMode === "direct" && activeDirectChat?.otherUserId) {
+        await unhideDirectChatForMe(activeDirectChat.otherUserId).catch(() => {});
+      }
       const message = chatMode === "direct" && activeDirectChat?.otherUserId
         ? await sendDirectChatMediaMessage(activeDirectChat.otherUserId, payload)
         : await sendGlobalChatMediaMessage(payload, activeGlobalChannelKey);
@@ -1768,6 +1880,144 @@ function Navbar({ onProfileSave }) {
       setChatError(err.message || "Failed to send image.");
     } finally {
       setChatMediaUploading(false);
+    }
+  };
+
+  const clearChatLongPressTimer = () => {
+    if (chatLongPressTimeoutRef.current) {
+      window.clearTimeout(chatLongPressTimeoutRef.current);
+      chatLongPressTimeoutRef.current = null;
+    }
+  };
+
+  const openChatContextMenu = (event, menu) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearChatLongPressTimer();
+    setShowGifPicker(false);
+    setChatContextMenu({
+      ...menu,
+      ...getChatContextMenuPosition(event),
+    });
+  };
+
+  const startChatLongPress = (event, menu) => {
+    clearChatLongPressTimer();
+    chatLongPressTriggeredRef.current = false;
+    const touch = event.touches?.[0];
+    if (!touch) return;
+
+    const point = { clientX: touch.clientX, clientY: touch.clientY };
+    chatLongPressTimeoutRef.current = window.setTimeout(() => {
+      chatLongPressTriggeredRef.current = true;
+      setShowGifPicker(false);
+      setChatContextMenu({
+        ...menu,
+        ...getChatContextMenuPosition(point),
+      });
+      chatLongPressTimeoutRef.current = null;
+    }, CHAT_LONG_PRESS_MS);
+  };
+
+  const handleDirectChatButtonClick = (chat) => {
+    if (chatLongPressTriggeredRef.current) {
+      chatLongPressTriggeredRef.current = false;
+      return;
+    }
+
+    setActiveDirectChat(chat);
+    setChatMode("direct");
+    setChatDraft("");
+    setChatMessages([]);
+    setChatLoading(true);
+    setChatNotice("");
+    setShowGifPicker(false);
+  };
+
+  const copyChatMessage = async (message) => {
+    const text = message?.media?.url || message?.body || "";
+    await copyTextToClipboard(text);
+    setChatContextMenu(null);
+  };
+
+  const deleteChatMessage = async (message) => {
+    setChatContextMenu(null);
+    setChatError("");
+    setChatNotice("");
+
+    try {
+      await deleteMyChatMessage(message);
+      setChatMessages(prev => prev.filter((item) => !(item.type === message.type && item.id === message.id)));
+      loadDirectChats();
+    } catch (err) {
+      setChatError(err.message || "Failed to delete message.");
+    }
+  };
+
+  const reportMessage = async (message) => {
+    setChatContextMenu(null);
+    if (!window.confirm("Are you sure you want to report this message?")) return;
+
+    setChatError("");
+    setChatNotice("");
+    try {
+      await reportChatMessage(message);
+      setChatNotice("Report sent.");
+    } catch (err) {
+      setChatError(err.message || "Failed to report message.");
+    }
+  };
+
+  const removeDirectChat = async (chat) => {
+    setChatContextMenu(null);
+    if (!window.confirm("Are you sure you want to remove this chat from your direct messages?")) return;
+
+    setChatError("");
+    setChatNotice("");
+    try {
+      await removeDirectChatForMe(chat.otherUserId);
+      setDirectChats(prev => prev.filter((item) => item.otherUserId !== chat.otherUserId));
+      if (activeDirectChat?.otherUserId === chat.otherUserId) {
+        setActiveDirectChat(null);
+        setChatMessages([]);
+      }
+      await loadChatRelationships();
+    } catch (err) {
+      setChatError(err.message || "Failed to remove chat.");
+    }
+  };
+
+  const blockDirectChatUser = async (chat) => {
+    setChatContextMenu(null);
+    if (!window.confirm("Are you sure you want to block this user?")) return;
+
+    setChatError("");
+    setChatNotice("");
+    try {
+      await blockChatUser(chat.otherUserId);
+      setDirectChats(prev => prev.filter((item) => item.otherUserId !== chat.otherUserId));
+      if (activeDirectChat?.otherUserId === chat.otherUserId) {
+        setActiveDirectChat(null);
+        setChatMessages([]);
+      }
+      await loadChatRelationships();
+      window.dispatchEvent(new CustomEvent("lfp:chat-relationships-changed"));
+    } catch (err) {
+      setChatError(err.message || "Failed to block user.");
+    }
+  };
+
+  const reportUser = async (userId) => {
+    setChatContextMenu(null);
+    if (!window.confirm("Are you sure you want to report this user?")) return;
+
+    setChatError("");
+    setChatNotice("");
+    try {
+      await reportChatUser(userId);
+      setChatNotice("Report sent.");
+    } catch (err) {
+      setChatError(err.message || "Failed to report user.");
     }
   };
 
@@ -2129,6 +2379,39 @@ function Navbar({ onProfileSave }) {
       document.removeEventListener("keydown", closeGifPickerOnEscape);
     };
   }, [showGifPicker]);
+
+  useEffect(() => {
+    loadChatRelationships();
+  }, [loadChatRelationships]);
+
+  useEffect(() => {
+    if (!chatContextMenu) return undefined;
+
+    const closeContextMenu = (event) => {
+      if (chatContextMenuRef.current?.contains(event.target)) return;
+      setChatContextMenu(null);
+    };
+    const closeContextMenuOnEscape = (event) => {
+      if (event.key === "Escape") setChatContextMenu(null);
+    };
+
+    document.addEventListener("pointerdown", closeContextMenu);
+    document.addEventListener("keydown", closeContextMenuOnEscape);
+    window.addEventListener("scroll", closeContextMenu, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeContextMenu);
+      document.removeEventListener("keydown", closeContextMenuOnEscape);
+      window.removeEventListener("scroll", closeContextMenu, true);
+    };
+  }, [chatContextMenu]);
+
+  useEffect(() => () => {
+    if (chatLongPressTimeoutRef.current) {
+      window.clearTimeout(chatLongPressTimeoutRef.current);
+      chatLongPressTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!showGifPicker) return undefined;
@@ -2758,6 +3041,7 @@ function Navbar({ onProfileSave }) {
     : activeGlobalChannel?.title || "International";
   const isChatComposerDisabled = !session || (chatMode === "direct" && !activeDirectChat);
   const isChatBusy = chatSending || chatMediaUploading;
+  const blockedRelationshipIds = getBlockedRelationshipIds(chatRelationships);
   const directChatMenuItems = useMemo(() => {
     if (!activeDirectChat?.otherUserId) return directChats;
     if (directChats.some((chat) => chat.otherUserId === activeDirectChat.otherUserId)) return directChats;
@@ -3174,15 +3458,18 @@ function Navbar({ onProfileSave }) {
                               key={chat.otherUserId}
                               type="button"
                             className={`global-chat-room-button global-chat-room-button--direct${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
-                            onClick={() => {
-                              setActiveDirectChat(chat);
-                              setChatMode("direct");
-                              setChatDraft("");
-                              setChatMessages([]);
-                              setChatLoading(true);
-                              setChatNotice("");
-                              setShowGifPicker(false);
-                            }}
+                            onClick={() => handleDirectChatButtonClick(chat)}
+                            onContextMenu={(event) => openChatContextMenu(event, {
+                              kind: "direct-user",
+                              chat,
+                            })}
+                            onTouchStart={(event) => startChatLongPress(event, {
+                              kind: "direct-user",
+                              chat,
+                            })}
+                            onTouchMove={clearChatLongPressTimer}
+                            onTouchEnd={clearChatLongPressTimer}
+                            onTouchCancel={clearChatLongPressTimer}
                           >
                               <span className={`profile-avatar-wrap global-chat-sidebar-avatar${isChatUserPro ? " profile-avatar-wrap--pro" : ""}`}>
                                 <img src={chat.profilePicture || defaultProfile} alt="" />
@@ -3248,6 +3535,7 @@ function Navbar({ onProfileSave }) {
                           {chatMessages.map((message, index) => {
                             const isOwnMessage = message.userId === savedProfile?.id || message.author?.email === session?.user?.email;
                             const isAuthorPro = isProSubscriptionStatus(message.author?.subscriptionStatus);
+                            const isAuthorBlocked = blockedRelationshipIds.has(Number(message.userId));
                             const previousMessage = chatMessages[index - 1];
                             const previousIsOwnMessage = previousMessage && (
                               previousMessage.userId === savedProfile?.id ||
@@ -3260,11 +3548,24 @@ function Navbar({ onProfileSave }) {
                               <div
                                 key={`${message.type}-${message.id}`}
                                 className={`d-flex global-chat-message-row${compactOwnMessage ? " global-chat-message-row--compact" : ""} ${isOwnMessage ? "justify-content-end" : "justify-content-start gap-2 align-items-start"}`}
+                                onContextMenu={(event) => openChatContextMenu(event, {
+                                  kind: "message",
+                                  message,
+                                  isOwnMessage,
+                                })}
+                                onTouchStart={(event) => startChatLongPress(event, {
+                                  kind: "message",
+                                  message,
+                                  isOwnMessage,
+                                })}
+                                onTouchMove={clearChatLongPressTimer}
+                                onTouchEnd={clearChatLongPressTimer}
+                                onTouchCancel={clearChatLongPressTimer}
                               >
                                 {isOwnMessage ? (
                                   <div className="w-75 d-flex flex-column align-items-end">
                                     <div className="rounded-3 p-2 text-break text-white global-chat-message-own">
-                                      {renderChatMessageContent(message)}
+                                      {renderChatMessageContent(message, setPreviewChatMedia)}
                                     </div>
                                     {showMessageTime && (
                                       <small className="text-muted mt-1 text-end">
@@ -3279,6 +3580,8 @@ function Navbar({ onProfileSave }) {
                                       className="btn p-0 border-0 bg-transparent flex-shrink-0 global-chat-avatar-button"
                                       onClick={() => openChatAuthorInConsole(message)}
                                       aria-label={`Open ${getChatAuthorDisplayName(message)} profile`}
+                                      disabled={isAuthorBlocked}
+                                      title={isAuthorBlocked ? "Profile unavailable" : undefined}
                                     >
                                       <span className={`profile-avatar-wrap global-chat-avatar-wrap${isAuthorPro ? " profile-avatar-wrap--pro" : ""}`}>
                                         <img
@@ -3296,11 +3599,13 @@ function Navbar({ onProfileSave }) {
                                         type="button"
                                         className={`global-chat-author-button mb-1${isAuthorPro ? " pro-name-effect" : ""}`}
                                         onClick={() => openChatAuthorInConsole(message)}
+                                        disabled={isAuthorBlocked}
+                                        title={isAuthorBlocked ? "Profile unavailable" : undefined}
                                       >
                                         {getChatAuthorDisplayName(message)}
                                       </button>
                                       <div className="rounded-3 p-2 text-break bg-white border">
-                                        {renderChatMessageContent(message)}
+                                        {renderChatMessageContent(message, setPreviewChatMedia)}
                                       </div>
                                       {showMessageTime && (
                                         <small className="text-muted mt-1">
@@ -3325,6 +3630,16 @@ function Navbar({ onProfileSave }) {
                               className="global-chat-gif-picker position-absolute bg-white border rounded-3 shadow p-3"
                               ref={chatGifPickerRef}
                             >
+                              <button
+                                type="button"
+                                className="btn btn-link p-0 position-absolute top-0 end-0 mt-2 me-2 global-chat-gif-close-button"
+                                onClick={() => setShowGifPicker(false)}
+                                aria-label="Close GIF picker"
+                                title="Close"
+                              >
+                                <i className="bi bi-x-lg"></i>
+                              </button>
+                              <div className="fw-semibold text-center mb-2 pe-4">GIFs</div>
                               <div className="input-group input-group-sm mb-2">
                                 <span className="input-group-text bg-white">
                                   <i className="bi bi-search"></i>
@@ -3460,6 +3775,96 @@ function Navbar({ onProfileSave }) {
               </div>
             </div>
           </div>
+          {chatContextMenu && (
+            <div
+              ref={chatContextMenuRef}
+              className="dropdown-menu show position-fixed global-chat-context-menu"
+              style={{ left: chatContextMenu.x, top: chatContextMenu.y }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              {chatContextMenu.kind === "message" ? (
+                <>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => copyChatMessage(chatContextMenu.message)}
+                  >
+                    <i className="bi bi-copy me-2"></i>
+                    Copy
+                  </button>
+                  {chatContextMenu.isOwnMessage && (
+                    <button
+                      type="button"
+                      className="dropdown-item text-danger"
+                      onClick={() => deleteChatMessage(chatContextMenu.message)}
+                    >
+                      <i className="bi bi-trash me-2"></i>
+                      Delete
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => reportMessage(chatContextMenu.message)}
+                  >
+                    <i className="bi bi-flag me-2"></i>
+                    Report
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => removeDirectChat(chatContextMenu.chat)}
+                  >
+                    <i className="bi bi-person-dash me-2"></i>
+                    Remove
+                  </button>
+                  <button
+                    type="button"
+                    className="dropdown-item text-danger"
+                    onClick={() => blockDirectChatUser(chatContextMenu.chat)}
+                  >
+                    <i className="bi bi-slash-circle me-2"></i>
+                    Block
+                  </button>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => reportUser(chatContextMenu.chat.otherUserId)}
+                  >
+                    <i className="bi bi-flag me-2"></i>
+                    Report
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          {previewChatMedia && (
+            <div
+              className="global-chat-media-lightbox"
+              role="dialog"
+              aria-modal="true"
+              onClick={() => setPreviewChatMedia(null)}
+            >
+              <button
+                type="button"
+                className="btn btn-link position-absolute top-0 end-0 mt-3 me-3 p-2 text-white global-chat-media-lightbox-close"
+                onClick={() => setPreviewChatMedia(null)}
+                aria-label="Close media preview"
+                title="Close"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+              <img
+                src={previewChatMedia.url}
+                alt={previewChatMedia.title || (previewChatMedia.type === "gif" ? "GIF" : "Image")}
+                className="img-fluid rounded global-chat-media-lightbox-image"
+                onClick={(event) => event.stopPropagation()}
+              />
+            </div>
+          )}
           <div className="modal-backdrop show"></div>
         </>
       )}
