@@ -100,9 +100,8 @@ export default function Terms() {
           Images and GIFs sent in chat are subject to the same acceptable-use
           rules as written messages.
           You may report messages, GIFs, images, or users for review. Blocking
-          another user removes direct-chat access between you and hides you from
-          each other in people search, but global chat messages may still be
-          visible.
+          or reporting another user may remove direct-chat access between you;
+          profiles and global chat messages may still be visible.
           Notifications and draw-event invites are provided for site updates,
           events, and related signup flows. You must not use these features to
           spam, deceive, pressure, or abuse other users.

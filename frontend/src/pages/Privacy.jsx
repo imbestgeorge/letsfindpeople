@@ -130,6 +130,8 @@ export default function Privacy() {
           may record whether you have received, opened, dismissed, or completed
           the related signup flow. Reports may include a snapshot of the
           reported text, image, GIF, or user so administrators can review it.
+          Blocks and reports may be used to remove direct-message entry points
+          while leaving public profiles and global chat visible.
         </p>
 
         <h4>5. Data Sharing</h4>

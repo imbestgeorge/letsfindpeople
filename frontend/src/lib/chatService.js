@@ -214,6 +214,8 @@ export async function listMyChatRelationships() {
   const hiddenDirectChats = {};
   const blockedUserIds = new Set();
   const blockedByUserIds = new Set();
+  const reportedUserIds = new Set();
+  const reportedByUserIds = new Set();
 
   (data || []).forEach((row) => {
     const userId = Number(row.user_id);
@@ -225,6 +227,10 @@ export async function listMyChatRelationships() {
       blockedUserIds.add(userId);
     } else if (row.relationship_type === "blocked_by") {
       blockedByUserIds.add(userId);
+    } else if (row.relationship_type === "reported") {
+      reportedUserIds.add(userId);
+    } else if (row.relationship_type === "reported_by") {
+      reportedByUserIds.add(userId);
     }
   });
 
@@ -232,6 +238,8 @@ export async function listMyChatRelationships() {
     hiddenDirectChats,
     blockedUserIds,
     blockedByUserIds,
+    reportedUserIds,
+    reportedByUserIds,
   };
 }
 
@@ -239,6 +247,15 @@ export function getBlockedRelationshipIds(relationships) {
   return new Set([
     ...Array.from(relationships?.blockedUserIds || []),
     ...Array.from(relationships?.blockedByUserIds || []),
+  ]);
+}
+
+export function getMessagingRestrictedUserIds(relationships) {
+  return new Set([
+    ...Array.from(relationships?.blockedUserIds || []),
+    ...Array.from(relationships?.blockedByUserIds || []),
+    ...Array.from(relationships?.reportedUserIds || []),
+    ...Array.from(relationships?.reportedByUserIds || []),
   ]);
 }
 

@@ -20,6 +20,7 @@ import {
   blockChatUser,
   deleteMyChatMessage,
   getBlockedRelationshipIds,
+  getMessagingRestrictedUserIds,
   getUnreadGlobalChatMessageCount,
   getUnreadDirectMessageCount,
   listMyChatRelationships,
@@ -234,6 +235,8 @@ function createEmptyChatRelationships() {
     hiddenDirectChats: {},
     blockedUserIds: new Set(),
     blockedByUserIds: new Set(),
+    reportedUserIds: new Set(),
+    reportedByUserIds: new Set(),
   };
 }
 
@@ -1480,7 +1483,7 @@ function Navbar({ onProfileSave }) {
       setActiveDirectChat(prev => {
         if (!prev?.otherUserId) return prev;
         const freshActive = visibleChats.find((chat) => chat.otherUserId === prev.otherUserId);
-        return freshActive ? { ...prev, ...freshActive } : null;
+        return freshActive ? { ...prev, ...freshActive } : prev;
       });
     } catch (err) {
       console.warn("Failed to load direct chats:", err.message);
@@ -1679,7 +1682,6 @@ function Navbar({ onProfileSave }) {
 
   const openChatAuthorInConsole = (message) => {
     if (!message?.userId) return;
-    if (getBlockedRelationshipIds(chatRelationships).has(Number(message.userId))) return;
     setShowChatModal(false);
     setChatDraft("");
     navigate(`/?user=${encodeURIComponent(message.userId)}`);
@@ -1688,8 +1690,9 @@ function Navbar({ onProfileSave }) {
   const startDirectChat = useCallback((profile) => {
     const otherUserId = Number(profile?.id ?? profile?.otherUserId);
     if (!Number.isInteger(otherUserId) || otherUserId <= 0 || otherUserId === Number(savedProfile?.id)) return;
-    if (getBlockedRelationshipIds(chatRelationships).has(otherUserId)) {
-      setChatError("You cannot open this profile because one of you has blocked the other.");
+    if (getMessagingRestrictedUserIds(chatRelationships).has(otherUserId)) {
+      setShowChatModal(true);
+      setChatError("You cannot message this person.");
       return;
     }
 
@@ -1925,6 +1928,13 @@ function Navbar({ onProfileSave }) {
       return;
     }
 
+    if (chatMode === "direct" && Number(activeDirectChat?.otherUserId) === Number(chat.otherUserId)) {
+      setChatContextMenu(null);
+      setChatNotice("");
+      setShowGifPicker(false);
+      return;
+    }
+
     setActiveDirectChat(chat);
     setChatMode("direct");
     setChatDraft("");
@@ -1934,8 +1944,35 @@ function Navbar({ onProfileSave }) {
     setShowGifPicker(false);
   };
 
+  const moveToNextChatAfterDirectUserAction = (otherUserId, candidateChats = directChats) => {
+    if (chatMode !== "direct" || activeDirectChat?.otherUserId !== otherUserId) return;
+
+    const nextChat = (candidateChats || []).find((chat) => Number(chat.otherUserId) !== Number(otherUserId));
+    setChatDraft("");
+    setChatMessages([]);
+    setChatNotice("");
+    setShowGifPicker(false);
+
+    if (nextChat) {
+      setActiveDirectChat(nextChat);
+      setChatMode("direct");
+      setChatLoading(true);
+      return;
+    }
+
+    setChatMode("global");
+    setActiveGlobalChannelKey("international");
+    setActiveDirectChat(null);
+    setChatLoading(true);
+  };
+
   const copyChatMessage = async (message) => {
-    const text = message?.media?.url || message?.body || "";
+    if (message?.media) {
+      setChatContextMenu(null);
+      return;
+    }
+
+    const text = message?.body || "";
     await copyTextToClipboard(text);
     setChatContextMenu(null);
   };
@@ -1956,6 +1993,10 @@ function Navbar({ onProfileSave }) {
 
   const reportMessage = async (message) => {
     setChatContextMenu(null);
+    if (Number(message?.userId) === Number(savedProfile?.id) || message?.author?.email === session?.user?.email) {
+      setChatError("You cannot report yourself.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to report this message?")) return;
 
     setChatError("");
@@ -1963,6 +2004,8 @@ function Navbar({ onProfileSave }) {
     try {
       await reportChatMessage(message);
       setChatNotice("Report sent.");
+      await loadChatRelationships();
+      window.dispatchEvent(new CustomEvent("lfp:chat-relationships-changed"));
     } catch (err) {
       setChatError(err.message || "Failed to report message.");
     }
@@ -1976,11 +2019,9 @@ function Navbar({ onProfileSave }) {
     setChatNotice("");
     try {
       await removeDirectChatForMe(chat.otherUserId);
-      setDirectChats(prev => prev.filter((item) => item.otherUserId !== chat.otherUserId));
-      if (activeDirectChat?.otherUserId === chat.otherUserId) {
-        setActiveDirectChat(null);
-        setChatMessages([]);
-      }
+      const remainingChats = directChats.filter((item) => item.otherUserId !== chat.otherUserId);
+      setDirectChats(remainingChats);
+      moveToNextChatAfterDirectUserAction(chat.otherUserId, remainingChats);
       await loadChatRelationships();
     } catch (err) {
       setChatError(err.message || "Failed to remove chat.");
@@ -1995,11 +2036,9 @@ function Navbar({ onProfileSave }) {
     setChatNotice("");
     try {
       await blockChatUser(chat.otherUserId);
-      setDirectChats(prev => prev.filter((item) => item.otherUserId !== chat.otherUserId));
-      if (activeDirectChat?.otherUserId === chat.otherUserId) {
-        setActiveDirectChat(null);
-        setChatMessages([]);
-      }
+      const remainingChats = directChats.filter((item) => item.otherUserId !== chat.otherUserId);
+      setDirectChats(remainingChats);
+      moveToNextChatAfterDirectUserAction(chat.otherUserId, remainingChats);
       await loadChatRelationships();
       window.dispatchEvent(new CustomEvent("lfp:chat-relationships-changed"));
     } catch (err) {
@@ -2009,6 +2048,10 @@ function Navbar({ onProfileSave }) {
 
   const reportUser = async (userId) => {
     setChatContextMenu(null);
+    if (Number(userId) === Number(savedProfile?.id)) {
+      setChatError("You cannot report yourself.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to report this user?")) return;
 
     setChatError("");
@@ -2016,6 +2059,9 @@ function Navbar({ onProfileSave }) {
     try {
       await reportChatUser(userId);
       setChatNotice("Report sent.");
+      moveToNextChatAfterDirectUserAction(Number(userId), directChats.filter((item) => item.otherUserId !== Number(userId)));
+      await loadChatRelationships();
+      window.dispatchEvent(new CustomEvent("lfp:chat-relationships-changed"));
     } catch (err) {
       setChatError(err.message || "Failed to report user.");
     }
@@ -3039,9 +3085,10 @@ function Navbar({ onProfileSave }) {
   const activeChatTitle = chatMode === "direct"
     ? activeDirectChat?.name || "Direct Message"
     : activeGlobalChannel?.title || "International";
-  const isChatComposerDisabled = !session || (chatMode === "direct" && !activeDirectChat);
+  const messagingRestrictedUserIds = getMessagingRestrictedUserIds(chatRelationships);
+  const isActiveDirectChatRestricted = chatMode === "direct" && messagingRestrictedUserIds.has(Number(activeDirectChat?.otherUserId));
+  const isChatComposerDisabled = !session || (chatMode === "direct" && (!activeDirectChat || isActiveDirectChatRestricted));
   const isChatBusy = chatSending || chatMediaUploading;
-  const blockedRelationshipIds = getBlockedRelationshipIds(chatRelationships);
   const directChatMenuItems = useMemo(() => {
     if (!activeDirectChat?.otherUserId) return directChats;
     if (directChats.some((chat) => chat.otherUserId === activeDirectChat.otherUserId)) return directChats;
@@ -3535,7 +3582,6 @@ function Navbar({ onProfileSave }) {
                           {chatMessages.map((message, index) => {
                             const isOwnMessage = message.userId === savedProfile?.id || message.author?.email === session?.user?.email;
                             const isAuthorPro = isProSubscriptionStatus(message.author?.subscriptionStatus);
-                            const isAuthorBlocked = blockedRelationshipIds.has(Number(message.userId));
                             const previousMessage = chatMessages[index - 1];
                             const previousIsOwnMessage = previousMessage && (
                               previousMessage.userId === savedProfile?.id ||
@@ -3580,8 +3626,6 @@ function Navbar({ onProfileSave }) {
                                       className="btn p-0 border-0 bg-transparent flex-shrink-0 global-chat-avatar-button"
                                       onClick={() => openChatAuthorInConsole(message)}
                                       aria-label={`Open ${getChatAuthorDisplayName(message)} profile`}
-                                      disabled={isAuthorBlocked}
-                                      title={isAuthorBlocked ? "Profile unavailable" : undefined}
                                     >
                                       <span className={`profile-avatar-wrap global-chat-avatar-wrap${isAuthorPro ? " profile-avatar-wrap--pro" : ""}`}>
                                         <img
@@ -3599,8 +3643,6 @@ function Navbar({ onProfileSave }) {
                                         type="button"
                                         className={`global-chat-author-button mb-1${isAuthorPro ? " pro-name-effect" : ""}`}
                                         onClick={() => openChatAuthorInConsole(message)}
-                                        disabled={isAuthorBlocked}
-                                        title={isAuthorBlocked ? "Profile unavailable" : undefined}
                                       >
                                         {getChatAuthorDisplayName(message)}
                                       </button>
@@ -3784,14 +3826,16 @@ function Navbar({ onProfileSave }) {
             >
               {chatContextMenu.kind === "message" ? (
                 <>
-                  <button
-                    type="button"
-                    className="dropdown-item"
-                    onClick={() => copyChatMessage(chatContextMenu.message)}
-                  >
-                    <i className="bi bi-copy me-2"></i>
-                    Copy
-                  </button>
+                  {!chatContextMenu.message?.media && (
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => copyChatMessage(chatContextMenu.message)}
+                    >
+                      <i className="bi bi-copy me-2"></i>
+                      Copy
+                    </button>
+                  )}
                   {chatContextMenu.isOwnMessage && (
                     <button
                       type="button"
@@ -3802,14 +3846,16 @@ function Navbar({ onProfileSave }) {
                       Delete
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="dropdown-item"
-                    onClick={() => reportMessage(chatContextMenu.message)}
-                  >
-                    <i className="bi bi-flag me-2"></i>
-                    Report
-                  </button>
+                  {!chatContextMenu.isOwnMessage && (
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => reportMessage(chatContextMenu.message)}
+                    >
+                      <i className="bi bi-flag me-2"></i>
+                      Report
+                    </button>
+                  )}
                 </>
               ) : (
                 <>

@@ -12,7 +12,7 @@ import {
   userMatchesSearchFilters,
 } from "../lib/catalogService";
 import { recordProfileView, recordSearchAnalytics } from "../lib/analyticsService";
-import { getBlockedRelationshipIds, listMyChatRelationships } from "../lib/chatService";
+import { getMessagingRestrictedUserIds, listMyChatRelationships } from "../lib/chatService";
 import {
   getLatestEnabledDrawEventNotification,
   removeSiteNotificationSubscription,
@@ -275,7 +275,7 @@ export default function Console({ currentUser }) {
   const [freeSearchesResetAt, setFreeSearchesResetAt] = useState(
     currentUser?.freeSearchesResetAt ?? null
   );
-  const [blockedSearchUserIds, setBlockedSearchUserIds] = useState(() => new Set());
+  const [messagingRestrictedUserIds, setMessagingRestrictedUserIds] = useState(() => new Set());
   const [blockedRelationshipsLoaded, setBlockedRelationshipsLoaded] = useState(false);
   const [_latestDrawEventNotification, setLatestDrawEventNotification] = useState(null);
 
@@ -363,7 +363,7 @@ export default function Console({ currentUser }) {
 
   useEffect(() => {
     if (!session?.user?.id) {
-      setBlockedSearchUserIds(new Set());
+      setMessagingRestrictedUserIds(new Set());
       setBlockedRelationshipsLoaded(true);
       return undefined;
     }
@@ -374,14 +374,14 @@ export default function Console({ currentUser }) {
       listMyChatRelationships()
         .then((relationships) => {
           if (isMounted) {
-            setBlockedSearchUserIds(getBlockedRelationshipIds(relationships));
+            setMessagingRestrictedUserIds(getMessagingRestrictedUserIds(relationships));
             setBlockedRelationshipsLoaded(true);
           }
         })
         .catch((err) => {
           if (isMounted) {
             console.warn("Failed to load blocked users:", err.message);
-            setBlockedSearchUserIds(new Set());
+            setMessagingRestrictedUserIds(new Set());
             setBlockedRelationshipsLoaded(true);
           }
         });
@@ -409,13 +409,6 @@ export default function Console({ currentUser }) {
 
     if (!session?.user) {
       setSearchError("You have to login before viewing this user.");
-      setSearchResults([]);
-      navigate("/", { replace: true });
-      return undefined;
-    }
-
-    if (blockedSearchUserIds.has(userId)) {
-      setSearchError("This profile is unavailable.");
       setSearchResults([]);
       navigate("/", { replace: true });
       return undefined;
@@ -452,7 +445,7 @@ export default function Console({ currentUser }) {
     return () => {
       isMounted = false;
     };
-  }, [authLoading, blockedRelationshipsLoaded, blockedSearchUserIds, focusedUserId, navigate, session?.user]);
+  }, [authLoading, blockedRelationshipsLoaded, focusedUserId, navigate, session?.user]);
 
   useEffect(() => {
     if (!focusedUserId || isSearching || !searchResults?.length) return;
@@ -705,7 +698,7 @@ export default function Console({ currentUser }) {
       });
       // Filter out the current user from backend results to avoid duplicate
       const filtered = session?.user?.id
-        ? users.filter(u => u.supabaseUid !== session.user.id && !blockedSearchUserIds.has(Number(u.id)))
+        ? users.filter(u => u.supabaseUid !== session.user.id)
         : users;
       const results = filtered.map((user) => ({
         ...user,
@@ -1260,17 +1253,18 @@ export default function Console({ currentUser }) {
                           );
                         })}
                       </div>
-                      <div className="d-flex gap-2 mt-3">
-                        <button
-                          type="button"
-                          className="btn console-yellow-action-button flex-fill py-2 console-send-message-button"
-                          onClick={() => startDirectChat(person)}
-                          disabled={person.isCurrentUser}
-                        >
-                          <i className="bi bi-send me-1"></i>
-                          Send Message
-                        </button>
-                      </div>
+                      {!person.isCurrentUser && !messagingRestrictedUserIds.has(Number(person.id)) && (
+                        <div className="d-flex gap-2 mt-3">
+                          <button
+                            type="button"
+                            className="btn console-yellow-action-button flex-fill py-2 console-send-message-button"
+                            onClick={() => startDirectChat(person)}
+                          >
+                            <i className="bi bi-send me-1"></i>
+                            Send Message
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
