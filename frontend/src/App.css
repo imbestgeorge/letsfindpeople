@@ -231,10 +231,60 @@
   width: 52px;
 }
 
+.admin-reports-table {
+  table-layout: fixed;
+}
+
+.admin-reports-table th,
+.admin-reports-table td,
+.admin-report-cell,
+.admin-report-body {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-report-body {
   display: inline-block;
   max-width: 360px;
-  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+.admin-report-media-button,
+.admin-report-media-button:hover,
+.admin-report-media-button:focus,
+.admin-report-media-button:active {
+  box-shadow: none !important;
+  line-height: 0;
+}
+
+.admin-report-lightbox {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 1090;
+}
+
+.admin-report-lightbox-image {
+  max-height: calc(100vh - 4rem);
+  max-width: calc(100vw - 2rem);
+  object-fit: contain;
+}
+
+.admin-report-lightbox-close,
+.admin-report-lightbox-close:hover,
+.admin-report-lightbox-close:focus,
+.admin-report-lightbox-close:active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  font-size: 1.4rem;
+  line-height: 1;
+  text-decoration: none;
 }
 
 .admin-content .table thead th {

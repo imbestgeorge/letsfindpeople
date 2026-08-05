@@ -132,11 +132,18 @@ const formatAdminReportDate = (value) => {
 };
 
 const getAdminReportContent = (report) => {
-  if (report.contentKind === 'user') return 'User profile';
+  if (report.contentKind === 'user') return '';
   const media = parseChatMediaPayload(report.body);
-  if (media?.url) return { ...media, type: media.type || report.contentKind };
-  if (report.mediaUrl) return { type: report.contentKind, url: report.mediaUrl, title: report.contentKind };
-  return String(report.body || '').trim() || '-';
+  if (media?.url && media.type === 'image') return { ...media, type: 'image' };
+  if (media?.type === 'gif') return '';
+  if (report.contentKind === 'image' && report.mediaUrl) return { type: 'image', url: report.mediaUrl, title: 'Image' };
+  return String(report.body || '').trim();
+};
+
+const getAdminReportType = (report) => {
+  if (report.contentKind === 'user') return 'User';
+  if (report.contentKind === 'image') return 'Image';
+  return 'Message';
 };
 
 function Admin() {
@@ -185,6 +192,7 @@ function Admin() {
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState(null);
   const [currentReportPage, setCurrentReportPage] = useState(1);
+  const [reportPreviewMedia, setReportPreviewMedia] = useState(null);
   const reportsPerPage = 20;
 
   // Real statistics state
@@ -2074,40 +2082,33 @@ function Admin() {
                   reports.map((report) => {
                     const content = getAdminReportContent(report);
                     const isMedia = content && typeof content === 'object';
+                    const reportType = getAdminReportType(report);
 
                     return (
                       <tr key={report.id}>
-                        <td>
-                          <span className="badge text-bg-secondary text-uppercase">
-                            {report.contentKind}
-                          </span>
-                          {report.messageType && (
-                            <small className="d-block text-muted mt-1">{report.messageType}</small>
-                          )}
-                        </td>
-                        <td>
-                          <div>{report.reportedName || '-'}</div>
-                          <small className="text-muted">{report.reportedEmail || `User #${report.reportedUserId || '-'}`}</small>
-                        </td>
-                        <td>
-                          <div>{report.reporterName || '-'}</div>
-                          <small className="text-muted">{report.reporterEmail || `User #${report.reporterUserId || '-'}`}</small>
-                        </td>
-                        <td className="text-start">
+                        <td className="admin-report-cell">{reportType}</td>
+                        <td className="admin-report-cell">{report.reportedEmail || `User #${report.reportedUserId || '-'}`}</td>
+                        <td className="admin-report-cell">{report.reporterEmail || `User #${report.reporterUserId || '-'}`}</td>
+                        <td className="admin-report-cell text-start">
                           {isMedia ? (
-                            <a href={content.url} target="_blank" rel="noopener noreferrer" className="d-inline-flex align-items-center gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-link p-0 border-0 bg-transparent admin-report-media-button"
+                              onClick={() => setReportPreviewMedia(content)}
+                              aria-label="Open reported image"
+                              title="Open image"
+                            >
                               <img
                                 src={content.url}
-                                alt={content.title || report.contentKind}
+                                alt={content.title || 'Reported image'}
                                 className="admin-report-media-thumb rounded border"
                               />
-                              <span>{content.type === 'gif' ? 'GIF' : 'Image'}</span>
-                            </a>
+                            </button>
                           ) : (
-                            <span className="admin-report-body">{content}</span>
+                            <span className="admin-report-body">{content || ''}</span>
                           )}
                         </td>
-                        <td>{formatAdminReportDate(report.createdAt)}</td>
+                        <td className="admin-report-cell">{formatAdminReportDate(report.createdAt)}</td>
                       </tr>
                     );
                   })
@@ -2807,6 +2808,30 @@ function Admin() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {reportPreviewMedia && (
+        <div
+          className="admin-report-lightbox"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setReportPreviewMedia(null)}
+        >
+          <button
+            type="button"
+            className="btn btn-link position-absolute top-0 end-0 mt-3 me-3 p-2 text-white admin-report-lightbox-close"
+            onClick={() => setReportPreviewMedia(null)}
+            aria-label="Close image preview"
+            title="Close"
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+          <img
+            src={reportPreviewMedia.url}
+            alt={reportPreviewMedia.title || 'Reported image'}
+            className="img-fluid rounded admin-report-lightbox-image"
+            onClick={(event) => event.stopPropagation()}
+          />
         </div>
       )}
         </main>

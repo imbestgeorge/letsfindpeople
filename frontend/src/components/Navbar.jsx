@@ -1896,6 +1896,7 @@ function Navbar({ onProfileSave }) {
   const openChatContextMenu = (event, menu) => {
     event.preventDefault();
     event.stopPropagation();
+    if (menu?.kind === "message" && menu.message?.media?.type === "gif" && !menu.isOwnMessage) return;
     clearChatLongPressTimer();
     setShowGifPicker(false);
     setChatContextMenu({
@@ -1907,6 +1908,7 @@ function Navbar({ onProfileSave }) {
   const startChatLongPress = (event, menu) => {
     clearChatLongPressTimer();
     chatLongPressTriggeredRef.current = false;
+    if (menu?.kind === "message" && menu.message?.media?.type === "gif" && !menu.isOwnMessage) return;
     const touch = event.touches?.[0];
     if (!touch) return;
 
@@ -1993,6 +1995,10 @@ function Navbar({ onProfileSave }) {
 
   const reportMessage = async (message) => {
     setChatContextMenu(null);
+    if (message?.media?.type === "gif") {
+      setChatError("GIFs cannot be reported.");
+      return;
+    }
     if (Number(message?.userId) === Number(savedProfile?.id) || message?.author?.email === session?.user?.email) {
       setChatError("You cannot report yourself.");
       return;
@@ -3846,7 +3852,7 @@ function Navbar({ onProfileSave }) {
                       Delete
                     </button>
                   )}
-                  {!chatContextMenu.isOwnMessage && (
+                  {!chatContextMenu.isOwnMessage && chatContextMenu.message?.media?.type !== "gif" && (
                     <button
                       type="button"
                       className="dropdown-item"

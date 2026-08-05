@@ -69,9 +69,9 @@ export default function Privacy() {
           </li>
           <li>
             <strong>Moderation data:</strong> profile analytics events,
-            chat spam signals, temporary
-            chat pauses, account suspension status, and moderation logs needed
-            to operate and protect the Service.
+            chat spam signals, temporary chat pauses, account suspension status,
+            report action logs, and moderation logs needed to operate and
+            protect the Service.
           </li>
         </ul>
 
@@ -129,7 +129,7 @@ export default function Privacy() {
           conversation participants. Site notifications and draw-event invites
           may record whether you have received, opened, dismissed, or completed
           the related signup flow. Reports may include a snapshot of the
-          reported text, image, GIF, or user so administrators can review it.
+          reported text, image, or user so administrators can review it.
           Blocks and reports may be used to remove direct-message entry points
           while leaving public profiles and global chat visible.
         </p>

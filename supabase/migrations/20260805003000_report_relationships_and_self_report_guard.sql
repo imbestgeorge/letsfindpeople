@@ -107,6 +107,9 @@ begin
     end if;
 
     resolved_kind := public.lfp_extract_media_kind(snapshot_body);
+    if resolved_kind = 'gif' then
+      raise exception 'GIFs cannot be reported';
+    end if;
     resolved_media_url := public.lfp_extract_media_url(snapshot_body);
   else
     raise exception 'Invalid report target';
@@ -133,6 +136,23 @@ begin
     resolved_media_url
   )
   returning id_chat_report into new_report_id;
+
+  begin
+    perform public.write_log(
+      p_action := case when p_target_type = 'user' then 'REPORT_USER' else 'REPORT_MESSAGE' end,
+      p_status := 'Success',
+      p_metadata := jsonb_build_object(
+        'reportId', new_report_id,
+        'targetType', p_target_type,
+        'messageType', p_message_type,
+        'messageId', p_message_id,
+        'reportedUserId', resolved_reported_user_id,
+        'contentKind', resolved_kind
+      )
+    );
+  exception
+    when others then null;
+  end;
 
   return new_report_id;
 end;
@@ -199,6 +219,7 @@ begin
   from public.chat_reports r
   left join public.users reporter on reporter.id_user = r.reporter_user_id
   left join public.users reported on reported.id_user = r.reported_user_id
+  where r.content_kind <> 'gif'
   order by r.created_at desc
   limit greatest(1, least(coalesce(p_limit, 50), 100))
   offset greatest(0, coalesce(p_offset, 0));

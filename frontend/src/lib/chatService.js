@@ -333,6 +333,10 @@ export async function deleteMyChatMessage(message) {
 }
 
 export async function reportChatMessage(message) {
+  if (message?.media?.type === "gif") {
+    throw new Error("GIFs cannot be reported.");
+  }
+
   const { data, error } = await supabase.rpc("report_chat_content", {
     p_target_type: "message",
     p_reported_user_id: Number(message?.userId) || null,
@@ -363,7 +367,7 @@ export async function listAdminChatReports({ page = 1, perPage = 20 } = {}) {
 
   const rows = data || [];
   return {
-    reports: rows.map((row) => ({
+    reports: rows.filter((row) => row.content_kind !== "gif").map((row) => ({
       id: Number(row.id_chat_report),
       reporterUserId: Number(row.reporter_user_id),
       reporterName: row.reporter_name || "Deleted Account",
