@@ -84,7 +84,7 @@ function buildLayout({
   const displayBody = [String(heading || "").trim(), String(body || "").trim()]
     .filter(Boolean)
     .join("\n\n");
-  const safePreview = escapeHtml(makePreview(displayBody));
+  const safePreview = escapeHtml(makePreview(body));
   const safeCtaLabel = escapeHtml(ctaLabel || "");
   const safeCtaUrl = escapeHtml(ctaUrl || "");
   const safeCoverUrl = escapeHtml(coverUrl || "");

@@ -1223,16 +1223,7 @@ function Navbar({ onProfileSave }) {
     const hasRequiredGender = !!savedProfileGender;
 
     const answeredYesNo = yesNoKeys.filter((key) => savedProfile.answers?.[key] != null).length;
-    const completedDirect = directKeys.filter(
-      (key) => isDirectQuestionComplete(
-        savedProfile.selected,
-        savedProfile.skipped,
-        key,
-        savedProfileGender,
-        savedProfileCountryNames
-      )
-    ).length;
-    const completedAllQuestions = answeredYesNo + completedDirect === yesNoKeys.length + directKeys.length;
+    const completedAllQuestions = answeredYesNo === yesNoKeys.length;
 
     return hasRequiredProfileInfo && hasRequiredGender && completedAllQuestions;
   }, [savedProfile, savedProfileGender, savedProfileCountryNames, yesNoKeys, directKeys]);
@@ -2985,15 +2976,8 @@ function Navbar({ onProfileSave }) {
   };
 
   // Progress counter
-  const completedQuestions = yesNoKeys.filter(k => answers[k] != null).length
-    + directKeys.filter(k => isDirectQuestionComplete(
-      selected,
-      skipped,
-      k,
-      selectedGender,
-      firstStageCountryNames
-    )).length;
-  const totalQuestions = yesNoKeys.length + directKeys.length;
+  const completedQuestions = yesNoKeys.filter(k => answers[k] != null).length;
+  const totalQuestions = yesNoKeys.length;
   const proPlanPrice = useMemo(
     () => getProPlanPrice(savedProfile.location),
     [savedProfile.location]
@@ -4451,13 +4435,13 @@ function Navbar({ onProfileSave }) {
                         {/* Q4 */}
                         <div className="mb-4">
                           <p className="fw-semibold mb-2">4- Search any movies or movie characters you like.</p>
-                          {renderKeywords("movies", movieItems, true)}
+                          {renderKeywords("movies", movieItems, false)}
                         </div>
 
                         {/* Q5 */}
                         <div className="mb-4">
                           <p className="fw-semibold mb-2">5- Search any TV shows or TV show characters you like.</p>
-                          {renderKeywords("tvShows", tvShowItems, true)}
+                          {renderKeywords("tvShows", tvShowItems, false)}
                         </div>
 
                         {/* Q6 */}
@@ -4511,13 +4495,13 @@ function Navbar({ onProfileSave }) {
                         {/* Q10 */}
                         <div className="mb-4">
                           <p className="fw-semibold mb-2">10- Select your personality.</p>
-                          {renderKeywords("personality", personalityItems, true)}
+                          {renderKeywords("personality", personalityItems, false)}
                         </div>
 
                         {/* Q11 */}
                         <div className="mb-4">
                           <p className="fw-semibold mb-2">11- Select any hobbies you have.</p>
-                          {renderKeywords("hobbies", hobbyItems, true)}
+                          {renderKeywords("hobbies", hobbyItems, false)}
                         </div>
 
                         {/* Q12 */}
@@ -4539,13 +4523,13 @@ function Navbar({ onProfileSave }) {
                         {/* Q13 */}
                         <div className="mb-4">
                           <p className="fw-semibold mb-2">13- Select any people or role models you follow.</p>
-                          {renderKeywords("roleModels", roleModelItems, true)}
+                          {renderKeywords("roleModels", roleModelItems, false)}
                         </div>
 
                         {/* Q14 */}
                         <div className="mb-4">
                           <p className="fw-semibold mb-2">14- Select any other interests you have.</p>
-                          {renderKeywords("other", otherItems, true)}
+                          {renderKeywords("other", otherItems, false)}
                         </div>
                       </>
                     )}

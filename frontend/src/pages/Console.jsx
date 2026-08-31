@@ -326,16 +326,7 @@ export default function Console({ currentUser }) {
       !!currentUser.birthYear;
     const hasRequiredGender = !!currentUserGender;
     const answeredYesNo = YES_NO_KEYS.filter((key) => currentUser.answers?.[key] != null).length;
-    const completedDirect = DIRECT_KEYS.filter(
-      (key) => isDirectQuestionComplete(
-        currentUser.selected,
-        currentUser.skipped,
-        key,
-        currentUserGender,
-        currentUserCountryNames
-      )
-    ).length;
-    const completedAllQuestions = answeredYesNo + completedDirect === YES_NO_KEYS.length + DIRECT_KEYS.length;
+    const completedAllQuestions = answeredYesNo === YES_NO_KEYS.length;
 
     return hasRequiredProfileInfo && hasRequiredGender && completedAllQuestions;
   }, [currentUser, currentUserGender, currentUserCountryNames]);
