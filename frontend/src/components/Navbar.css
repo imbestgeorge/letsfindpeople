@@ -303,6 +303,10 @@
   line-height: 1.5;
 }
 
+.analytics-viewer-name[style*="cursor: pointer"]:hover {
+  text-decoration: underline;
+}
+
 .analytics-viewer-time,
 .analytics-viewer-keywords {
   color: #6c757d;

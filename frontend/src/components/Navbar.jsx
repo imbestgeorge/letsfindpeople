@@ -3039,10 +3039,17 @@ function Navbar({ onProfileSave }) {
       );
     }
 
+    const handleViewerClick = (viewerUserId) => {
+      if (!viewerUserId) return;
+      setShowAnalyticsModal(false);
+      navigate(`/?user=${viewerUserId}`);
+    };
+
     return (
       <div className="analytics-viewers-list">
         {analytics.viewers.map((viewer, index) => {
           const keywordLabels = getAnalyticsKeywordLabels(viewer);
+          const isClickable = !!viewer.viewerUserId;
 
           return (
             <div key={viewer.id || `${viewer.viewerUserId}-${index}`}>
@@ -3052,8 +3059,16 @@ function Navbar({ onProfileSave }) {
                     src={viewer.viewerProfileUrl || defaultProfile}
                     alt={viewer.viewerName}
                     className="analytics-viewer-avatar"
+                    style={isClickable ? { cursor: "pointer" } : undefined}
+                    onClick={isClickable ? () => handleViewerClick(viewer.viewerUserId) : undefined}
                   />
-                  <span className="analytics-viewer-name">{viewer.viewerName}</span>
+                  <span
+                    className="analytics-viewer-name"
+                    style={isClickable ? { cursor: "pointer" } : undefined}
+                    onClick={isClickable ? () => handleViewerClick(viewer.viewerUserId) : undefined}
+                  >
+                    {viewer.viewerName}
+                  </span>
                 </div>
                 {viewer.createdAt && (
                   <div className="analytics-viewer-time">
