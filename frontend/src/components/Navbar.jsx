@@ -862,9 +862,9 @@ function Navbar({ onProfileSave }) {
   useEffect(() => {
     if (!session?.user?.id) return undefined;
 
-    touchMyPresence().catch(() => {});
+    touchMyPresence().catch(() => { });
     const intervalId = window.setInterval(() => {
-      touchMyPresence().catch(() => {});
+      touchMyPresence().catch(() => { });
     }, 60_000);
 
     return () => window.clearInterval(intervalId);
@@ -1509,7 +1509,7 @@ function Navbar({ onProfileSave }) {
     }
 
     await loadGlobalChatMessages({ silent, channelKey: activeGlobalChannelKey });
-    await markGlobalChatMessagesRead(activeGlobalChannelKey).catch(() => {});
+    await markGlobalChatMessagesRead(activeGlobalChannelKey).catch(() => { });
   }, [activeDirectChat?.otherUserId, activeGlobalChannelKey, chatMode, loadGlobalChatMessages]);
 
   const loadUnreadChatMessageCount = useCallback(async () => {
@@ -1664,7 +1664,7 @@ function Navbar({ onProfileSave }) {
         setDiceDisplayValues(status.diceValues?.length ? status.diceValues : DEFAULT_DICE_VALUES);
         applyDiceProfileReward(status);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       isMounted = false;
@@ -1714,7 +1714,7 @@ function Navbar({ onProfileSave }) {
     setShowGifPicker(false);
 
     unhideDirectChatForMe(otherUserId)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         loadChatRelationships();
         loadDirectChats();
@@ -1770,7 +1770,7 @@ function Navbar({ onProfileSave }) {
 
     try {
       if (chatMode === "direct" && activeDirectChat?.otherUserId) {
-        await unhideDirectChatForMe(activeDirectChat.otherUserId).catch(() => {});
+        await unhideDirectChatForMe(activeDirectChat.otherUserId).catch(() => { });
       }
       const message = chatMode === "direct" && activeDirectChat?.otherUserId
         ? await sendDirectChatMessage(activeDirectChat.otherUserId, body)
@@ -1803,7 +1803,7 @@ function Navbar({ onProfileSave }) {
 
     try {
       if (chatMode === "direct" && activeDirectChat?.otherUserId) {
-        await unhideDirectChatForMe(activeDirectChat.otherUserId).catch(() => {});
+        await unhideDirectChatForMe(activeDirectChat.otherUserId).catch(() => { });
       }
       const message = chatMode === "direct" && activeDirectChat?.otherUserId
         ? await sendDirectChatMediaMessage(activeDirectChat.otherUserId, payload)
@@ -2225,7 +2225,7 @@ function Navbar({ onProfileSave }) {
   const handleCancelSubscription = async (e) => {
     e?.preventDefault();
     if (!session?.user) return;
-    if (!window.confirm("Are you sure you want to cancel your subscription now? Your subscription will end immediately, and you can subscribe again with a new renewal date.")) return;
+    if (!window.confirm("Are you sure you want to cancel your subscription? You'll immediately lose access to the Pro plan and won't be charged again, but you can always subscribe again later with a new renewal date.")) return;
 
     setCancelLoading(true);
     try {
@@ -2345,10 +2345,10 @@ function Navbar({ onProfileSave }) {
       if (!isMounted) return;
       (async () => {
         if (showChatModal) {
-          await loadCurrentChatMessages({ silent: true }).catch(() => {});
+          await loadCurrentChatMessages({ silent: true }).catch(() => { });
         }
-        await loadDirectChats().catch(() => {});
-        await loadUnreadChatMessageCount().catch(() => {});
+        await loadDirectChats().catch(() => { });
+        await loadUnreadChatMessageCount().catch(() => { });
       })();
     };
 
@@ -3016,8 +3016,8 @@ function Navbar({ onProfileSave }) {
     viewer.keywordNames?.length
       ? viewer.keywordNames
       : (viewer.keywordIds || [])
-      .map((id) => analyticsKeywordNameMap[id])
-      .filter(Boolean)
+        .map((id) => analyticsKeywordNameMap[id])
+        .filter(Boolean)
   );
   const renderAnalyticsViewersList = (isLocked = false) => {
     if (isLocked) {
@@ -3512,20 +3512,20 @@ function Navbar({ onProfileSave }) {
                             <button
                               key={chat.otherUserId}
                               type="button"
-                            className={`global-chat-room-button global-chat-room-button--direct${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
-                            onClick={() => handleDirectChatButtonClick(chat)}
-                            onContextMenu={(event) => openChatContextMenu(event, {
-                              kind: "direct-user",
-                              chat,
-                            })}
-                            onTouchStart={(event) => startChatLongPress(event, {
-                              kind: "direct-user",
-                              chat,
-                            })}
-                            onTouchMove={clearChatLongPressTimer}
-                            onTouchEnd={clearChatLongPressTimer}
-                            onTouchCancel={clearChatLongPressTimer}
-                          >
+                              className={`global-chat-room-button global-chat-room-button--direct${chatMode === "direct" && activeDirectChat?.otherUserId === chat.otherUserId ? " active" : ""}`}
+                              onClick={() => handleDirectChatButtonClick(chat)}
+                              onContextMenu={(event) => openChatContextMenu(event, {
+                                kind: "direct-user",
+                                chat,
+                              })}
+                              onTouchStart={(event) => startChatLongPress(event, {
+                                kind: "direct-user",
+                                chat,
+                              })}
+                              onTouchMove={clearChatLongPressTimer}
+                              onTouchEnd={clearChatLongPressTimer}
+                              onTouchCancel={clearChatLongPressTimer}
+                            >
                               <span className={`profile-avatar-wrap global-chat-sidebar-avatar${isChatUserPro ? " profile-avatar-wrap--pro" : ""}`}>
                                 <img src={chat.profilePicture || defaultProfile} alt="" />
                                 <span className={`profile-presence-dot ${chat.isOnline ? "profile-presence-dot--online" : "profile-presence-dot--offline"}`}></span>
@@ -4321,53 +4321,53 @@ function Navbar({ onProfileSave }) {
                       {/* Instagram */}
                       <div className="col-6 mb-3">
                         <label htmlFor="instagramUsername" className="form-label">Instagram <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            id="instagramUsername"
-                            placeholder="Username123"
-                            value={instagramUsername}
-                            onChange={(e) => setInstagramUsername(e.target.value)}
-                          />
+                        <input
+                          type="text"
+                          className="form-control"
+                          id="instagramUsername"
+                          placeholder="Username123"
+                          value={instagramUsername}
+                          onChange={(e) => setInstagramUsername(e.target.value)}
+                        />
                       </div>
 
                       {/* TikTok */}
                       <div className="col-6 mb-3">
                         <label htmlFor="tiktokUsername" className="form-label">TikTok <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            id="tiktokUsername"
-                            placeholder="Username123"
-                            value={tiktokUsername}
-                            onChange={(e) => setTiktokUsername(e.target.value)}
-                          />
+                        <input
+                          type="text"
+                          className="form-control"
+                          id="tiktokUsername"
+                          placeholder="Username123"
+                          value={tiktokUsername}
+                          onChange={(e) => setTiktokUsername(e.target.value)}
+                        />
                       </div>
 
                       {/* Snapchat */}
                       <div className="col-6 mb-3">
                         <label htmlFor="snapchatUsername" className="form-label">Snapchat <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            id="snapchatUsername"
-                            placeholder="Username123"
-                            value={snapchatUsername}
-                            onChange={(e) => setSnapchatUsername(e.target.value)}
-                          />
+                        <input
+                          type="text"
+                          className="form-control"
+                          id="snapchatUsername"
+                          placeholder="Username123"
+                          value={snapchatUsername}
+                          onChange={(e) => setSnapchatUsername(e.target.value)}
+                        />
                       </div>
 
                       {/* Discord */}
                       <div className="col-6 mb-3">
                         <label htmlFor="discordUsername" className="form-label">Discord <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            id="discordUsername"
-                            placeholder="Username123"
-                            value={discordUsername}
-                            onChange={(e) => setDiscordUsername(e.target.value)}
-                          />
+                        <input
+                          type="text"
+                          className="form-control"
+                          id="discordUsername"
+                          placeholder="Username123"
+                          value={discordUsername}
+                          onChange={(e) => setDiscordUsername(e.target.value)}
+                        />
                       </div>
                     </div>
                   </form>
