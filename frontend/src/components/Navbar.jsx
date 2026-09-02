@@ -342,8 +342,9 @@ function formatAnalyticsViewTime(value) {
   }).format(date);
 }
 
-function buildDrawInviteShareMessage() {
-  return "What if someone exactly like you already exists 🤔? Find out on https://letsfindpeople.com";
+function buildDrawInviteShareMessage(inviteLink) {
+  const url = inviteLink || "https://letsfindpeople.com";
+  return `What if someone exactly like you already exists 🤔? Find out on ${url}`;
 }
 
 async function copyTextToClipboard(text) {
@@ -2156,7 +2157,7 @@ function Navbar({ onProfileSave }) {
   const shareDrawInviteLink = async () => {
     if (!drawInviteLink) return;
 
-    const shareMessage = buildDrawInviteShareMessage();
+    const shareMessage = buildDrawInviteShareMessage(drawInviteLink);
     setDrawInviteShareNotice("");
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -2976,8 +2977,10 @@ function Navbar({ onProfileSave }) {
   };
 
   // Progress counter
-  const completedQuestions = yesNoKeys.filter(k => answers[k] != null).length;
-  const totalQuestions = yesNoKeys.length;
+  const completedYesNo = yesNoKeys.filter(k => answers[k] != null).length;
+  const completedDirect = directKeys.filter(k => isDirectQuestionComplete(selected, skipped, k, selectedGender, firstStageCountryNames)).length;
+  const completedQuestions = completedYesNo + completedDirect;
+  const totalQuestions = yesNoKeys.length + directKeys.length;
   const proPlanPrice = useMemo(
     () => getProPlanPrice(savedProfile.location),
     [savedProfile.location]
@@ -4316,9 +4319,8 @@ function Navbar({ onProfileSave }) {
                     {/* Social Usernames - 2x2 grid */}
                     <div className="row">
                       {/* Instagram */}
-                      <div className="col-12 col-md-6 mb-3">
+                      <div className="col-6 mb-3">
                         <label htmlFor="instagramUsername" className="form-label">Instagram <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                        <div className="input-group">
                           <input
                             type="text"
                             className="form-control"
@@ -4327,16 +4329,11 @@ function Navbar({ onProfileSave }) {
                             value={instagramUsername}
                             onChange={(e) => setInstagramUsername(e.target.value)}
                           />
-                          <button type="button" className="btn btn-primary" onClick={() => setShowInstagram(p => !p)} title={showInstagram ? "Hide from profile" : "Show in profile"}>
-                            <i className={`bi bi-eye${showInstagram ? "" : "-slash"}`}></i>
-                          </button>
-                        </div>
                       </div>
 
                       {/* TikTok */}
-                      <div className="col-12 col-md-6 mb-3">
+                      <div className="col-6 mb-3">
                         <label htmlFor="tiktokUsername" className="form-label">TikTok <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                        <div className="input-group">
                           <input
                             type="text"
                             className="form-control"
@@ -4345,16 +4342,11 @@ function Navbar({ onProfileSave }) {
                             value={tiktokUsername}
                             onChange={(e) => setTiktokUsername(e.target.value)}
                           />
-                          <button type="button" className="btn btn-primary" onClick={() => setShowTiktok(p => !p)} title={showTiktok ? "Hide from profile" : "Show in profile"}>
-                            <i className={`bi bi-eye${showTiktok ? "" : "-slash"}`}></i>
-                          </button>
-                        </div>
                       </div>
 
                       {/* Snapchat */}
-                      <div className="col-12 col-md-6 mb-3">
+                      <div className="col-6 mb-3">
                         <label htmlFor="snapchatUsername" className="form-label">Snapchat <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                        <div className="input-group">
                           <input
                             type="text"
                             className="form-control"
@@ -4363,16 +4355,11 @@ function Navbar({ onProfileSave }) {
                             value={snapchatUsername}
                             onChange={(e) => setSnapchatUsername(e.target.value)}
                           />
-                          <button type="button" className="btn btn-primary" onClick={() => setShowSnapchat(p => !p)} title={showSnapchat ? "Hide from profile" : "Show in profile"}>
-                            <i className={`bi bi-eye${showSnapchat ? "" : "-slash"}`}></i>
-                          </button>
-                        </div>
                       </div>
 
                       {/* Discord */}
-                      <div className="col-12 col-md-6 mb-3">
+                      <div className="col-6 mb-3">
                         <label htmlFor="discordUsername" className="form-label">Discord <span className="text-muted fw-normal" style={{ fontSize: "0.85em" }}>(Optional)</span></label>
-                        <div className="input-group">
                           <input
                             type="text"
                             className="form-control"
@@ -4381,10 +4368,6 @@ function Navbar({ onProfileSave }) {
                             value={discordUsername}
                             onChange={(e) => setDiscordUsername(e.target.value)}
                           />
-                          <button type="button" className="btn btn-primary" onClick={() => setShowDiscord(p => !p)} title={showDiscord ? "Hide from profile" : "Show in profile"}>
-                            <i className={`bi bi-eye${showDiscord ? "" : "-slash"}`}></i>
-                          </button>
-                        </div>
                       </div>
                     </div>
                   </form>
@@ -4567,7 +4550,7 @@ function Navbar({ onProfileSave }) {
                     </>
                   )}
                   {editStage === 2 && (
-                    <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={completedQuestions < totalQuestions}>
+                    <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={completedYesNo < yesNoKeys.length}>
                       Save
                     </button>
                   )}
