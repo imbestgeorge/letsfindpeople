@@ -1171,7 +1171,7 @@ export default function Console({ currentUser }) {
       {/* People List */}
       {!isSearching && !needsKeyword && searchResults !== null && searchResults.length > 0 && (
         <div className="container px-0 mt-4" ref={peopleContainerRef}>
-          <h2>Showing 147 people:</h2>
+          <h2>Showing {searchResults.length} {searchResults.length === 1 ? "person" : "people"}:</h2>
           <div className="people-scroll mt-4 mb-4">
             <div className="people-track">
               {searchResults.map((person, index) => (
