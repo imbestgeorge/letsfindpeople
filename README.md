@@ -93,9 +93,3 @@ npm run build
 ```
 
 The output will be placed in `frontend/dist`. The project is configured for single-page app deployment on platforms like Vercel.
-
----
-
-## 📄 License
-
-Private repository for LetsFindPeople.
